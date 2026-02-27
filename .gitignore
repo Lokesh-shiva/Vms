@@ -1,0 +1,47 @@
+# Python environments
+venv/
+.venv/
+env/
+
+# Local environment variables
+**/.env
+**/.env.*
+!**/.env.example
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+
+# IDE/editor files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated test outputs/log snapshots
+backend/*test*_out.txt
+backend/test_output*.txt
+backend/test_results*.txt
+backend/*test_result*.txt
+backend/test_full*.txt
+backend/test_other_modules.txt
+backend/test_schema_output.txt
+backend/test_loc_output.txt
+backend/cart_type_test_output.txt
+backend/booking_test_out.txt
+backend/cart_test_out.txt
+backend/timeslot_test_out.txt
+backend/full_test_out.txt
