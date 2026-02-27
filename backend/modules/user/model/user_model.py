@@ -20,6 +20,7 @@ class User(Base):
         id (int): Primary key, auto-incremented.
         name (str): Full name of the user.
         phone (str): Contact phone number (unique, indexed).
+        password_hash (str): Bcrypt hash — never exposed via to_dict().
         role (str): User role — 'user' or 'admin'.
         is_active (bool): Whether the account is active.
         created_at (datetime): Timestamp of account creation (immutable).
@@ -31,6 +32,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
     phone = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default=UserRole.USER.value)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)

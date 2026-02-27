@@ -27,6 +27,7 @@ class UserRepository:
             user = User(
                 name=user_data.get("name"),
                 phone=user_data.get("phone"),
+                password_hash=user_data.get("password_hash", ""),
                 role=user_data.get("role", UserRole.USER.value),
                 is_active=user_data.get("is_active", True),
             )
@@ -55,6 +56,28 @@ class UserRepository:
         try:
             user = session.query(User).filter(User.phone == phone).first()
             return user.to_dict() if user else None
+        finally:
+            session.close()
+
+    def find_by_phone_with_hash(self, phone: str) -> dict | None:
+        """Retrieve a user by phone including password_hash (auth only).
+
+        Uses explicit field list instead of to_dict() to prevent
+        future refactors from accidentally leaking sensitive data.
+        """
+        session = self._session_factory()
+        try:
+            user = session.query(User).filter(User.phone == phone).first()
+            if not user:
+                return None
+            return {
+                "id": user.id,
+                "name": user.name,
+                "phone": user.phone,
+                "role": user.role,
+                "is_active": user.is_active,
+                "password_hash": user.password_hash,
+            }
         finally:
             session.close()
 

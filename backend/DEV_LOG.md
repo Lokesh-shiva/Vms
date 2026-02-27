@@ -1,5 +1,67 @@
 # Development Log
 
+## 27 Feb 2026 — Day 13: Auth Module Implementation (JWT + Bcrypt)
+
+### Summary
+- Implemented full authentication module with JWT access tokens and bcrypt password hashing.
+- Added `password_hash` column to existing `users` table via Neon MCP (ALTER TABLE, no table recreation).
+- DB default dropped after backfill — future inserts must supply a real bcrypt hash.
+- Auth routes at `/api/v1/auth` (register + login) are unprotected and publicly accessible.
+- RBAC dependencies created and ready for future route protection.
+
+### Database Changes
+- `password_hash VARCHAR NOT NULL` added to `users` table via Neon MCP `run_sql`.
+- Existing rows backfilled with empty string; default then dropped (`ALTER COLUMN password_hash DROP DEFAULT`).
+- User model updated; `password_hash` explicitly excluded from `to_dict()`.
+
+### Auth Module Structure
+```
+modules/auth/
+├── __init__.py
+├── schemas/auth_schema.py         — RegisterSchema, LoginSchema
+├── service/auth_service.py        — register_user(), login_user()
+├── dependencies/auth_dependencies.py — get_current_user(), require_admin(), require_user()
+├── controller/auth_routes.py      — POST /register, POST /login
+└── tests/test_auth_service.py     — 5 unit tests
+```
+
+### Security Implementation
+- **Password hashing**: passlib CryptContext with bcrypt scheme.
+- **JWT (HS256)**: python-jose, 60-minute expiry, timezone-aware (`datetime.now(timezone.utc)`).
+- **Token payload**: `{ "sub": user_id, "role": user_role, "exp": expiry }`.
+- **SECRET_KEY**: stored in `.env`, loaded at startup.
+- **Phone normalization**: spaces stripped before uniqueness checks and lookups.
+- **`find_by_phone_with_hash()`**: explicit field serialization (does not reuse `to_dict()`) to prevent accidental hash leakage.
+- **`get_current_user()`**: validates user existence and `is_active` status from DB on every request — does not trust token payload alone.
+
+### Dependencies Added
+- `passlib[bcrypt]`, `python-jose[cryptography]` added to `requirements.txt`.
+- `bcrypt` pinned to 4.0.1 for passlib compatibility.
+
+### Test Isolation
+- Auth tests use SQLite in-memory with injected `session_factory`.
+- Zero Neon connections during automated testing.
+
+### Verification
+- **130/130 tests passing** (125 existing + 5 new auth tests) — zero regressions.
+- Manual API test confirmed:
+  - `POST /api/v1/auth/register` → 201, user created with hashed password, no `password_hash` in response.
+  - `POST /api/v1/auth/login` → 200, JWT access token returned.
+  - Invalid password → 401 rejected.
+  - Test user cleaned up via `DELETE /api/v1/users`.
+
+### Current Architecture State
+- **User, Location, CartType, Timeslot, Cart, Booking, BookingItem, Item** → DB-backed (Neon PostgreSQL via SQLAlchemy)
+- **Auth** → JWT + bcrypt, routes unprotected, RBAC dependencies ready
+- **All modules now fully DB-backed.** No in-memory repositories remain.
+
+**Status**:
+Auth module successfully implemented.
+Backend secured and ready for route protection.
+System stable.
+
+---
+
 ## 27 Feb 2026 — Booking & BookingItem Post-Migration Validation
 
 ### Summary

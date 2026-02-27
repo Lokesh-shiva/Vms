@@ -28,6 +28,7 @@ from modules.cart_type.controller.cart_type_routes import router as cart_type_ro
 from modules.cart.controller.cart_routes import router as cart_router
 from modules.item.controller.item_routes import router as item_router
 from modules.booking.controller.booking_routes import router as booking_router
+from modules.auth.controller.auth_routes import router as auth_router
 
 
 # ── Application ───────────────────────────────────────────────────────
@@ -74,6 +75,7 @@ app.include_router(cart_type_router)
 app.include_router(cart_router)
 app.include_router(item_router)
 app.include_router(booking_router)
+app.include_router(auth_router)
 
 
 # ── Health Check ──────────────────────────────────────────────────────
