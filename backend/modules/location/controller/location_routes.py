@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from modules.auth.dependencies.auth_dependencies import require_admin
 from modules.location.service.location_service import LocationService
 from modules.location.schemas.location_schema import CreateLocationSchema, UpdateLocationSchema
 
@@ -16,7 +17,7 @@ def _success(data, message: str = "Success") -> dict:
 
 # ── Endpoints ─────────────────────────────────────────────────────────
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(require_admin)])
 def create_location(request_data: dict):
     """Create a new location."""
     schema = CreateLocationSchema(request_data)
@@ -46,7 +47,7 @@ def get_location(location_id: int):
     return _success(location)
 
 
-@router.put("/{location_id}")
+@router.put("/{location_id}", dependencies=[Depends(require_admin)])
 def update_location(location_id: int, request_data: dict):
     """Update an existing location."""
     schema = UpdateLocationSchema(request_data)
@@ -62,7 +63,7 @@ def update_location(location_id: int, request_data: dict):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{location_id}")
+@router.delete("/{location_id}", dependencies=[Depends(require_admin)])
 def delete_location(location_id: int):
     """Delete a location by ID."""
     deleted = location_service.delete_location(location_id)

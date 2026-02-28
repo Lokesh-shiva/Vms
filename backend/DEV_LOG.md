@@ -1,5 +1,60 @@
 # Development Log
 
+## 28 Feb 2026 — Day 14: RBAC Activation (Operational Lifecycle Controlled)
+
+### Summary
+- Activated RBAC across all system routes and booking lifecycle endpoints.
+- Admin-only protection applied to create/update/delete on locations, cart types, items, and carts.
+- Booking creation restricted to authenticated users (`require_user`); server overrides `user_id` from JWT token.
+- Booking cancellation enforces ownership: users can cancel only their own bookings, admins can cancel any.
+- Booking completion restricted to admin role only.
+- List bookings filters by role: admins see all, users see only their own.
+- All state transitions remain strict (only CONFIRMED bookings can be cancelled or completed).
+
+### Route Protection Applied
+
+| Route | Method | Guard |
+|---|---|---|
+| `/api/v1/locations` | POST, PUT, DELETE | `require_admin` |
+| `/api/v1/cart-types` | POST, PUT, DELETE | `require_admin` |
+| `/api/v1/items` | POST, PUT, DELETE | `require_admin` |
+| `/api/v1/carts` | POST, PUT, DELETE | `require_admin` |
+| `/api/v1/bookings` | POST (create) | `require_user` |
+| `/api/v1/bookings` | GET (list) | `get_current_user` + role filter |
+| `/api/v1/bookings/{id}` | GET (detail) | `get_current_user` + ownership check |
+| `/api/v1/bookings/{id}/cancel` | POST | `get_current_user` + ownership check |
+| `/api/v1/bookings/{id}/complete` | POST | `require_admin` |
+
+Read-only endpoints (GET list/detail) on locations, cart types, items, carts remain publicly accessible.
+Booking detail (`GET /bookings/{id}`) requires authentication with ownership enforcement (users see own only, admins see any).
+
+### Data Layer Changes
+- `BookingRepository.find_by_user_id()` added for user-scoped booking queries.
+- `BookingService.list_bookings_by_user()` added to support role-based list filtering.
+
+### Test Coverage
+- New test file: `modules/auth/tests/test_rbac_routes.py` — 28 route-level tests using FastAPI `TestClient` with dependency overrides.
+- Tests cover: admin route protection (16 tests), booking creation user_id override, booking cancellation ownership, booking completion admin-only, role-based list filtering.
+- **161/161 tests passing** (130 existing + 31 RBAC tests) — zero regressions.
+
+### Test Architecture Note
+- First route-level (HTTP) tests in the codebase — all prior tests were service-layer unit tests.
+- Uses `app.dependency_overrides[get_current_user]` to simulate authenticated users without JWT.
+- Service methods mocked via `unittest.mock.patch` to isolate route-layer RBAC logic from DB.
+
+### Current Architecture State
+- **All modules** → DB-backed (Neon PostgreSQL via SQLAlchemy)
+- **Auth** → JWT + bcrypt, RBAC dependencies now enforced on all relevant routes
+- **Booking lifecycle** → Operationally controlled (completion = admin, cancellation = owner/admin)
+- **Backend is now role-secured.** No unprotected write endpoints remain.
+
+**Status**:
+RBAC activation complete.
+All routes protected according to role requirements.
+System stable.
+
+---
+
 ## 27 Feb 2026 — Day 13: Auth Module Implementation (JWT + Bcrypt)
 
 ### Summary

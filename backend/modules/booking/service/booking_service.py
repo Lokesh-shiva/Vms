@@ -222,6 +222,10 @@ class BookingService(BaseService):
         """Retrieve all bookings."""
         return self.booking_repository.find_all()
 
+    def list_bookings_by_user(self, user_id: int) -> list[dict]:
+        """Retrieve all bookings belonging to a specific user."""
+        return self.booking_repository.find_by_user_id(user_id)
+
     def cancel_booking(self, booking_id: int) -> dict:
         """
         Cancel an existing booking.

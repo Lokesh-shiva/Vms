@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from modules.auth.dependencies.auth_dependencies import require_admin
 from modules.item.service.item_service import ItemService
 from modules.item.schemas.item_schema import CreateItemSchema, UpdateItemSchema
 
@@ -16,7 +17,7 @@ def _success(data, message: str = "Success") -> dict:
 
 # ── Endpoints ─────────────────────────────────────────────────────────
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(require_admin)])
 def create_item(request_data: dict):
     """Create a new item."""
     schema = CreateItemSchema(request_data)
@@ -49,7 +50,7 @@ def get_item(item_id: int):
     return _success(item)
 
 
-@router.put("/{item_id}")
+@router.put("/{item_id}", dependencies=[Depends(require_admin)])
 def update_item(item_id: int, request_data: dict):
     """Update an existing item."""
     schema = UpdateItemSchema(request_data)
@@ -65,7 +66,7 @@ def update_item(item_id: int, request_data: dict):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{item_id}")
+@router.delete("/{item_id}", dependencies=[Depends(require_admin)])
 def delete_item(item_id: int):
     """Delete an item by ID."""
     deleted = item_service.delete_item(item_id)

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from modules.auth.dependencies.auth_dependencies import require_admin
 from modules.cart_type.service.cart_type_service import CartTypeService
 from modules.cart_type.schemas.cart_type_schema import CreateCartTypeSchema, UpdateCartTypeSchema
 
@@ -16,7 +17,7 @@ def _success(data, message: str = "Success") -> dict:
 
 # ── Endpoints ─────────────────────────────────────────────────────────
 
-@router.post("", status_code=201)
+@router.post("", status_code=201, dependencies=[Depends(require_admin)])
 def create_cart_type(request_data: dict):
     """Create a new cart type."""
     schema = CreateCartTypeSchema(request_data)
@@ -46,7 +47,7 @@ def get_cart_type(cart_type_id: int):
     return _success(cart_type)
 
 
-@router.put("/{cart_type_id}")
+@router.put("/{cart_type_id}", dependencies=[Depends(require_admin)])
 def update_cart_type(cart_type_id: int, request_data: dict):
     """Update an existing cart type."""
     schema = UpdateCartTypeSchema(request_data)
@@ -62,7 +63,7 @@ def update_cart_type(cart_type_id: int, request_data: dict):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{cart_type_id}")
+@router.delete("/{cart_type_id}", dependencies=[Depends(require_admin)])
 def delete_cart_type(cart_type_id: int):
     """Delete a cart type by ID."""
     deleted = cart_type_service.delete_cart_type(cart_type_id)
