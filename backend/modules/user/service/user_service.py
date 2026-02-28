@@ -50,20 +50,25 @@ class UserService(BaseService):
         """Retrieve all users."""
         return self.user_repository.find_all()
 
-    def update_user(self, user_id: int, update_data: dict) -> dict | None:
+    def update_user(self, user_id: int, update_data: dict, current_user: dict = None) -> dict | None:
         """
         Update an existing user.
 
         Args:
             user_id: Target user ID.
             update_data: Fields to update.
+            current_user: Authenticated caller (defense-in-depth for role guard).
 
         Returns:
             The updated user record, or None if not found.
 
         Raises:
-            ValueError: If phone uniqueness is violated.
+            ValueError: If phone uniqueness is violated or non-admin attempts role change.
         """
+        if "role" in update_data:
+            if not current_user or current_user.get("role") != "admin":
+                raise ValueError("Only admins can change user roles.")
+
         existing = self.user_repository.find_by_id(user_id)
         if not existing:
             return None
@@ -77,11 +82,20 @@ class UserService(BaseService):
 
         return self.user_repository.update(user_id, update_data)
 
-    def delete_user(self, user_id: int) -> bool:
+    def delete_user(self, user_id: int, current_user: dict = None) -> bool:
         """
         Delete a user by ID.
 
+        Args:
+            current_user: Authenticated caller (defense-in-depth for self-delete guard).
+
         Returns:
             True if deleted, False if user was not found.
+
+        Raises:
+            ValueError: If admin attempts to delete themselves.
         """
+        if current_user and current_user.get("id") == user_id:
+            raise ValueError("Cannot delete your own account.")
+
         return self.user_repository.delete(user_id)

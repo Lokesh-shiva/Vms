@@ -1,5 +1,52 @@
 # Development Log
 
+## 28 Feb 2026 — Day 14.1: User Management Secured
+
+### Summary
+- Locked down all user management routes under role-based access control.
+- PUT route uses `get_current_user` with ownership logic: users can update their own non-role fields, admins can update anyone.
+- Role mutation blocked for non-admins at both route and service layers (defense-in-depth).
+- Self-deletion blocked at both route and service layers to prevent admin lockout.
+- GET routes enforce ownership: admins see all users, regular users see only their own profile.
+- POST (create) and DELETE restricted to admin role.
+
+### Route Protection Applied
+
+| Route | Method | Guard |
+|---|---|---|
+| `/api/v1/users` | POST (create) | `require_admin` |
+| `/api/v1/users` | GET (list) | `get_current_user` + role filter |
+| `/api/v1/users/{id}` | GET (detail) | `get_current_user` + ownership check |
+| `/api/v1/users/{id}` | PUT (update) | `get_current_user` + ownership + role-mutation guard |
+| `/api/v1/users/{id}` | DELETE | `require_admin` + self-deletion guard |
+
+### Service-Layer Guards (Defense-in-Depth)
+- `UserService.update_user()` independently rejects role mutation from non-admins, even if route-level auth is misconfigured.
+- `UserService.delete_user()` independently blocks self-deletion, preventing accidental admin lockout.
+
+### Admin Bootstrap Policy
+- No dev backdoor routes or environment variable overrides.
+- Role switching must be done manually via Neon DB: `UPDATE users SET role='admin' WHERE id=<id>;`
+- System relies strictly on DB truth for role assignments.
+
+### Test Coverage
+- New test file: `modules/auth/tests/test_user_rbac_routes.py` — 11 route-level tests using FastAPI `TestClient` with dependency overrides.
+- Tests cover: user creation (admin only), profile update ownership, role mutation guard, self-deletion prevention, admin delete/update, GET ownership enforcement.
+- **172/172 tests passing** (161 existing + 11 user RBAC tests) — zero regressions.
+
+### Current Architecture State
+- **All modules** → DB-backed (Neon PostgreSQL via SQLAlchemy)
+- **Auth** → JWT + bcrypt, RBAC dependencies enforced on all routes
+- **User management** → Fully secured; privilege escalation surface closed
+- **No unprotected write endpoints remain.**
+
+**Status**:
+User management secured.
+Privilege escalation vulnerability patched.
+System stable.
+
+---
+
 ## 28 Feb 2026 — Day 14: RBAC Activation (Operational Lifecycle Controlled)
 
 ### Summary
