@@ -12,6 +12,7 @@ from modules.cart.model.cart_model import Cart  # noqa: F401 — registers model
 from modules.item.model.item_model import Item  # noqa: F401 — registers model
 from modules.booking.model.booking_model import Booking  # noqa: F401 — registers model
 from modules.booking_item.model.booking_item_model import BookingItem  # noqa: F401 — registers model
+from modules.payment.model.payment_model import Payment  # noqa: F401 — registers model
 
 from modules.booking.repository.booking_repository import BookingRepository
 from modules.booking.service.booking_service import BookingService
@@ -23,6 +24,8 @@ from modules.cart.repository.cart_repository import CartRepository
 from modules.booking_item.repository.booking_item_repository import BookingItemRepository
 from modules.booking_item.service.booking_item_service import BookingItemService
 from modules.item.repository.item_repository import ItemRepository
+from modules.payment.repository.payment_repository import PaymentRepository
+from modules.payment.service.payment_service import PaymentService
 
 
 def _make_test_session_factory():
@@ -114,15 +117,25 @@ class TestBookingItemService(unittest.TestCase):
             item_repository=self.item_repo,
         )
 
+        # Payment repos for BookingService dependency
+        booking_repo = BookingRepository(session_factory=test_session_factory)
+        payment_repo = PaymentRepository(session_factory=test_session_factory)
+        payment_service = PaymentService(
+            payment_repository=payment_repo,
+            booking_repository=booking_repo,
+        )
+
         # Booking service with all isolated repos
         self.service = BookingService(
-            booking_repository=BookingRepository(session_factory=test_session_factory),
+            booking_repository=booking_repo,
             user_repository=self.user_repo,
             location_repository=self.location_repo,
             cart_type_repository=self.cart_type_repo,
             timeslot_repository=self.timeslot_repo,
             cart_repository=self.cart_repo,
             booking_item_service=self.booking_item_service,
+            payment_repository=payment_repo,
+            payment_service=payment_service,
         )
 
     def _valid_data(self, **overrides) -> dict:
@@ -148,7 +161,7 @@ class TestBookingItemService(unittest.TestCase):
         ]
         result = self.service.create_booking(self._valid_data(items=items))
 
-        self.assertEqual(result["status"], "CONFIRMED")
+        self.assertEqual(result["status"], "PENDING_PAYMENT")
         self.assertIn("items", result)
         self.assertEqual(len(result["items"]), 2)
 
@@ -170,7 +183,7 @@ class TestBookingItemService(unittest.TestCase):
         """Booking without items still works; estimated_total = 0.0."""
         result = self.service.create_booking(self._valid_data())
 
-        self.assertEqual(result["status"], "CONFIRMED")
+        self.assertEqual(result["status"], "PENDING_PAYMENT")
         self.assertEqual(result["estimated_total"], 0.0)
         self.assertNotIn("items", result)
 

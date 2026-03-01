@@ -30,9 +30,14 @@ class Booking(Base):
 
     __tablename__ = "bookings"
 
-    VALID_STATUSES = {
-        "PENDING_PAYMENT", "CONFIRMED", "CANCELLED", "COMPLETED", "PAYMENT_FAILED"
-    }
+    VALID_STATUSES = [
+        "PENDING_PAYMENT",
+        "CONFIRMED",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "CANCELLED",
+        "EXPIRED",
+    ]
     VALID_PAYMENT_STATUSES = {"PENDING", "SUCCESS", "FAILED"}
     VALID_REFUND_STATUSES = {"NONE", "PENDING", "REFUNDED"}
 

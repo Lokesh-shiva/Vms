@@ -253,12 +253,15 @@ class TestBookingRBAC(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
 
     @patch("modules.booking.controller.booking_routes.booking_service")
-    def test_cancel_non_confirmed_booking_returns_400(self, mock_svc):
-        """Cannot cancel a booking that is not in CONFIRMED status."""
+    def test_cancel_non_cancellable_booking_returns_400(self, mock_svc):
+        """Cannot cancel a booking that is already CANCELLED."""
         self._set_user(REGULAR_USER)
         mock_svc.get_booking.return_value = {
             "id": 1, "user_id": REGULAR_USER["id"], "status": "CANCELLED",
         }
+        mock_svc.cancel_booking.side_effect = ValueError(
+            "Cannot cancel booking in CANCELLED status."
+        )
         resp = self.client.post("/api/v1/bookings/1/cancel")
         self.assertEqual(resp.status_code, 400)
 

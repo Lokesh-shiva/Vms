@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from core.base.base_service import BaseService
@@ -8,11 +9,14 @@ from modules.cart_type.repository.cart_type_repository import cart_type_reposito
 from modules.timeslot.repository.timeslot_repository import timeslot_repository as _default_timeslot_repo
 from modules.cart.repository.cart_repository import cart_repository as _default_cart_repo
 from modules.booking_item.service.booking_item_service import BookingItemService
+from modules.payment.repository.payment_repository import payment_repository as _default_payment_repo
+from modules.payment.service.payment_service import PaymentService as _DefaultPaymentService
 
 
 # ── Constants ─────────────────────────────────────────────────────────
 
 MAX_BOOKINGS_PER_USER_PER_DAY = 3
+BOOKING_EXPIRY_MINUTES = 10
 
 
 class BookingService(BaseService):
@@ -23,15 +27,19 @@ class BookingService(BaseService):
     - Validates business rules before data access.
     - Orchestrates calls to BookingRepository and cross-module repositories.
     - Enforces slot capacity, daily user limits, and cart availability.
-    - Simulates payment processing.
+    - Manages booking state machine (PENDING_PAYMENT -> CONFIRMED -> etc).
     - Manages cart lifecycle (assign on confirm, release on cancel/complete).
     - Returns formatted results to the controller.
+
+    BookingService NEVER directly mutates booking.payment_status.
+    That field is owned exclusively by PaymentService.
     """
 
     def __init__(self, booking_repository=None, user_repository=None,
                  location_repository=None, cart_type_repository=None,
                  timeslot_repository=None, cart_repository=None,
-                 booking_item_service=None):
+                 booking_item_service=None, payment_repository=None,
+                 payment_service=None):
         super().__init__()
         self.booking_repository = booking_repository or _default_booking_repo
         self.user_repository = user_repository or _default_user_repo
@@ -40,6 +48,8 @@ class BookingService(BaseService):
         self.timeslot_repository = timeslot_repository or _default_timeslot_repo
         self.cart_repository = cart_repository or _default_cart_repo
         self.booking_item_service = booking_item_service or BookingItemService()
+        self.payment_repository = payment_repository or _default_payment_repo
+        self.payment_service = payment_service or _DefaultPaymentService()
 
     # ── FK Validation Helpers ─────────────────────────────────────────
 
@@ -71,7 +81,10 @@ class BookingService(BaseService):
     # ── Business Rule Helpers ─────────────────────────────────────────
 
     def _enforce_slot_capacity(self, timeslot_id: int, capacity: int, session=None) -> None:
-        """Ensure the timeslot has not reached its booking capacity."""
+        """Ensure the timeslot has not reached its booking capacity.
+
+        Only CONFIRMED and IN_PROGRESS bookings count toward capacity.
+        """
         current_count = self.booking_repository.count_by_timeslot(
             timeslot_id, session=session
         )
@@ -79,13 +92,17 @@ class BookingService(BaseService):
             raise ValueError("Timeslot is fully booked.")
 
     def _enforce_daily_user_limit(self, user_id: int, date: str, session=None) -> None:
-        """Ensure the user has not exceeded the daily booking limit."""
+        """Ensure the user has not exceeded the daily booking limit.
+
+        Counts PENDING_PAYMENT, CONFIRMED, and IN_PROGRESS bookings.
+        Ignores CANCELLED and EXPIRED.
+        """
         user_bookings = self.booking_repository.find_by_user_and_date(
             user_id, date, session=session
         )
         active_bookings = [
             b for b in user_bookings
-            if b["status"] in ("PENDING_PAYMENT", "CONFIRMED")
+            if b["status"] in ("PENDING_PAYMENT", "CONFIRMED", "IN_PROGRESS")
         ]
         if len(active_bookings) >= MAX_BOOKINGS_PER_USER_PER_DAY:
             raise ValueError(
@@ -107,35 +124,39 @@ class BookingService(BaseService):
                 return cart
         raise ValueError("No available cart found for the selected region and cart type.")
 
-    def _simulate_payment(self) -> str:
-        """Simulate payment processing. Always returns SUCCESS for V1."""
-        return "SUCCESS"
+    def _check_and_expire(self, booking: dict) -> dict:
+        """Check if a PENDING_PAYMENT booking should be expired.
+
+        Returns the updated booking if expired, otherwise returns the original.
+        """
+        if booking["status"] != "PENDING_PAYMENT":
+            return booking
+
+        created_at = booking["created_at"]
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at)
+
+        if datetime.utcnow() - created_at > timedelta(minutes=BOOKING_EXPIRY_MINUTES):
+            return self.booking_repository.update(booking["id"], {
+                "status": "EXPIRED",
+            })
+
+        return booking
 
     # ── CRUD ──────────────────────────────────────────────────────────
 
     def create_booking(self, booking_data: dict) -> dict:
         """
-        Create a new booking after applying all business rules.
+        Create a new booking in PENDING_PAYMENT status.
 
         Flow:
         1. Validate FK existence (user, region, cart_type, timeslot)
-        2. Validate and snapshot items (if provided) — before any side effects
-        3. Enforce slot capacity
-        4. Enforce daily user limit
-        5. Check cart availability (fail if none)
-        6. Simulate payment
-        7. Assign cart (set cart status to BUSY)
-        8. Create booking as CONFIRMED
-        9. Persist BookingItem records (after booking exists)
+        2. Validate and snapshot items (if provided) -- before any side effects
+        3. Enforce daily user limit
+        4. Create booking as PENDING_PAYMENT (no cart assignment, no payment)
+        5. Persist BookingItem records (after booking exists)
 
-        Args:
-            booking_data: Validated booking input.
-
-        Returns:
-            The created booking record as a dict.
-
-        Raises:
-            ValueError: If any business validation fails.
+        Cart assignment is deferred to confirm_booking() after payment approval.
         """
         # 1. Validate all foreign keys
         self._validate_user(booking_data["user_id"])
@@ -156,51 +177,28 @@ class BookingService(BaseService):
             validated_snapshots = []
             estimated_total = Decimal("0.00")
 
-        # Server-computed — never trust client value
         booking_data["estimated_total"] = float(estimated_total)
 
         tx_session = self.booking_repository._session_factory()
         try:
-            # 3. Enforce slot capacity
-            self._enforce_slot_capacity(
-                booking_data["timeslot_id"],
-                timeslot["capacity"],
-                session=tx_session,
-            )
-
-            # 4. Enforce daily user limit
+            # 3. Enforce daily user limit
             self._enforce_daily_user_limit(
                 booking_data["user_id"],
                 timeslot["date"],
                 session=tx_session,
             )
 
-            # 5. Check cart availability — fail if none found
-            cart = self._find_available_cart(
-                booking_data["region_id"],
-                booking_data["cart_type_id"],
-                session=tx_session,
-            )
-
-            # 6. Simulate payment
-            payment_status = self._simulate_payment()
-
-            # 7. Assign cart → set cart status to BUSY
-            self.cart_repository.update(
-                cart["id"], {"status": "BUSY"}, session=tx_session
-            )
-
-            # 8. Create booking as CONFIRMED
-            booking_data["assigned_cart_id"] = cart["id"]
-            booking_data["status"] = "CONFIRMED"
-            booking_data["payment_status"] = payment_status
+            # 4. Create booking as PENDING_PAYMENT -- no cart, no payment
+            booking_data["assigned_cart_id"] = None
+            booking_data["status"] = "PENDING_PAYMENT"
+            booking_data["payment_status"] = "PENDING"
             booking_data["refund_status"] = "NONE"
             booking_data["refund_amount"] = 0.0
-            booking_data["date"] = timeslot["date"]  # Store date for daily limit queries
+            booking_data["date"] = timeslot["date"]
 
             booking = self.booking_repository.create(booking_data, session=tx_session)
 
-            # 9. Persist BookingItem records after booking is created
+            # 5. Persist BookingItem records after booking is created
             if validated_snapshots:
                 booking["items"] = self.booking_item_service.create_booking_items(
                     booking["id"], validated_snapshots, session=tx_session
@@ -213,6 +211,57 @@ class BookingService(BaseService):
             raise
         finally:
             tx_session.close()
+
+    def confirm_booking(self, booking_id: int) -> dict:
+        """
+        Admin confirms a booking after payment approval.
+
+        Safety checks (in order):
+        1. Check if booking should be expired (auto-expire if past 10 min)
+        2. Validate booking.status == PENDING_PAYMENT
+        3. Validate payment.status == SUCCESS
+        4. Find available cart (fail if none)
+        5. Assign cart, lock it, set booking to CONFIRMED
+        """
+        booking = self.booking_repository.find_by_id(booking_id)
+        if not booking:
+            raise ValueError("Booking not found.")
+
+        # 1. Expire check
+        booking = self._check_and_expire(booking)
+
+        # 2. Status validation
+        if booking["status"] != "PENDING_PAYMENT":
+            raise ValueError(
+                f"Cannot confirm booking in {booking['status']} status. "
+                f"Only PENDING_PAYMENT bookings can be confirmed."
+            )
+
+        # 3. Payment validation
+        payment = self.payment_repository.find_by_booking_id(booking_id)
+        if not payment:
+            raise ValueError("No payment found for this booking.")
+        if payment["status"] != "SUCCESS":
+            raise ValueError(
+                f"Payment is in {payment['status']} status. "
+                f"Only bookings with SUCCESS payment can be confirmed."
+            )
+
+        # 4. Find available cart
+        try:
+            cart = self._find_available_cart(
+                booking["region_id"], booking["cart_type_id"]
+            )
+        except ValueError:
+            raise ValueError("No cart available at confirmation time.")
+
+        # 5. Assign cart and confirm
+        self.cart_repository.update(cart["id"], {"status": "BUSY"})
+
+        return self.booking_repository.update(booking_id, {
+            "assigned_cart_id": cart["id"],
+            "status": "CONFIRMED",
+        })
 
     def get_booking(self, booking_id: int) -> dict | None:
         """Retrieve a single booking by ID."""
@@ -230,38 +279,61 @@ class BookingService(BaseService):
         """
         Cancel an existing booking.
 
-        Flow:
-        1. Validate booking exists and status is CONFIRMED
-        2. Release assigned cart (set status to AVAILABLE)
-        3. Set booking status to CANCELLED, refund_status to REFUNDED
+        Allowed from: PENDING_PAYMENT, CONFIRMED
+        Blocked for: IN_PROGRESS, COMPLETED, EXPIRED, CANCELLED
 
-        Args:
-            booking_id: Target booking ID.
-
-        Returns:
-            The updated booking record.
-
-        Raises:
-            ValueError: If booking not found or not in CONFIRMED status.
+        If PENDING_PAYMENT: just cancel (no cart to release, no refund).
+        If CONFIRMED: release cart, initiate refund via PaymentService if payment SUCCESS.
         """
         booking = self.booking_repository.find_by_id(booking_id)
         if not booking:
             raise ValueError("Booking not found.")
 
-        if booking["status"] != "CONFIRMED":
-            raise ValueError("Only confirmed bookings can be cancelled.")
-
-        # Release the assigned cart
-        if booking["assigned_cart_id"]:
-            self.cart_repository.update(
-                booking["assigned_cart_id"], {"status": "AVAILABLE"}
+        if booking["status"] not in ("PENDING_PAYMENT", "CONFIRMED"):
+            raise ValueError(
+                f"Cannot cancel booking in {booking['status']} status. "
+                f"Only PENDING_PAYMENT or CONFIRMED bookings can be cancelled."
             )
 
-        # Update booking status
+        if booking["status"] == "CONFIRMED":
+            # Release the assigned cart
+            if booking["assigned_cart_id"]:
+                self.cart_repository.update(
+                    booking["assigned_cart_id"], {"status": "AVAILABLE"}
+                )
+
+            # Refund via PaymentService if payment was successful
+            payment = self.payment_repository.find_by_booking_id(booking_id)
+            if payment and payment["status"] == "SUCCESS":
+                self.payment_service.process_refund(payment["id"], booking["booking_fee"])
+
         return self.booking_repository.update(booking_id, {
             "status": "CANCELLED",
-            "refund_status": "REFUNDED",
-            "refund_amount": booking["booking_fee"],
+        })
+
+    def expire_booking(self, booking_id: int) -> dict:
+        """
+        Expire a booking that has been in PENDING_PAYMENT too long.
+
+        Only allowed if status == PENDING_PAYMENT.
+        Checks if created_at is older than BOOKING_EXPIRY_MINUTES.
+        """
+        booking = self.booking_repository.find_by_id(booking_id)
+        if not booking:
+            raise ValueError("Booking not found.")
+
+        if booking["status"] != "PENDING_PAYMENT":
+            raise ValueError("Only PENDING_PAYMENT bookings can be expired.")
+
+        created_at = booking["created_at"]
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at)
+
+        if datetime.utcnow() - created_at <= timedelta(minutes=BOOKING_EXPIRY_MINUTES):
+            raise ValueError("Booking has not yet exceeded the expiry window.")
+
+        return self.booking_repository.update(booking_id, {
+            "status": "EXPIRED",
         })
 
     def complete_booking(self, booking_id: int) -> dict:
@@ -272,15 +344,6 @@ class BookingService(BaseService):
         1. Validate booking exists and status is CONFIRMED
         2. Release assigned cart (set status to AVAILABLE)
         3. Set booking status to COMPLETED
-
-        Args:
-            booking_id: Target booking ID.
-
-        Returns:
-            The updated booking record.
-
-        Raises:
-            ValueError: If booking not found or not in CONFIRMED status.
         """
         booking = self.booking_repository.find_by_id(booking_id)
         if not booking:
@@ -295,7 +358,6 @@ class BookingService(BaseService):
                 booking["assigned_cart_id"], {"status": "AVAILABLE"}
             )
 
-        # Update booking status
         return self.booking_repository.update(booking_id, {
             "status": "COMPLETED",
         })

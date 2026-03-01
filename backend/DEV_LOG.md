@@ -1,5 +1,89 @@
 # Development Log
 
+## 01 Mar 2026 — Day 15 + 15.1: Booking & Payment State Machine (Manual UPI MVP)
+
+### Summary
+- Implemented proper Booking and Payment state machines with controlled transitions.
+- Created new Payment module (model, repository, service, controller, tests).
+- Booking creation now starts as `PENDING_PAYMENT` — no auto-confirmation, no cart assignment.
+- Cart assignment deferred to admin-controlled `confirm_booking()` after payment approval.
+- Manual UPI provider with reference code generation (`VMS-{booking_id}-{4 digits}`).
+- Separate admin workflows: payment approval and booking confirmation.
+
+### Day 15.1 Refinements Applied
+- Removed `INITIATED` payment state — 5 states only: PENDING, UNDER_REVIEW, SUCCESS, FAILED, REFUNDED.
+- Payment table is single source of truth; `bookings.payment_status` is a mirror field updated exclusively by PaymentService.
+- BookingService never directly mutates `payment_status`.
+- Slot capacity counts only CONFIRMED + IN_PROGRESS (not PENDING_PAYMENT).
+- Daily limit ignores CANCELLED and EXPIRED bookings.
+- Cancellation hardened: blocked for IN_PROGRESS, COMPLETED, EXPIRED. Refund routed through PaymentService.
+- `confirm_booking()` runs expiry check first, then validates status, payment, and cart availability.
+- Reference code: unique DB constraint + 5-attempt retry + system error on persistent collision.
+- Admin payment inspection endpoint added (`GET /api/v1/payments/booking/{booking_id}`).
+
+### Booking Status Refactor
+
+| Old Statuses | New Statuses |
+|---|---|
+| PENDING_PAYMENT, CONFIRMED, CANCELLED, COMPLETED, PAYMENT_FAILED | PENDING_PAYMENT, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, EXPIRED |
+
+### Payment Module Structure
+```
+modules/payment/
+├── model/payment_model.py          — ORM model (payments table)
+├── repository/payment_repository.py — Session-based CRUD
+├── service/payment_service.py       — Admin approval workflow
+├── controller/payment_routes.py     — 6 endpoints
+└── tests/test_payment_service.py    — 24 unit tests
+```
+
+### Route Protection Applied
+
+| Route | Method | Guard |
+|---|---|---|
+| `/api/v1/payments/initiate/{booking_id}` | POST | `require_user` |
+| `/api/v1/payments/confirm-manual/{booking_id}` | POST | `require_user` |
+| `/api/v1/payments/approve/{payment_id}` | POST | `require_admin` |
+| `/api/v1/payments/reject/{payment_id}` | POST | `require_admin` |
+| `/api/v1/payments/refund/{payment_id}` | POST | `require_admin` |
+| `/api/v1/payments/booking/{booking_id}` | GET | `require_admin` |
+| `/api/v1/bookings/{id}/confirm` | POST | `require_admin` |
+
+### Booking Flow (New)
+1. User creates booking → status = PENDING_PAYMENT (no cart assigned)
+2. User initiates payment → payment = PENDING
+3. User submits UPI transaction ID → payment = UNDER_REVIEW
+4. Admin approves payment → payment = SUCCESS, booking.payment_status mirrored
+5. Admin confirms booking → cart assigned, status = CONFIRMED
+6. Admin completes booking → cart released, status = COMPLETED
+
+### Key Architecture Decisions
+- PaymentService is a manual admin approval workflow — no bank connection, no UPI verification.
+- Cart not locked until confirmation — prevents holding carts for unpaid bookings.
+- Expiry check runs inside `confirm_booking()` to prevent race conditions.
+- No background workers — expiry is on-demand.
+
+### Test Coverage
+- Booking tests: 27 tests (rewritten for new state machine)
+- Payment tests: 24 tests (new module)
+- BookingItem tests: 11 tests (updated status assertions)
+- RBAC tests: updated for service-level cancellation checks
+- **202/202 tests passing** — zero regressions.
+
+### Current Architecture State
+- **All modules** → DB-backed (Neon PostgreSQL via SQLAlchemy)
+- **Auth** → JWT + bcrypt, RBAC enforced on all routes
+- **Booking** → State machine with PENDING_PAYMENT → CONFIRMED → COMPLETED
+- **Payment** → Manual UPI approval workflow, source of truth for payment state
+- **No auto-confirmation. No simulated payment. No Razorpay.**
+
+**Status**:
+Booking & Payment state machines implemented.
+Manual UPI MVP operational.
+System stable.
+
+---
+
 ## 28 Feb 2026 — Day 14.1: User Management Secured
 
 ### Summary

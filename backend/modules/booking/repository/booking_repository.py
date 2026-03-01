@@ -111,7 +111,11 @@ class BookingRepository:
                 session.close()
 
     def count_by_timeslot(self, timeslot_id: int, session=None) -> int:
-        """Count active bookings for a specific timeslot."""
+        """Count capacity-consuming bookings for a specific timeslot.
+
+        Only CONFIRMED and IN_PROGRESS bookings consume slot capacity.
+        PENDING_PAYMENT, CANCELLED, and EXPIRED do not.
+        """
         own_session = session is None
         session = session or self._session_factory()
         try:
@@ -119,7 +123,7 @@ class BookingRepository:
                 session.query(func.count(Booking.id))
                 .filter(
                     Booking.timeslot_id == timeslot_id,
-                    Booking.status.in_(("PENDING_PAYMENT", "CONFIRMED")),
+                    Booking.status.in_(("CONFIRMED", "IN_PROGRESS")),
                 )
                 .scalar()
                 or 0

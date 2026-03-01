@@ -67,15 +67,22 @@ def cancel_booking(booking_id: int, current_user: dict = Depends(get_current_use
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")
 
-    if booking["status"] != "CONFIRMED":
-        raise HTTPException(status_code=400, detail="Only confirmed bookings can be cancelled.")
-
     if current_user["role"] != "admin" and booking["user_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="You can only cancel your own bookings.")
 
     try:
         updated = booking_service.cancel_booking(booking_id)
         return _success(updated, "Booking cancelled successfully.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{booking_id}/confirm", dependencies=[Depends(require_admin)])
+def confirm_booking(booking_id: int):
+    """Confirm a booking after payment approval. Admin only."""
+    try:
+        booking = booking_service.confirm_booking(booking_id)
+        return _success(booking, "Booking confirmed successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
