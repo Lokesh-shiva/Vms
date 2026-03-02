@@ -30,7 +30,10 @@ from modules.item.controller.item_routes import router as item_router
 from modules.booking.controller.booking_routes import router as booking_router
 from modules.payment.controller.payment_routes import router as payment_router
 from modules.auth.controller.auth_routes import router as auth_router
+from modules.fee_config.controller.fee_config_routes import router as fee_config_router
 from modules.payment.model.payment_model import Payment  # noqa: F401 — registers model
+from modules.payment.model.system_config_model import SystemConfig  # noqa: F401 — registers model
+from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401 — registers model
 
 
 # ── Application ───────────────────────────────────────────────────────
@@ -79,6 +82,7 @@ app.include_router(item_router)
 app.include_router(booking_router)
 app.include_router(payment_router)
 app.include_router(auth_router)
+app.include_router(fee_config_router)
 
 
 # ── Health Check ──────────────────────────────────────────────────────

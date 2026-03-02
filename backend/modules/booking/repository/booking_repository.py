@@ -40,6 +40,12 @@ class BookingRepository:
                 payment_status=booking_data.get("payment_status", "PENDING"),
                 refund_status=booking_data.get("refund_status", "NONE"),
                 refund_amount=booking_data.get("refund_amount", 0.0),
+                cancellation_fee_pct_snapshot=booking_data.get(
+                    "cancellation_fee_pct_snapshot", 0
+                ),
+                platform_fee_pct_snapshot=booking_data.get(
+                    "platform_fee_pct_snapshot", 0
+                ),
                 date=booking_data.get("date"),
             )
             session.add(booking)

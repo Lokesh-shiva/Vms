@@ -1,5 +1,161 @@
 # Development Log
 
+## 02 Mar 2026 — Day 17: Admin-Configurable UPI & Merchant Settings
+
+### Summary
+Added runtime-configurable payment settings so admins can change the UPI ID and merchant/company name without redeploying.
+
+### Changes
+- **New model**: `system_config_model.py` — key-value `system_configs` table for runtime settings.
+- **New repository**: `system_config_repository.py` — `get(key)` / `set(key, value)` with upsert logic.
+- **Updated `payment_service.py`**:
+  - Reads `UPI_ID` and `MERCHANT_NAME` from DB at runtime, falls back to `.env` values.
+  - `_get_active_upi_id()` / `_get_active_merchant_name()` helpers.
+  - `get_admin_payment_config()` — returns current active config.
+  - `update_admin_payment_config(upi_id, merchant_name)` — validates and persists.
+  - UPI link `pn=` now uses dynamic merchant name instead of hardcoded "VMS".
+- **Updated `payment_routes.py`**:
+  - `GET /api/v1/payments/config` — admin-only, returns current UPI ID + merchant name.
+  - `PUT /api/v1/payments/config` — admin-only, updates UPI ID and/or merchant name.
+- **Registered** `SystemConfig` model in `main.py` for auto table creation.
+- **Updated tests**: 3 new tests (default config, update + deep link verification, validation), fixed 4 existing UPI link tests that referenced the renamed `UPI_ID` variable.
+
+### Safety
+- DB config is optional; env var fallback ensures zero-downtime if table is empty.
+- UPI ID validated to contain `@`; merchant name validated to be non-blank.
+- Config changes take effect immediately on next payment initiation (no restart needed).
+
+### Test Coverage
+- 38 payment tests pass (3 new + 35 existing, 0 regressions).
+
+---
+
+## 02 Mar 2026 — Day 16: UPI Deep Link Redirect Integration
+
+### Summary
+- Enhanced manual UPI payment flow with UPI deep link generation.
+- Mobile apps can now open the deep link directly via intent/redirect — no QR code needed.
+- `UPI_ID` loaded from environment variable (`UPI_ID`), not hardcoded.
+- Amount formatted to 2 decimal places in the UPI link.
+- Reference code used as transaction note (`tn` parameter).
+- Existing workflow (initiate → confirm-manual → admin approve) unchanged.
+
+### Changes
+
+#### `payment_service.py`
+- `MANUAL_UPI_ID` replaced with `UPI_ID = os.getenv("UPI_ID", "vms@upi")`.
+- `initiate_payment()` now constructs a `upi://pay?` deep link with `pa`, `pn`, `am`, `cu`, `tn` params.
+- Response includes new `upi_link` field alongside existing `booking_id`, `amount`, `reference_code`, `upi_id`.
+
+#### `.env`
+- Added `UPI_ID=vms@okicici`.
+
+#### `payment_routes.py`
+- No changes needed — `upi_link` flows through the existing `_success(result)` wrapper.
+
+### Safety Guarantees
+- Amount formatted to 2 decimal places (no floating-point noise in link).
+- No spaces in UPI link.
+- Booking must be `PENDING_PAYMENT` before initiation.
+- Retry logic unchanged — deep link generated on retry too.
+- No QR code generation. No external QR libraries.
+- No payment gateway integration. Admin approval workflow intact.
+
+### Test Coverage
+- 6 new UPI deep link assertions added to `test_payment_service.py`:
+  - `upi_link` starts with `upi://pay?`
+  - Contains correctly formatted amount
+  - Contains reference code in `tn` param
+  - Contains `UPI_ID` in `pa` param
+  - No spaces in link
+  - Deep link present on retry after rejection
+- **240/240 tests passing** — zero regressions.
+
+**Status**:
+UPI deep link integration complete.
+Mobile-first redirect design operational.
+System stable.
+
+---
+
+## 01 Mar 2026 — Day 15.2: Region + CartType Fee Config & Refund Deduction Engine
+
+### Summary
+- New `fee_config` module: admin-configurable booking fees and refund deduction percentages per region + cart type.
+- Booking fee enforced server-side — client-provided `booking_fee` ignored.
+- Refund uses **snapshot** percentages captured at booking creation time (not live config).
+- Soft-delete only — `DELETE` sets `is_active = False`, preserving historical data.
+- All percentage validation at service layer. No business rules in routes.
+
+### Fee Config Module Structure
+```
+modules/fee_config/
+├── model/fee_config_model.py           — ORM model (region_cart_type_configs table)
+├── repository/fee_config_repository.py — CRUD + find_by_region_and_cart_type, soft-delete
+├── service/fee_config_service.py       — Business validation (FK, pct sum ≤ 100, negative guards)
+├── schemas/fee_config_schema.py        — Create + Update structural validation
+├── controller/fee_config_routes.py     — 5 admin-only endpoints
+└── tests/test_fee_config_service.py    — 18 unit tests
+```
+
+### Database Changes
+- New table: `region_cart_type_configs` with `UniqueConstraint(region_id, cart_type_id)`.
+- New columns on `bookings`: `cancellation_fee_pct_snapshot`, `platform_fee_pct_snapshot` (Numeric 5,2).
+
+### Key Architecture Decisions
+- **Snapshot design**: At booking creation, `cancellation_fee_pct` and `platform_fee_pct` are copied from config into the booking record. Refund logic uses these snapshot values, never the live config. This prevents admin config changes from retroactively affecting old bookings.
+- **Refund formula**: `refund_amount = total_paid × (1 - (cancellation_pct + platform_pct) / 100)`, rounded to 2 decimal places.
+- **No fee_config_repository in PaymentService**: Refund reads snapshot fields directly from the booking, eliminating dependency on live config.
+- **Soft-delete**: `DELETE /fee-config/{id}` sets `is_active = False`. No hard deletion.
+
+### Route Protection Applied
+
+| Route | Method | Guard |
+|---|---|---|
+| `/api/v1/fee-config/create` | POST | `require_admin` |
+| `/api/v1/fee-config/{id}` | PUT | `require_admin` |
+| `/api/v1/fee-config/region/{id}/cart-type/{id}` | GET | `require_admin` |
+| `/api/v1/fee-config/all` | GET | `require_admin` |
+| `/api/v1/fee-config/{id}` | DELETE | `require_admin` |
+
+### Booking Flow Changes
+1. User creates booking → fee config fetched by (region_id, cart_type_id)
+2. `booking_fee`, `cancellation_fee_pct_snapshot`, `platform_fee_pct_snapshot` set from config
+3. Client-provided `booking_fee` ignored
+4. If config missing/inactive → booking creation blocked (400)
+
+### Payment Retry & Lazy Expiry (Refinements)
+- **Payment Retry:** Admin rejecting a manual payment moves it to `FAILED`, but the `booking` remains `PENDING_PAYMENT`. Users can safely `initiate_payment` again, generating a new, unique reference code and pending payment record.
+- **Lazy Expiry:** PENDING_PAYMENT bindings automatically expire if older than 10 minutes when accessed (e.g., via `get_booking`, `list_bookings`, or limit checks). No background workers required.
+- **Daily Booking Limit:** Strict daily checks now *only* count `CONFIRMED` and `IN_PROGRESS` bookings, fully ignoring `EXPIRED` and `PENDING_PAYMENT` bookings to prevent blocking legitimate attempts.
+
+### Refund Flow Changes
+1. `cancel_booking()` passes full booking dict to `process_refund()`
+2. `process_refund()` reads snapshot pcts from booking
+3. Deduction = `cancellation_fee_pct_snapshot + platform_fee_pct_snapshot`
+4. `refund_amount = total_paid × (1 - deduction / 100)`
+
+### Test Coverage
+- Fee config: 18 tests (CRUD, uniqueness, pct validation, soft-delete)
+- Booking: 25 tests (fee from config, snapshot capture, config deactivation edge case)
+- Payment: 22 tests (refund formula, snapshot-not-live, fallback fetch)
+- BookingItem: 11 tests (updated for fee config DI)
+- **231/231 tests passing** — zero regressions.
+
+### Current Architecture State
+- **All modules** → DB-backed (Neon PostgreSQL via SQLAlchemy)
+- **Auth** → JWT + bcrypt, RBAC enforced on all routes
+- **Fee Config** → Admin-configurable, snapshot-based, soft-delete only
+- **Booking** → Server-side fee enforcement, snapshot pcts at creation time
+- **Payment** → Percentage-based refund using snapshot values
+
+**Status**:
+Fee config engine implemented.
+Snapshot-based refund logic operational.
+System stable.
+
+---
+
 ## 01 Mar 2026 — Day 15 + 15.1: Booking & Payment State Machine (Manual UPI MVP)
 
 ### Summary

@@ -88,3 +88,29 @@ def get_payment_by_booking(booking_id: int, current_user: dict = Depends(require
     if not payment:
         raise HTTPException(status_code=404, detail="No payment found for this booking.")
     return _success(payment)
+
+
+@router.get("/config")
+def get_payment_config(current_user: dict = Depends(require_admin)):
+    """Get active UPI payment configuration (Admin only)."""
+    config = payment_service.get_admin_payment_config()
+    return _success(config, "Payment configuration retrieved.")
+
+
+@router.put("/config")
+def update_payment_config(
+    request_data: dict,
+    current_user: dict = Depends(require_admin)
+):
+    """Update active UPI payment configuration (Admin only)."""
+    upi_id = request_data.get("upi_id")
+    merchant_name = request_data.get("merchant_name")
+    
+    if upi_id is None and merchant_name is None:
+        raise HTTPException(status_code=400, detail="Must provide upi_id or merchant_name to update.")
+        
+    try:
+        updated_config = payment_service.update_admin_payment_config(upi_id, merchant_name)
+        return _success(updated_config, "Payment configuration updated successfully.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

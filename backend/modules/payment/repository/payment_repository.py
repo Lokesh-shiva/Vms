@@ -61,13 +61,18 @@ class PaymentRepository:
                 session.close()
 
     def find_by_booking_id(self, booking_id: int, session=None) -> dict | None:
-        """Retrieve the payment associated with a booking."""
+        """Retrieve the **latest** payment associated with a booking.
+
+        Multiple payments may exist for one booking (FAILED → retry).
+        Always returns the most recent one (highest id).
+        """
         own_session = session is None
         session = session or self._session_factory()
         try:
             payment = (
                 session.query(Payment)
                 .filter(Payment.booking_id == booking_id)
+                .order_by(Payment.id.desc())
                 .first()
             )
             return payment.to_dict() if payment else None

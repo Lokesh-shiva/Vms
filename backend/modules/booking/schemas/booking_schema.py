@@ -5,12 +5,11 @@ class CreateBookingSchema:
     """
     Validates input for booking creation.
 
-    Required fields: user_id, region_id, cart_type_id, timeslot_id,
-                     address, booking_fee
+    Required fields: user_id, region_id, cart_type_id, timeslot_id, address
     Optional fields: items (list of {item_id, quantity})
 
-    Note: estimated_total is always computed server-side and never
-    accepted from the client.
+    Note: booking_fee and estimated_total are always computed server-side
+    and never accepted from the client.
     """
 
     def __init__(self, data: dict):
@@ -56,13 +55,6 @@ class CreateBookingSchema:
             self.errors.append("'address' is required and must be a non-empty string.")
         else:
             self.validated_data["address"] = address.strip()
-
-        # booking_fee — required, float >= 0
-        booking_fee = self._data.get("booking_fee")
-        if booking_fee is None or not isinstance(booking_fee, (int, float)) or booking_fee < 0:
-            self.errors.append("'booking_fee' is required and must be a number >= 0.")
-        else:
-            self.validated_data["booking_fee"] = float(booking_fee)
 
         # items — optional list of {item_id, quantity}
         items = self._data.get("items")

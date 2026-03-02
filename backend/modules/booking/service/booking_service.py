@@ -11,6 +11,7 @@ from modules.cart.repository.cart_repository import cart_repository as _default_
 from modules.booking_item.service.booking_item_service import BookingItemService
 from modules.payment.repository.payment_repository import payment_repository as _default_payment_repo
 from modules.payment.service.payment_service import PaymentService as _DefaultPaymentService
+from modules.fee_config.repository.fee_config_repository import fee_config_repository as _default_fee_config_repo
 
 
 # ── Constants ─────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ class BookingService(BaseService):
                  location_repository=None, cart_type_repository=None,
                  timeslot_repository=None, cart_repository=None,
                  booking_item_service=None, payment_repository=None,
-                 payment_service=None):
+                 payment_service=None, fee_config_repository=None):
         super().__init__()
         self.booking_repository = booking_repository or _default_booking_repo
         self.user_repository = user_repository or _default_user_repo
@@ -50,6 +51,7 @@ class BookingService(BaseService):
         self.booking_item_service = booking_item_service or BookingItemService()
         self.payment_repository = payment_repository or _default_payment_repo
         self.payment_service = payment_service or _DefaultPaymentService()
+        self.fee_config_repository = fee_config_repository or _default_fee_config_repo
 
     # ── FK Validation Helpers ─────────────────────────────────────────
 
@@ -94,15 +96,25 @@ class BookingService(BaseService):
     def _enforce_daily_user_limit(self, user_id: int, date: str, session=None) -> None:
         """Ensure the user has not exceeded the daily booking limit.
 
-        Counts PENDING_PAYMENT, CONFIRMED, and IN_PROGRESS bookings.
-        Ignores CANCELLED and EXPIRED.
+        Counts only CONFIRMED and IN_PROGRESS bookings.
+        PENDING_PAYMENT, CANCELLED, and EXPIRED do NOT count.
+        Also runs lazy expiry check on stale PENDING_PAYMENT bookings.
         """
+        user_bookings = self.booking_repository.find_by_user_and_date(
+            user_id, date, session=session
+        )
+        # Lazy expiry — expire any stale PENDING_PAYMENT before counting
+        for b in user_bookings:
+            if b["status"] == "PENDING_PAYMENT":
+                self._check_and_expire(b)
+
+        # Re-fetch after potential expiry updates
         user_bookings = self.booking_repository.find_by_user_and_date(
             user_id, date, session=session
         )
         active_bookings = [
             b for b in user_bookings
-            if b["status"] in ("PENDING_PAYMENT", "CONFIRMED", "IN_PROGRESS")
+            if b["status"] in ("CONFIRMED", "IN_PROGRESS")
         ]
         if len(active_bookings) >= MAX_BOOKINGS_PER_USER_PER_DAY:
             raise ValueError(
@@ -151,10 +163,11 @@ class BookingService(BaseService):
 
         Flow:
         1. Validate FK existence (user, region, cart_type, timeslot)
-        2. Validate and snapshot items (if provided) -- before any side effects
-        3. Enforce daily user limit
-        4. Create booking as PENDING_PAYMENT (no cart assignment, no payment)
-        5. Persist BookingItem records (after booking exists)
+        2. Fetch fee config and apply booking_fee + snapshot pcts
+        3. Validate and snapshot items (if provided) -- before any side effects
+        4. Enforce daily user limit
+        5. Create booking as PENDING_PAYMENT (no cart assignment, no payment)
+        6. Persist BookingItem records (after booking exists)
 
         Cart assignment is deferred to confirm_booking() after payment approval.
         """
@@ -164,7 +177,21 @@ class BookingService(BaseService):
         self._validate_cart_type(booking_data["cart_type_id"])
         timeslot = self._validate_timeslot(booking_data["timeslot_id"])
 
-        # 2. Validate items and compute estimated_total (before side effects)
+        # 2. Fetch fee config — server-side booking fee enforcement
+        fee_config = self.fee_config_repository.find_by_region_and_cart_type(
+            booking_data["region_id"], booking_data["cart_type_id"]
+        )
+        if not fee_config or not fee_config.get("is_active", False):
+            raise ValueError(
+                "No active fee configuration found for this region and cart type."
+            )
+
+        # Apply server-side values (ignore any client-sent booking_fee)
+        booking_data["booking_fee"] = fee_config["booking_fee"]
+        booking_data["cancellation_fee_pct_snapshot"] = fee_config["cancellation_fee_pct"]
+        booking_data["platform_fee_pct_snapshot"] = fee_config["platform_fee_pct"]
+
+        # 3. Validate items and compute estimated_total (before side effects)
         items_input = booking_data.pop("items", None) or []
         if items_input:
             validated_snapshots = self.booking_item_service.validate_items(
@@ -181,14 +208,14 @@ class BookingService(BaseService):
 
         tx_session = self.booking_repository._session_factory()
         try:
-            # 3. Enforce daily user limit
+            # 4. Enforce daily user limit
             self._enforce_daily_user_limit(
                 booking_data["user_id"],
                 timeslot["date"],
                 session=tx_session,
             )
 
-            # 4. Create booking as PENDING_PAYMENT -- no cart, no payment
+            # 5. Create booking as PENDING_PAYMENT -- no cart, no payment
             booking_data["assigned_cart_id"] = None
             booking_data["status"] = "PENDING_PAYMENT"
             booking_data["payment_status"] = "PENDING"
@@ -198,7 +225,7 @@ class BookingService(BaseService):
 
             booking = self.booking_repository.create(booking_data, session=tx_session)
 
-            # 5. Persist BookingItem records after booking is created
+            # 6. Persist BookingItem records after booking is created
             if validated_snapshots:
                 booking["items"] = self.booking_item_service.create_booking_items(
                     booking["id"], validated_snapshots, session=tx_session
@@ -264,16 +291,21 @@ class BookingService(BaseService):
         })
 
     def get_booking(self, booking_id: int) -> dict | None:
-        """Retrieve a single booking by ID."""
-        return self.booking_repository.find_by_id(booking_id)
+        """Retrieve a single booking by ID. Runs lazy expiry check."""
+        booking = self.booking_repository.find_by_id(booking_id)
+        if booking:
+            booking = self._check_and_expire(booking)
+        return booking
 
     def list_bookings(self) -> list[dict]:
-        """Retrieve all bookings."""
-        return self.booking_repository.find_all()
+        """Retrieve all bookings. Runs lazy expiry check on each."""
+        bookings = self.booking_repository.find_all()
+        return [self._check_and_expire(b) for b in bookings]
 
     def list_bookings_by_user(self, user_id: int) -> list[dict]:
-        """Retrieve all bookings belonging to a specific user."""
-        return self.booking_repository.find_by_user_id(user_id)
+        """Retrieve all bookings belonging to a specific user. Runs lazy expiry check."""
+        bookings = self.booking_repository.find_by_user_id(user_id)
+        return [self._check_and_expire(b) for b in bookings]
 
     def cancel_booking(self, booking_id: int) -> dict:
         """
@@ -305,7 +337,7 @@ class BookingService(BaseService):
             # Refund via PaymentService if payment was successful
             payment = self.payment_repository.find_by_booking_id(booking_id)
             if payment and payment["status"] == "SUCCESS":
-                self.payment_service.process_refund(payment["id"], booking["booking_fee"])
+                self.payment_service.process_refund(payment["id"], booking)
 
         return self.booking_repository.update(booking_id, {
             "status": "CANCELLED",

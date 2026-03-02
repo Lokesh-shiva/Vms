@@ -54,6 +54,8 @@ class Booking(Base):
     payment_status = Column(String, nullable=False)
     refund_status = Column(String, nullable=False)
     refund_amount = Column(Numeric(10, 2), nullable=False, default=0)
+    cancellation_fee_pct_snapshot = Column(Numeric(5, 2), nullable=False, default=0)
+    platform_fee_pct_snapshot = Column(Numeric(5, 2), nullable=False, default=0)
     date = Column(String, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
@@ -79,6 +81,14 @@ class Booking(Base):
             "refund_status": self.refund_status,
             "refund_amount": (
                 float(self.refund_amount) if self.refund_amount is not None else 0.0
+            ),
+            "cancellation_fee_pct_snapshot": (
+                float(self.cancellation_fee_pct_snapshot)
+                if self.cancellation_fee_pct_snapshot is not None else 0.0
+            ),
+            "platform_fee_pct_snapshot": (
+                float(self.platform_fee_pct_snapshot)
+                if self.platform_fee_pct_snapshot is not None else 0.0
             ),
             "date": self.date,
             "created_at": self.created_at.isoformat() if self.created_at else None,

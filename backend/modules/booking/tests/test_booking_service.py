@@ -14,6 +14,7 @@ from modules.item.model.item_model import Item  # noqa: F401 — registers model
 from modules.booking.model.booking_model import Booking  # noqa: F401 — registers model
 from modules.booking_item.model.booking_item_model import BookingItem  # noqa: F401 — registers model
 from modules.payment.model.payment_model import Payment  # noqa: F401 — registers model
+from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401 — registers model
 
 from modules.booking.repository.booking_repository import BookingRepository
 from modules.booking.service.booking_service import BookingService
@@ -27,6 +28,7 @@ from modules.booking_item.service.booking_item_service import BookingItemService
 from modules.item.repository.item_repository import ItemRepository
 from modules.payment.repository.payment_repository import PaymentRepository
 from modules.payment.service.payment_service import PaymentService
+from modules.fee_config.repository.fee_config_repository import FeeConfigRepository
 
 
 def _make_test_session_factory():
@@ -58,7 +60,7 @@ class TestBookingService(unittest.TestCase):
             "date": "2026-03-01",
             "start_time": "09:00",
             "end_time": "10:00",
-            "capacity": 2,
+            "capacity": 5,
         })  # id=1
 
         self.cart_repo = CartRepository(session_factory=test_session_factory)
@@ -67,6 +69,16 @@ class TestBookingService(unittest.TestCase):
             "cart_type_id": 1,
             "status": "AVAILABLE",
         })  # id=1
+        self.cart_repo.create({
+            "region_id": 1,
+            "cart_type_id": 1,
+            "status": "AVAILABLE",
+        })  # id=2
+        self.cart_repo.create({
+            "region_id": 1,
+            "cart_type_id": 1,
+            "status": "AVAILABLE",
+        })  # id=3
 
         self.item_repo = ItemRepository(session_factory=test_session_factory)
 
@@ -78,6 +90,17 @@ class TestBookingService(unittest.TestCase):
 
         self.booking_repo = BookingRepository(session_factory=test_session_factory)
         self.payment_repo = PaymentRepository(session_factory=test_session_factory)
+
+        # Fee config — active for region=1, cart_type=1
+        self.fee_config_repo = FeeConfigRepository(session_factory=test_session_factory)
+        self.fee_config_repo.create({
+            "region_id": 1,
+            "cart_type_id": 1,
+            "booking_fee": 50.0,
+            "cancellation_fee_pct": 10.0,
+            "platform_fee_pct": 5.0,
+            "is_active": True,
+        })
 
         self.payment_service = PaymentService(
             payment_repository=self.payment_repo,
@@ -94,6 +117,7 @@ class TestBookingService(unittest.TestCase):
             booking_item_service=booking_item_service,
             payment_repository=self.payment_repo,
             payment_service=self.payment_service,
+            fee_config_repository=self.fee_config_repo,
         )
 
     def _valid_data(self, **overrides) -> dict:
@@ -104,7 +128,6 @@ class TestBookingService(unittest.TestCase):
             "cart_type_id": 1,
             "timeslot_id": 1,
             "address": "123 Main Street",
-            "booking_fee": 50.0,
         }
         base.update(overrides)
         return base
@@ -122,7 +145,7 @@ class TestBookingService(unittest.TestCase):
     # ── Create: PENDING_PAYMENT ──────────────────────────────────────
 
     def test_create_booking_success(self):
-        """Creating a booking starts in PENDING_PAYMENT with no cart assigned."""
+        """Creating a booking starts in PENDING_PAYMENT with fee from config."""
         result = self.service.create_booking(self._valid_data())
         self.assertIsNotNone(result)
         self.assertEqual(result["status"], "PENDING_PAYMENT")
@@ -130,14 +153,67 @@ class TestBookingService(unittest.TestCase):
         self.assertIsNone(result["assigned_cart_id"])
         self.assertEqual(result["refund_status"], "NONE")
         self.assertEqual(result["address"], "123 Main Street")
+        # Fee comes from config, not user input
         self.assertEqual(result["booking_fee"], 50.0)
         self.assertEqual(result["estimated_total"], 0.0)
+        # Snapshot fields captured from config
+        self.assertEqual(result["cancellation_fee_pct_snapshot"], 10.0)
+        self.assertEqual(result["platform_fee_pct_snapshot"], 5.0)
         self.assertIn("id", result)
         self.assertIn("created_at", result)
 
         # Cart should still be AVAILABLE (not locked)
         cart = self.cart_repo.find_by_id(1)
         self.assertEqual(cart["status"], "AVAILABLE")
+
+    def test_create_booking_fee_from_config_not_user(self):
+        """Booking fee is always from config, never from client input."""
+        # Pass a fake booking_fee — it should be ignored
+        result = self.service.create_booking(self._valid_data(booking_fee=999.99))
+        self.assertEqual(result["booking_fee"], 50.0)   # config value, not 999.99
+
+    def test_create_booking_snapshots_pct_from_config(self):
+        """Snapshot fields must match config values at booking creation time."""
+        result = self.service.create_booking(self._valid_data())
+        self.assertEqual(result["cancellation_fee_pct_snapshot"], 10.0)
+        self.assertEqual(result["platform_fee_pct_snapshot"], 5.0)
+
+    def test_create_booking_no_config_fails(self):
+        """Booking creation fails when no fee config exists for region + cart type."""
+        with self.assertRaises(ValueError) as ctx:
+            self.service.create_booking(self._valid_data(cart_type_id=999))
+        self.assertIn("cart type does not exist", str(ctx.exception))
+
+    def test_create_booking_inactive_config_fails(self):
+        """Booking creation fails when fee config exists but is inactive."""
+        # Deactivate the config
+        self.fee_config_repo.delete(1)  # soft-delete sets is_active=False
+
+        with self.assertRaises(ValueError) as ctx:
+            self.service.create_booking(self._valid_data())
+        self.assertIn("No active fee configuration", str(ctx.exception))
+
+    # ── Edge Case: Config deactivated after booking ──────────────────
+
+    def test_config_deactivated_old_booking_still_works(self):
+        """Old booking uses snapshot; new booking fails after config deactivation."""
+        # Create booking while config is active
+        booking = self.service.create_booking(self._valid_data())
+        self.assertEqual(booking["booking_fee"], 50.0)
+        self.assertEqual(booking["cancellation_fee_pct_snapshot"], 10.0)
+
+        # Deactivate config
+        self.fee_config_repo.delete(1)
+
+        # New booking should fail
+        with self.assertRaises(ValueError) as ctx:
+            self.service.create_booking(self._valid_data())
+        self.assertIn("No active fee configuration", str(ctx.exception))
+
+        # Old booking's snapshot is preserved
+        old_booking = self.booking_repo.find_by_id(booking["id"])
+        self.assertEqual(old_booking["cancellation_fee_pct_snapshot"], 10.0)
+        self.assertEqual(old_booking["platform_fee_pct_snapshot"], 5.0)
 
     # ── Create: Validation Failures ──────────────────────────────────
 
@@ -167,11 +243,24 @@ class TestBookingService(unittest.TestCase):
 
     # ── Create: Daily User Limit ─────────────────────────────────────
 
+    def _confirm_booking(self, booking):
+        """Helper: run a booking through payment + confirmation."""
+        self.payment_service.initiate_payment(booking["id"])
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI-OK")
+        payment = self.payment_repo.find_by_booking_id(booking["id"])
+        self.payment_service.approve_payment(payment["id"])
+        return self.service.confirm_booking(booking["id"])
+
     def test_create_booking_user_limit_exceeded(self):
-        """Booking fails when user exceeds 3 bookings per day."""
-        self.service.create_booking(self._valid_data())
-        self.service.create_booking(self._valid_data())
-        self.service.create_booking(self._valid_data())
+        """Booking fails when user exceeds 3 CONFIRMED bookings per day."""
+        b1 = self.service.create_booking(self._valid_data())
+        b2 = self.service.create_booking(self._valid_data())
+        b3 = self.service.create_booking(self._valid_data())
+
+        # Confirm all 3 — only confirmed bookings count toward limit
+        self._confirm_booking(b1)
+        self._confirm_booking(b2)
+        self._confirm_booking(b3)
 
         with self.assertRaises(ValueError) as ctx:
             self.service.create_booking(self._valid_data())
@@ -180,8 +269,12 @@ class TestBookingService(unittest.TestCase):
     def test_daily_limit_ignores_cancelled_bookings(self):
         """Cancelled bookings do not count toward the daily limit."""
         b1 = self.service.create_booking(self._valid_data())
-        self.service.create_booking(self._valid_data())
-        self.service.create_booking(self._valid_data())
+        b2 = self.service.create_booking(self._valid_data())
+        b3 = self.service.create_booking(self._valid_data())
+
+        self._confirm_booking(b1)
+        self._confirm_booking(b2)
+        self._confirm_booking(b3)
 
         self.service.cancel_booking(b1["id"])
 
@@ -231,8 +324,10 @@ class TestBookingService(unittest.TestCase):
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.payment_service.approve_payment(payment["id"])
 
-        # Make the only cart BUSY
+        # Make all carts BUSY
         self.cart_repo.update(1, {"status": "BUSY"})
+        self.cart_repo.update(2, {"status": "BUSY"})
+        self.cart_repo.update(3, {"status": "BUSY"})
 
         with self.assertRaises(ValueError) as ctx:
             self.service.confirm_booking(booking["id"])
@@ -257,13 +352,10 @@ class TestBookingService(unittest.TestCase):
             "region_id": 1, "cart_type_id": 1, "status": "AVAILABLE",
         })
 
-        # Create 2 PENDING_PAYMENT bookings (capacity=2)
+        # Create 2 PENDING_PAYMENT bookings (capacity=5, doesn't matter)
         self.service.create_booking(self._valid_data())
         self.service.create_booking(self._valid_data())
 
-        # Capacity is NOT exhausted because PENDING_PAYMENT doesn't count
-        # But we'll hit daily limit with 3, so create a third
-        # Actually just check the count directly
         count = self.booking_repo.count_by_timeslot(1)
         self.assertEqual(count, 0)
 
@@ -300,6 +392,26 @@ class TestBookingService(unittest.TestCase):
 
         payment = self.payment_repo.find_by_booking_id(confirmed["id"])
         self.assertEqual(payment["status"], "REFUNDED")
+
+    def test_cancel_confirmed_booking_refund_uses_snapshot(self):
+        """Refund uses snapshot pct values, not current config."""
+        confirmed = self._create_and_pay()
+
+        # Change config to extreme values — should NOT affect existing booking
+        config = self.fee_config_repo.find_by_region_and_cart_type(1, 1)
+        self.fee_config_repo.update(config["id"], {
+            "cancellation_fee_pct": 90.0,
+            "platform_fee_pct": 10.0,
+        })
+
+        self.service.cancel_booking(confirmed["id"])
+
+        # Refund should use original snapshot (10% + 5% = 15% deduction)
+        updated_booking = self.booking_repo.find_by_id(confirmed["id"])
+        payment = self.payment_repo.find_by_booking_id(confirmed["id"])
+        total_paid = float(payment["amount"])
+        expected_refund = round(total_paid * (1 - 15.0 / 100), 2)
+        self.assertEqual(updated_booking["refund_amount"], expected_refund)
 
     def test_cancel_booking_not_found(self):
         """Cancelling a non-existent booking raises ValueError."""

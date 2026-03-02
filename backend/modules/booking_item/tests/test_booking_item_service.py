@@ -13,6 +13,7 @@ from modules.item.model.item_model import Item  # noqa: F401 — registers model
 from modules.booking.model.booking_model import Booking  # noqa: F401 — registers model
 from modules.booking_item.model.booking_item_model import BookingItem  # noqa: F401 — registers model
 from modules.payment.model.payment_model import Payment  # noqa: F401 — registers model
+from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401 — registers model
 
 from modules.booking.repository.booking_repository import BookingRepository
 from modules.booking.service.booking_service import BookingService
@@ -26,6 +27,7 @@ from modules.booking_item.service.booking_item_service import BookingItemService
 from modules.item.repository.item_repository import ItemRepository
 from modules.payment.repository.payment_repository import PaymentRepository
 from modules.payment.service.payment_service import PaymentService
+from modules.fee_config.repository.fee_config_repository import FeeConfigRepository
 
 
 def _make_test_session_factory():
@@ -125,6 +127,17 @@ class TestBookingItemService(unittest.TestCase):
             booking_repository=booking_repo,
         )
 
+        # Fee config — active for region=1, cart_type=1
+        self.fee_config_repo = FeeConfigRepository(session_factory=test_session_factory)
+        self.fee_config_repo.create({
+            "region_id": 1,
+            "cart_type_id": 1,
+            "booking_fee": 50.0,
+            "cancellation_fee_pct": 10.0,
+            "platform_fee_pct": 5.0,
+            "is_active": True,
+        })
+
         # Booking service with all isolated repos
         self.service = BookingService(
             booking_repository=booking_repo,
@@ -136,6 +149,7 @@ class TestBookingItemService(unittest.TestCase):
             booking_item_service=self.booking_item_service,
             payment_repository=payment_repo,
             payment_service=payment_service,
+            fee_config_repository=self.fee_config_repo,
         )
 
     def _valid_data(self, **overrides) -> dict:
@@ -146,7 +160,6 @@ class TestBookingItemService(unittest.TestCase):
             "cart_type_id": 1,
             "timeslot_id": 1,
             "address": "123 Main Street",
-            "booking_fee": 50.0,
         }
         base.update(overrides)
         return base

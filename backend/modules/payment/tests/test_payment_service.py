@@ -1,5 +1,6 @@
 import unittest
 import re
+from unittest.mock import patch
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -14,6 +15,8 @@ from modules.item.model.item_model import Item  # noqa: F401
 from modules.booking.model.booking_model import Booking  # noqa: F401
 from modules.booking_item.model.booking_item_model import BookingItem  # noqa: F401
 from modules.payment.model.payment_model import Payment  # noqa: F401
+from modules.payment.model.system_config_model import SystemConfig  # noqa: F401
+from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401
 
 from modules.booking.repository.booking_repository import BookingRepository
 from modules.booking.service.booking_service import BookingService
@@ -26,7 +29,9 @@ from modules.booking_item.repository.booking_item_repository import BookingItemR
 from modules.booking_item.service.booking_item_service import BookingItemService
 from modules.item.repository.item_repository import ItemRepository
 from modules.payment.repository.payment_repository import PaymentRepository
+from modules.payment.repository.system_config_repository import SystemConfigRepository
 from modules.payment.service.payment_service import PaymentService
+from modules.fee_config.repository.fee_config_repository import FeeConfigRepository
 
 
 def _make_test_session_factory():
@@ -69,12 +74,25 @@ class TestPaymentService(unittest.TestCase):
             item_repository=self.item_repo,
         )
 
+        # Fee config — 10% cancellation + 5% platform = 15% total deduction
+        self.fee_config_repo = FeeConfigRepository(session_factory=test_session_factory)
+        self.fee_config_repo.create({
+            "region_id": 1,
+            "cart_type_id": 1,
+            "booking_fee": 50.0,
+            "cancellation_fee_pct": 10.0,
+            "platform_fee_pct": 5.0,
+            "is_active": True,
+        })
+
         self.booking_repo = BookingRepository(session_factory=test_session_factory)
         self.payment_repo = PaymentRepository(session_factory=test_session_factory)
+        self.config_repo = SystemConfigRepository(session_factory=test_session_factory)
 
         self.payment_service = PaymentService(
             payment_repository=self.payment_repo,
             booking_repository=self.booking_repo,
+            system_config_repository=self.config_repo,
         )
 
         self.booking_service = BookingService(
@@ -87,12 +105,13 @@ class TestPaymentService(unittest.TestCase):
             booking_item_service=booking_item_service,
             payment_repository=self.payment_repo,
             payment_service=self.payment_service,
+            fee_config_repository=self.fee_config_repo,
         )
 
     def _create_booking(self, **overrides) -> dict:
         base = {
             "user_id": 1, "region_id": 1, "cart_type_id": 1,
-            "timeslot_id": 1, "address": "123 Main St", "booking_fee": 50.0,
+            "timeslot_id": 1, "address": "123 Main St",
         }
         base.update(overrides)
         return self.booking_service.create_booking(base)
@@ -108,6 +127,14 @@ class TestPaymentService(unittest.TestCase):
         self.assertIn("reference_code", result)
         self.assertIn("upi_id", result)
         self.assertEqual(result["payment"]["status"], "PENDING")
+
+    def test_initiate_payment_amount_is_fee_plus_items(self):
+        """Payment amount = booking_fee + estimated_total (server-computed)."""
+        booking = self._create_booking()
+        result = self.payment_service.initiate_payment(booking["id"])
+
+        expected_amount = booking["booking_fee"] + booking["estimated_total"]
+        self.assertEqual(result["amount"], expected_amount)
 
     def test_reference_code_format(self):
         """Reference code follows VMS-{booking_id}-{4 digits} format."""
@@ -127,19 +154,59 @@ class TestPaymentService(unittest.TestCase):
         self.assertIn("PENDING_PAYMENT", str(ctx.exception))
 
     def test_initiate_payment_duplicate_fails(self):
-        """Cannot initiate payment twice for the same booking."""
+        """Cannot initiate payment when one is already PENDING."""
         booking = self._create_booking()
         self.payment_service.initiate_payment(booking["id"])
 
         with self.assertRaises(ValueError) as ctx:
             self.payment_service.initiate_payment(booking["id"])
-        self.assertIn("already exists", str(ctx.exception))
+        self.assertIn("already in progress", str(ctx.exception))
 
     def test_initiate_payment_booking_not_found(self):
         """Initiating payment for non-existent booking fails."""
         with self.assertRaises(ValueError) as ctx:
             self.payment_service.initiate_payment(999)
         self.assertIn("not found", str(ctx.exception))
+
+    # ── UPI Deep Link ─────────────────────────────────────────────────
+
+    def test_upi_link_starts_with_scheme(self):
+        """UPI deep link starts with upi://pay?."""
+        booking = self._create_booking()
+        result = self.payment_service.initiate_payment(booking["id"])
+
+        self.assertTrue(result["upi_link"].startswith("upi://pay?"))
+
+    def test_upi_link_contains_correct_amount(self):
+        """UPI link amount formatted to 2 decimal places."""
+        booking = self._create_booking()
+        result = self.payment_service.initiate_payment(booking["id"])
+
+        expected_amount = f"{float(result['amount']):.2f}"
+        self.assertIn(f"am={expected_amount}", result["upi_link"])
+
+    def test_upi_link_contains_reference_code(self):
+        """UPI link transaction note contains the reference code."""
+        booking = self._create_booking()
+        result = self.payment_service.initiate_payment(booking["id"])
+
+        self.assertIn(f"tn={result['reference_code']}", result["upi_link"])
+
+    def test_upi_link_contains_upi_id(self):
+        """UPI link payee address matches configured UPI ID."""
+        self.config_repo.set("UPI_ID", "test@upi")
+        booking = self._create_booking()
+        result = self.payment_service.initiate_payment(booking["id"])
+
+        self.assertIn("pa=test@upi", result["upi_link"])
+        self.assertEqual(result["upi_id"], "test@upi")
+
+    def test_upi_link_no_spaces(self):
+        """UPI deep link must not contain any spaces."""
+        booking = self._create_booking()
+        result = self.payment_service.initiate_payment(booking["id"])
+
+        self.assertNotIn(" ", result["upi_link"])
 
     # ── Submit Manual Confirmation ───────────────────────────────────
 
@@ -244,21 +311,132 @@ class TestPaymentService(unittest.TestCase):
             self.payment_service.reject_payment(payment["id"])
         self.assertIn("under review", str(ctx.exception))
 
-    # ── Refund ───────────────────────────────────────────────────────
+    # ── Payment Retry After Rejection ─────────────────────────────────
+
+    def test_retry_payment_after_rejection(self):
+        """User can initiate a new payment after admin rejects the previous one."""
+        booking = self._create_booking()
+        self.payment_service.initiate_payment(booking["id"])
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI-BAD")
+        payment = self.payment_repo.find_by_booking_id(booking["id"])
+        self.payment_service.reject_payment(payment["id"])
+
+        # Booking stays PENDING_PAYMENT after rejection
+        updated_booking = self.booking_repo.find_by_id(booking["id"])
+        self.assertEqual(updated_booking["status"], "PENDING_PAYMENT")
+
+        # Retry — new payment record created
+        retry_result = self.payment_service.initiate_payment(booking["id"])
+        self.assertIn("reference_code", retry_result)
+        self.assertEqual(retry_result["payment"]["status"], "PENDING")
+
+        # New payment has different ID than old one
+        self.assertNotEqual(retry_result["payment"]["id"], payment["id"])
+
+        # Deep link still present on retry
+        self.assertTrue(retry_result["upi_link"].startswith("upi://pay?"))
+        self.assertIn(f"tn={retry_result['reference_code']}", retry_result["upi_link"])
+
+    def test_retry_blocked_while_pending(self):
+        """Cannot retry while a PENDING payment exists."""
+        booking = self._create_booking()
+        self.payment_service.initiate_payment(booking["id"])
+
+        with self.assertRaises(ValueError) as ctx:
+            self.payment_service.initiate_payment(booking["id"])
+        self.assertIn("already in progress", str(ctx.exception))
+
+    def test_retry_blocked_while_under_review(self):
+        """Cannot retry while payment is UNDER_REVIEW."""
+        booking = self._create_booking()
+        self.payment_service.initiate_payment(booking["id"])
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI-WAIT")
+
+        with self.assertRaises(ValueError) as ctx:
+            self.payment_service.initiate_payment(booking["id"])
+        self.assertIn("already in progress", str(ctx.exception))
+
+    def test_retry_blocked_after_success(self):
+        """Cannot initiate payment after a successful one."""
+        booking = self._create_booking()
+        self.payment_service.initiate_payment(booking["id"])
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI-GOOD")
+        payment = self.payment_repo.find_by_booking_id(booking["id"])
+        self.payment_service.approve_payment(payment["id"])
+
+        with self.assertRaises(ValueError) as ctx:
+            self.payment_service.initiate_payment(booking["id"])
+        self.assertIn("already completed", str(ctx.exception))
+
+    # ── Refund (Percentage-Based) ────────────────────────────────────
 
     def test_refund_payment_success(self):
-        """Refund moves payment to REFUNDED and updates booking refund fields."""
+        """Refund uses snapshot pcts and moves payment to REFUNDED."""
         booking = self._create_booking()
         self.payment_service.initiate_payment(booking["id"])
         self.payment_service.submit_manual_confirmation(booking["id"], "UPI123")
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.payment_service.approve_payment(payment["id"])
 
-        result = self.payment_service.process_refund(payment["id"])
+        result = self.payment_service.process_refund(payment["id"], booking)
         self.assertEqual(result["status"], "REFUNDED")
 
         updated_booking = self.booking_repo.find_by_id(booking["id"])
         self.assertEqual(updated_booking["refund_status"], "REFUNDED")
+
+    def test_refund_amount_formula(self):
+        """Refund = total_paid × (1 - (cancel_pct + platform_pct) / 100)."""
+        booking = self._create_booking()
+        self.payment_service.initiate_payment(booking["id"])
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI123")
+        payment = self.payment_repo.find_by_booking_id(booking["id"])
+        self.payment_service.approve_payment(payment["id"])
+
+        # total_paid = booking_fee(50) + estimated_total(0) = 50
+        # cancel_pct=10, platform_pct=5 → total_pct=15
+        # refund = 50 × (1 - 15/100) = 50 × 0.85 = 42.5
+        self.payment_service.process_refund(payment["id"], booking)
+
+        updated_booking = self.booking_repo.find_by_id(booking["id"])
+        self.assertEqual(updated_booking["refund_amount"], 42.5)
+
+    def test_refund_uses_snapshot_not_live_config(self):
+        """Changing config after booking doesn't affect refund calculation."""
+        booking = self._create_booking()
+        self.payment_service.initiate_payment(booking["id"])
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI123")
+        payment = self.payment_repo.find_by_booking_id(booking["id"])
+        self.payment_service.approve_payment(payment["id"])
+
+        # Change config to extreme values after booking creation
+        config = self.fee_config_repo.find_by_region_and_cart_type(1, 1)
+        self.fee_config_repo.update(config["id"], {
+            "cancellation_fee_pct": 90.0,
+            "platform_fee_pct": 10.0,
+        })
+
+        # Refund uses booking snapshot (10% + 5% = 15%), NOT live config (90% + 10%)
+        self.payment_service.process_refund(payment["id"], booking)
+
+        updated_booking = self.booking_repo.find_by_id(booking["id"])
+        total_paid = 50.0  # booking_fee=50, estimated_total=0
+        expected_refund = round(total_paid * (1 - 15.0 / 100), 2)  # 42.5
+        self.assertEqual(updated_booking["refund_amount"], expected_refund)
+
+    def test_refund_fallback_fetches_booking(self):
+        """Refund without booking param fetches snapshot from DB."""
+        booking = self._create_booking()
+        self.payment_service.initiate_payment(booking["id"])
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI123")
+        payment = self.payment_repo.find_by_booking_id(booking["id"])
+        self.payment_service.approve_payment(payment["id"])
+
+        # Call without booking dict — should fallback to DB fetch
+        result = self.payment_service.process_refund(payment["id"])
+        self.assertEqual(result["status"], "REFUNDED")
+
+        updated_booking = self.booking_repo.find_by_id(booking["id"])
+        self.assertEqual(updated_booking["refund_amount"], 42.5)
 
     def test_refund_non_success_payment_fails(self):
         """Cannot refund a payment that is not in SUCCESS status."""
@@ -342,6 +520,40 @@ class TestPaymentService(unittest.TestCase):
 
         cart = self.cart_repo.find_by_id(confirmed["assigned_cart_id"])
         self.assertEqual(cart["status"], "BUSY")
+
+
+    def test_admin_payment_config_default(self):
+        """Test the system returns default ENV vars initially."""
+        config = self.payment_service.get_admin_payment_config()
+        self.assertIn("upi_id", config)
+        self.assertIn("merchant_name", config)
+
+    def test_admin_payment_config_update(self):
+        """Test updating active payment config via admin method."""
+        config = self.payment_service.update_admin_payment_config(
+            upi_id="new@upi", merchant_name="NEW MERCHANT"
+        )
+        self.assertEqual(config["upi_id"], "new@upi")
+        self.assertEqual(config["merchant_name"], "NEW MERCHANT")
+
+        # Now initiate payment and ensure deep link uses the NEW config
+        booking = self._create_booking()
+        pmt = self.payment_service.initiate_payment(booking_id=booking["id"])
+        
+        link = pmt["upi_link"]
+        self.assertIn("pa=new@upi", link)
+        self.assertIn("pn=NEW%20MERCHANT", link.replace(" ", "%20"))
+
+    def test_admin_payment_config_validation(self):
+        """Test validation for invalid UPI ID or blank merchant name."""
+        with self.assertRaises(ValueError):
+            self.payment_service.update_admin_payment_config(
+                upi_id="invalidupi", merchant_name=None
+            )
+        with self.assertRaises(ValueError):
+            self.payment_service.update_admin_payment_config(
+                upi_id=None, merchant_name="   "
+            )
 
 
 if __name__ == "__main__":
