@@ -1,6 +1,6 @@
 # Development Log
 
-## 02 Mar 2026 — Day 17: Admin-Configurable UPI & Merchant Settings
+## 02 Mar 2026 — Day 16: Admin-Configurable UPI & Merchant Settings
 
 ### Summary
 Added runtime-configurable payment settings so admins can change the UPI ID and merchant/company name without redeploying.
