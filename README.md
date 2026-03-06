@@ -1,71 +1,132 @@
-# VMS Backend
+# VMS — Vendor Mobility System
 
-FastAPI-based backend for a modular Vehicle Management System (VMS), organized with a layered architecture:
+> **⚠️ PROPRIETARY SOFTWARE — ALL RIGHTS RESERVED**
+>
+> Copyright © 2026 **SAVIRIGANA LOKESHWARA RAO**. Unauthorized use, reproduction,
+> distribution, or marketing of this source code is strictly prohibited and
+> subject to legal action. See [LICENSE](./LICENSE) for details.
 
-- Controller layer for API routes
-- Service layer for business logic
-- Repository layer for data access
-- SQLAlchemy ORM with PostgreSQL (Neon-compatible)
+---
 
-## Tech Stack
+A full-stack **Vendor Mobility System** comprising a FastAPI backend and an Android admin application, designed for managing vendor bookings, payments, and fleet operations.
 
-- Python 3.11+
-- FastAPI
-- SQLAlchemy
-- PostgreSQL (`psycopg2-binary`)
-- Uvicorn
-- Pytest
+## Architecture
 
-## Project Layout
-
-The active codebase is under `backend/`:
-
-- `backend/main.py` - FastAPI application entrypoint
-- `backend/core/` - shared infrastructure (DB, middleware, base classes)
-- `backend/modules/` - feature modules (`user`, `location`, `timeslot`, `cart_type`, `cart`, `item`, `booking`, `booking_item`)
-- `backend/requirements.txt` - Python dependencies
-- `backend/DEV_LOG.md` - chronological implementation and validation log
-
-## Quick Start
-
-1) Create and activate a virtual environment
-
-```bash
-python -m venv venv
-venv\Scripts\activate
+```
+VMS/
+├── backend/          # FastAPI REST API with PostgreSQL (Neon)
+├── Vmsadminapp/      # Android Admin App (Kotlin, Jetpack Compose)
+├── LICENSE           # Proprietary license
+└── README.md
 ```
 
-2) Install dependencies
+## Backend — FastAPI
+
+Modular Python backend with a layered architecture:
+
+- **Controller** → API routes (FastAPI routers)
+- **Service** → Business logic
+- **Repository** → Data access (SQLAlchemy ORM)
+- **Database** → PostgreSQL via Neon
+
+### Tech Stack
+
+| Layer       | Technology                 |
+|-------------|----------------------------|
+| Framework   | FastAPI                    |
+| ORM         | SQLAlchemy                 |
+| Database    | PostgreSQL (Neon)          |
+| Auth        | JWT (HS256)                |
+| Server      | Uvicorn                    |
+| Testing     | Pytest                     |
+
+### Modules
+
+`user` · `location` · `timeslot` · `cart_type` · `cart` · `item` · `booking` · `booking_item` · `payment` · `auth`
+
+### Quick Start
 
 ```bash
+# 1. Create virtual environment
+python -m venv venv && venv\Scripts\activate
+
+# 2. Install dependencies
 pip install -r backend/requirements.txt
+
+# 3. Configure environment
+cp backend/.env.example backend/.env
+# Set DATABASE_URL in .env
+
+# 4. Run server
+cd backend && uvicorn main:app --reload --port 8000
 ```
 
-3) Configure environment variables
+API docs: [Swagger UI](http://127.0.0.1:8000/docs) · [ReDoc](http://127.0.0.1:8000/redoc)
 
-- Copy `backend/.env.example` to `backend/.env`
-- Set `DATABASE_URL`
-
-4) Run the API server
+### Running Tests
 
 ```bash
-uvicorn backend.main:app --reload --port 8000
+cd backend && pytest
 ```
 
-API docs:
+---
 
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
+## Android Admin App — Jetpack Compose
 
-## Running Tests
+Native Android admin panel for managing bookings and reviewing payments.
 
-From `backend/`:
+### Tech Stack
 
-```bash
-pytest
+| Layer       | Technology                    |
+|-------------|-------------------------------|
+| Language    | Kotlin                        |
+| UI          | Jetpack Compose (Material 3)  |
+| Networking  | Retrofit + OkHttp             |
+| Auth        | JWT with token interceptor    |
+| Architecture| MVVM + StateFlow              |
+
+### Features
+
+- **Dashboard** — Real-time metric cards (Active Bookings, Pending Payments, Completed Today, Total)
+- **Bookings Management** — View, Start, Complete, Cancel bookings with confirmation dialogs
+- **Payment Review** — Approve/Reject payments with UNDER_REVIEW filtering
+- **Pull-to-Refresh** — Swipe down to refresh data on Bookings and Payments
+- **Skeleton Loading** — Shimmer effect placeholders during data loading
+- **Glassmorphism UI** — Modern translucent card design with gradient borders
+- **Animated Entry** — Staggered fade-in and slide-up animations for list items
+
+### Design System
+
+| Token             | Value         |
+|-------------------|---------------|
+| Screen Title      | 20sp Bold     |
+| Section Title     | 16sp SemiBold |
+| Primary Text      | 14sp          |
+| Metadata Text     | 12sp          |
+| Card Padding      | 16dp          |
+| Card Spacing      | 12dp          |
+| Card Corner Radius| 12dp          |
+
+### Build
+
+Open `Vmsadminapp/` in Android Studio and run on a device or emulator.
+
+---
+
+## Legal Notice
+
+```
+Copyright (c) 2026 SAVIRIGANA LOKESHWARA RAO. All rights reserved.
+
+This project is proprietary software. No license is granted for use,
+modification, distribution, or reproduction of any part of this software
+without explicit written permission from the copyright holder.
+
+Unauthorized use, copying, redistribution, or commercial exploitation of
+this source code is strictly prohibited and will be subject to legal
+proceedings under applicable intellectual property laws.
 ```
 
-## Notes
+## Contact
 
-- Test suites are intentionally kept in the repository (`backend/modules/*/tests`).
-- Local artifacts like virtual environments, cache folders, and generated test output files should not be committed.
+For licensing inquiries or authorized use, contact **SAVIRIGANA LOKESHWARA RAO** directly.

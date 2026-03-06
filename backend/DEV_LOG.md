@@ -1,5 +1,49 @@
 # Development Log
 
+## 06 Mar 2026 — Day 19: Auth Stability + Payment Approval Automation
+
+### Summary
+- Payment approval now auto-confirms bookings (one-click admin workflow).
+- Added `/auth/me` endpoint for token validation.
+- Improved Android AuthInterceptor logging.
+- Added automatic logout on 401 responses.
+- Improved token persistence handling.
+
+### Backend Changes
+
+#### `payment_service.py` — Auto-Confirm on Approve
+- `approve_payment()` now calls `BookingService.confirm_booking()` after setting payment to SUCCESS.
+- Guard: only confirms if booking status is `PENDING_PAYMENT` (prevents double-confirm).
+- Uses lazy import to avoid circular dependency (BookingService ↔ PaymentService).
+- If confirm fails (e.g. no cart available), payment approval still succeeds.
+
+#### `auth_routes.py` — `GET /api/v1/auth/me`
+- New endpoint protected by `Depends(get_current_user)`.
+- Returns `{id, name, phone, role}` — useful for token validation and debugging.
+
+### Android Changes
+
+#### `AuthInterceptor.kt` — Debug Logging
+- Logs token attachment: `Log.d("AUTH", "Attaching token: ...")`.
+- Logs missing token: `Log.e("AUTH", "No JWT token found")`.
+
+#### `ApiClient.kt` — Global 401 Handler
+- Added response interceptor: detects `401` responses (excluding `/auth/login`).
+- On 401: clears token from DataStore, emits logout event via `SharedFlow`.
+
+#### `AppNavigation.kt` — Auto-Logout Redirect
+- Collects `ApiClient.logoutEvent` in `LaunchedEffect`.
+- Navigates to login with `popUpTo(0)` — clears entire back stack.
+
+### Admin Workflow (After)
+```
+User pays → submits UTR → Admin presses Approve
+→ payment SUCCESS → booking CONFIRMED → cart assigned
+```
+**One click operation.** No separate confirm step needed.
+
+---
+
 ## 02 Mar 2026 — Day 16: Admin-Configurable UPI & Merchant Settings
 
 ### Summary

@@ -1,0 +1,54 @@
+package com.example.vmsadmin.navigation
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.vmsadmin.network.ApiClient
+import com.example.vmsadmin.ui.screens.LoginScreen
+import com.example.vmsadmin.ui.screens.MainScreen
+import com.example.vmsadmin.viewmodel.AuthViewModel
+import com.example.vmsadmin.viewmodel.BookingViewModel
+import com.example.vmsadmin.viewmodel.DashboardViewModel
+import com.example.vmsadmin.viewmodel.PaymentViewModel
+
+@Composable
+fun AppNavigation(
+    authViewModel: AuthViewModel,
+    dashboardViewModel: DashboardViewModel,
+    paymentViewModel: PaymentViewModel,
+    bookingViewModel: BookingViewModel,
+    startDestination: String
+) {
+    val navController = rememberNavController()
+
+    // Auto-logout on 401
+    LaunchedEffect(Unit) {
+        ApiClient.logoutEvent.collect {
+            navController.navigate("login") {
+                popUpTo(0)
+            }
+        }
+    }
+
+    NavHost(navController = navController, startDestination = startDestination) {
+        composable("login") {
+            LoginScreen(
+                viewModel = authViewModel,
+                onNavigateToMain = {
+                    navController.navigate("main") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable("main") {
+            MainScreen(
+                viewModel = dashboardViewModel,
+                paymentViewModel = paymentViewModel,
+                bookingViewModel = bookingViewModel
+            )
+        }
+    }
+}

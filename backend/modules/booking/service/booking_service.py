@@ -368,12 +368,34 @@ class BookingService(BaseService):
             "status": "EXPIRED",
         })
 
+    def start_booking(self, booking_id: int) -> dict:
+        """
+        Start a confirmed booking (CONFIRMED → IN_PROGRESS). Admin only.
+
+        Flow:
+        1. Validate booking exists and status is CONFIRMED
+        2. Set booking status to IN_PROGRESS
+        """
+        booking = self.booking_repository.find_by_id(booking_id)
+        if not booking:
+            raise ValueError("Booking not found.")
+
+        if booking["status"] != "CONFIRMED":
+            raise ValueError(
+                f"Cannot start booking in {booking['status']} status. "
+                f"Only CONFIRMED bookings can be started."
+            )
+
+        return self.booking_repository.update(booking_id, {
+            "status": "IN_PROGRESS",
+        })
+
     def complete_booking(self, booking_id: int) -> dict:
         """
         Mark a booking as completed.
 
         Flow:
-        1. Validate booking exists and status is CONFIRMED
+        1. Validate booking exists and status is IN_PROGRESS
         2. Release assigned cart (set status to AVAILABLE)
         3. Set booking status to COMPLETED
         """
@@ -381,8 +403,11 @@ class BookingService(BaseService):
         if not booking:
             raise ValueError("Booking not found.")
 
-        if booking["status"] != "CONFIRMED":
-            raise ValueError("Only confirmed bookings can be completed.")
+        if booking["status"] != "IN_PROGRESS":
+            raise ValueError(
+                f"Cannot complete booking in {booking['status']} status. "
+                f"Only IN_PROGRESS bookings can be completed."
+            )
 
         # Release the assigned cart
         if booking["assigned_cart_id"]:

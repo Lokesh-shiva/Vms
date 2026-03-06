@@ -80,6 +80,20 @@ class PaymentRepository:
             if own_session:
                 session.close()
 
+    def find_all(self, status: str = None, session=None) -> list[dict]:
+        """Retrieve all payments, optionally filtered by status. Ordered by id DESC."""
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            query = session.query(Payment)
+            if status:
+                query = query.filter(Payment.status == status)
+            payments = query.order_by(Payment.id.desc()).all()
+            return [p.to_dict() for p in payments]
+        finally:
+            if own_session:
+                session.close()
+
     def update(self, payment_id: int, update_data: dict, session=None) -> dict | None:
         """Update an existing payment record. Automatically refreshes updated_at."""
         own_session = session is None

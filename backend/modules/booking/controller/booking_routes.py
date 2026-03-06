@@ -87,6 +87,16 @@ def confirm_booking(booking_id: int):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.post("/{booking_id}/start", dependencies=[Depends(require_admin)])
+def start_booking(booking_id: int):
+    """Start a confirmed booking (CONFIRMED → IN_PROGRESS). Admin only."""
+    try:
+        booking = booking_service.start_booking(booking_id)
+        return _success(booking, "Booking started successfully.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.post("/{booking_id}/complete", dependencies=[Depends(require_admin)])
 def complete_booking(booking_id: int):
     """Mark a booking as completed. Admin only."""

@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from modules.auth.service.auth_service import AuthService
 from modules.auth.schemas.auth_schema import RegisterSchema, LoginSchema
+from modules.auth.dependencies.auth_dependencies import get_current_user
 
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
@@ -15,6 +16,17 @@ def _success(data, message: str = "Success") -> dict:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
+@router.get("/me")
+def get_me(current_user: dict = Depends(get_current_user)):
+    """Return the currently authenticated user's profile. Token validation."""
+    return _success({
+        "id": current_user.get("id"),
+        "name": current_user.get("name"),
+        "phone": current_user.get("phone"),
+        "role": current_user.get("role"),
+    }, "Authenticated user retrieved.")
+
 
 @router.post("/register", status_code=201)
 def register(request_data: dict):

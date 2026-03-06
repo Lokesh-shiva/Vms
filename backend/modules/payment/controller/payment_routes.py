@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from modules.auth.dependencies.auth_dependencies import (
     require_admin,
     require_user,
@@ -18,6 +18,15 @@ def _success(data, message: str = "Success") -> dict:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
+@router.get("/")
+def list_payments(
+    status: str = Query(None, description="Filter by payment status, e.g. UNDER_REVIEW"),
+    current_user: dict = Depends(require_admin),
+):
+    """List all payments, optionally filtered by status. Admin only."""
+    payments = payment_service.get_all_payments(status=status)
+    return _success(payments, "Payments retrieved.")
 
 @router.post("/initiate/{booking_id}", status_code=201)
 def initiate_payment(booking_id: int, current_user: dict = Depends(require_user)):

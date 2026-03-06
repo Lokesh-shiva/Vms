@@ -37,6 +37,12 @@ class PaymentService(BaseService):
         self.booking_repository = booking_repository or _default_booking_repo
         self.config_repository = system_config_repository or _default_config_repo
 
+    # ── Listing ─────────────────────────────────────────────────────────
+
+    def get_all_payments(self, status: str = None) -> list[dict]:
+        """Return all payments, optionally filtered by status."""
+        return self.payment_repository.find_all(status=status)
+
     # ── Reference Code Generator ───────────────────────────────────────
 
     def _generate_reference_code(self, booking_id: int) -> str:
@@ -159,6 +165,7 @@ class PaymentService(BaseService):
         - Validates payment is in UNDER_REVIEW status.
         - Moves payment to SUCCESS.
         - Mirrors status to booking.payment_status (sole writer).
+        - Auto-confirms the booking (assigns cart, sets CONFIRMED).
         """
         payment = self.payment_repository.find_by_id(payment_id)
         if not payment:
@@ -173,6 +180,17 @@ class PaymentService(BaseService):
         self.booking_repository.update(payment["booking_id"], {
             "payment_status": "SUCCESS",
         })
+
+        # Auto-confirm booking (lazy import to avoid circular dependency)
+        booking = self.booking_repository.find_by_id(payment["booking_id"])
+        if booking and booking["status"] == "PENDING_PAYMENT":
+            try:
+                from modules.booking.service.booking_service import BookingService
+                booking_service = BookingService()
+                booking_service.confirm_booking(payment["booking_id"])
+            except ValueError:
+                # Confirm may fail (e.g. no cart available) — payment still succeeds
+                pass
 
         return updated_payment
 
