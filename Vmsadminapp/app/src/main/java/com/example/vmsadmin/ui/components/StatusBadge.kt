@@ -16,7 +16,7 @@ fun StatusBadge(status: String, modifier: Modifier = Modifier) {
     val (backgroundColor, textColor) = statusColors(status)
 
     Surface(
-        color = backgroundColor.copy(alpha = 0.15f),
+        color = backgroundColor.copy(alpha = 0.2f),
         shape = RoundedCornerShape(50),
         modifier = modifier
     ) {

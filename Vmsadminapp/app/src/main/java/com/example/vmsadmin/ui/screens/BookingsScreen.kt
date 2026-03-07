@@ -175,7 +175,7 @@ private fun BookingCard(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         InfoRow(label = "Region", value = booking.region_name ?: "Region ${booking.region_id ?: "-"}")
         InfoRow(label = "Cart Type", value = booking.cart_type_name ?: "Type ${booking.cart_type_id ?: "-"}")
@@ -190,9 +190,9 @@ private fun BookingCard(
         // Action buttons based on status
         val status = booking.status.uppercase()
         if (status in listOf("PENDING_PAYMENT", "CONFIRMED", "IN_PROGRESS")) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -250,7 +250,7 @@ private fun InfoRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(

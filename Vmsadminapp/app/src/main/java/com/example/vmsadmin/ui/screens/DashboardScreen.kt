@@ -5,11 +5,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Done
-import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.outlined.Done
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,39 +63,47 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
             // Using AnimatedVisibility for staggered entry effect
             AnimatedVisibility(
                 visible = visible,
-                enter = fadeIn(animationSpec = tween(500)) + slideInVertically(initialOffsetY = { 50 }, animationSpec = tween(500))
+                enter = fadeIn(animationSpec = tween(500)) + slideInVertically(initialOffsetY = { 50 }, animationSpec = tween(500)),
+                modifier = Modifier.weight(1f)
             ) {
-                Column {
-                    DashboardCard(
-                        title = "Active Bookings",
-                        count = "${uiState.activeBookings}",
-                        icon = Icons.Default.List,
-                        iconTint = Color(0xFF2196F3)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    DashboardCard(
-                        title = "Payments Under Review",
-                        count = "${uiState.pendingPayments}",
-                        icon = Icons.Default.Warning,
-                        iconTint = Color(0xFFFF9800)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    DashboardCard(
-                        title = "Completed Bookings Today",
-                        count = "${uiState.completedBookings}",
-                        icon = Icons.Default.Done,
-                        iconTint = Color(0xFF4CAF50)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    DashboardCard(
-                        title = "Total Bookings (All time)",
-                        count = "${uiState.totalBookings}",
-                        icon = Icons.Default.ShoppingCart,
-                        iconTint = MaterialTheme.colorScheme.primary
-                    )
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        DashboardCard(
+                            title = "Active Bookings",
+                            count = "${uiState.activeBookings}",
+                            icon = Icons.AutoMirrored.Outlined.List,
+                            iconTint = Color(0xFF2196F3)
+                        )
+                    }
+                    item {
+                        DashboardCard(
+                            title = "Payments Review",
+                            count = "${uiState.pendingPayments}",
+                            icon = Icons.Outlined.Warning,
+                            iconTint = Color(0xFFFF9800)
+                        )
+                    }
+                    item {
+                        DashboardCard(
+                            title = "Completed Today",
+                            count = "${uiState.completedBookings}",
+                            icon = Icons.Outlined.Done,
+                            iconTint = Color(0xFF4CAF50)
+                        )
+                    }
+                    item {
+                        DashboardCard(
+                            title = "Total Bookings",
+                            count = "${uiState.totalBookings}",
+                            icon = Icons.Outlined.ShoppingCart,
+                            iconTint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }
@@ -103,26 +113,30 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
 @Composable
 fun DashboardCard(title: String, count: String, icon: androidx.compose.ui.graphics.vector.ImageVector, iconTint: Color = MaterialTheme.colorScheme.primary) {
     AppCard {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(40.dp)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(
-                    count,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(24.dp)
                 )
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                count,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

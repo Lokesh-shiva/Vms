@@ -1,5 +1,22 @@
 # Development Log
 
+## 07 Mar 2026 — Day 21: Admin App UI System Upgrade (Dark/Light Dashboard)
+
+### Summary
+- Upgraded the visual design of the VMS Admin Android app to a modern dashboard UI.
+- Implemented a full Light/Dark Theme switch that respects the system theme.
+- Enhanced core UI components with glassmorphism effects (translucency, subtle gradients, and rounded corners).
+
+### Changes
+- **Theme & Colors** (`Color.kt`, `Theme.kt`): Added distinct palettes for Light (Soft White/Gold) and Dark (Deep Space Purple/Dark Grey) modes. Disabled Material You dynamic colors to enforce the premium dashboard look.
+- **Glassmorphism Components** (`AppCard.kt`, `MainScreen.kt`): Applied 18dp rounded corners, translucent surfaces, and a dynamic radial gradient background (`Scaffold`) to make the glass effect pop.
+- **Status Badges** (`StatusBadge.kt`): Updated colors (Orange, Green, Blue, Red, Gray) with translucent backgrounds (`alpha = 0.2f`) for distinct, readable status pills.
+- **Screen Layout Refactors**:
+  - `DashboardScreen.kt`: Converted to a 2x2 grid using `LazyVerticalGrid`. Fixed deprecated icon usage.
+  - `BookingsScreen.kt` & `PaymentsScreen.kt`: Increased spacing and refined typography for better readability.
+  - `MainScreen.kt`: Updated bottom navigation to a floating, rounded bar with outlined Material icons.
+
+---
 ## 06 Mar 2026 — Day 19: Auth Stability + Payment Approval Automation
 
 ### Summary

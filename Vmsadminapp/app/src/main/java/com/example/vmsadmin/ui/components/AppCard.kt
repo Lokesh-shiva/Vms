@@ -27,32 +27,33 @@ fun AppCard(
     // Glassmorphism effect: translucent background with a subtle gradient border
     val glassBrush = Brush.linearGradient(
         colors = listOf(
-            Color.White.copy(alpha = 0.1f),
+            Color.White.copy(alpha = 0.15f),
             Color.White.copy(alpha = 0.05f)
         )
     )
 
     val cardModifier = modifier
         .fillMaxWidth()
-        .clip(RoundedCornerShape(12.dp))
+        .clip(RoundedCornerShape(18.dp))
         .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
 
     Card(
         modifier = cardModifier,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 8.dp, // slightly softer shadow relative to ambient
+            defaultElevation = 8.dp, // soft shadow
             pressedElevation = 2.dp
         ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f) // Dark themed surface color
+            // Translucent background using theme surface for glass effect
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f) 
         ),
         border = BorderStroke(1.dp, glassBrush)
     ) {
         Column(
             modifier = Modifier
-                .background(glassBrush)
-                .padding(16.dp),
+                .background(Color.White.copy(alpha = 0.02f)) // subtle inner glow
+                .padding(20.dp),
             content = content
         )
     }

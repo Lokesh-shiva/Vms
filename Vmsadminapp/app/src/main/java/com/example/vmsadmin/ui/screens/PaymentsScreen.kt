@@ -169,16 +169,16 @@ private fun PaymentCard(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         InfoRow(label = "Booking ID", value = "#${payment.booking_id ?: "-"}")
         InfoRow(label = "Amount", value = "₹${payment.amount ?: "0.00"}")
         InfoRow(label = "Reference Code", value = payment.reference_code ?: "-")
         InfoRow(label = "UTR", value = payment.transaction_id ?: "-")
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Action buttons
         Row(
@@ -215,7 +215,7 @@ private fun InfoRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(

@@ -1,16 +1,26 @@
 package com.example.vmsadmin.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -20,10 +30,10 @@ import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
-    object Dashboard : BottomNavItem("dashboard", "Dashboard", Icons.Default.Home)
-    object Bookings : BottomNavItem("bookings", "Bookings", Icons.Default.DateRange)
-    object Payments : BottomNavItem("payments", "Payments", Icons.Default.ShoppingCart)
-    object Manage : BottomNavItem("manage", "Manage", Icons.Default.Settings)
+    object Dashboard : BottomNavItem("dashboard", "Dashboard", Icons.Outlined.Home)
+    object Bookings : BottomNavItem("bookings", "Bookings", Icons.Outlined.DateRange)
+    object Payments : BottomNavItem("payments", "Payments", Icons.Outlined.ShoppingCart)
+    object Manage : BottomNavItem("manage", "Manage", Icons.Outlined.Settings)
 }
 
 @Composable
@@ -41,14 +51,40 @@ fun MainScreen(
         BottomNavItem.Manage
     )
 
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
+    val isDark = isSystemInDarkTheme()
+    val gradientColors = if (isDark) {
+        listOf(
+            Color(0xFF2E2458), // Deep purple glow
+            Color(0xFF0F1115)  // Dark outer background
+        )
+    } else {
+        listOf(
+            Color(0xFFFFFDF5), // Soft white
+            Color(0xFFF2E3C6)  // Soft gold outer background
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(
+        Brush.radialGradient(
+            colors = gradientColors,
+            radius = 1800f
+        )
+    )) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            bottomBar = {
+            NavigationBar(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .clip(RoundedCornerShape(24.dp)),
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                tonalElevation = 8.dp
+            ) {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
                 items.forEach { item ->
                     NavigationBarItem(
-                        icon = { Icon(item.icon, contentDescription = item.title) },
+                        icon = { Icon(item.icon, contentDescription = item.title, modifier = Modifier.size(24.dp)) },
                         label = { Text(item.title) },
                         selected = currentRoute == item.route,
                         onClick = {
@@ -85,5 +121,6 @@ fun MainScreen(
                 ManageScreen()
             }
         }
+    }
     }
 }
