@@ -35,7 +35,8 @@ data class Booking(
     // Display-friendly names (will be populated when backend supports them)
     val region_name: String? = null,
     val cart_type_name: String? = null,
-    val timeslot_label: String? = null
+    val timeslot_label: String? = null,
+    val cart_label: String? = null
 )
 
 @Serializable

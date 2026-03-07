@@ -16,17 +16,30 @@ fun StatusBadge(status: String, modifier: Modifier = Modifier) {
     val (backgroundColor, textColor) = statusColors(status)
 
     Surface(
-        color = backgroundColor.copy(alpha = 0.15f), // Slight background transparency
-        shape = RoundedCornerShape(50), // Pill shape
+        color = backgroundColor.copy(alpha = 0.15f),
+        shape = RoundedCornerShape(50),
         modifier = modifier
     ) {
         Text(
-            text = status.replace("_", " "),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), // horizontal padding
+            text = friendlyStatusLabel(status),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = textColor
         )
+    }
+}
+
+private fun friendlyStatusLabel(status: String): String {
+    return when (status.uppercase()) {
+        "PENDING_PAYMENT" -> "Awaiting Payment"
+        "UNDER_REVIEW"    -> "Payment Under Review"
+        "CONFIRMED"       -> "Payment Verified"
+        "IN_PROGRESS"     -> "Service In Progress"
+        "COMPLETED"       -> "Service Completed"
+        "CANCELLED"       -> "Cancelled"
+        "EXPIRED"         -> "Expired"
+        else              -> status.replace("_", " ")
     }
 }
 

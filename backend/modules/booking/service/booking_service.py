@@ -155,6 +155,66 @@ class BookingService(BaseService):
 
         return booking
 
+    # ── Display Name Enrichment ──────────────────────────────────────
+
+    def _enrich_booking(self, booking: dict) -> dict:
+        """Attach human-readable display names to a single booking dict.
+
+        Used for get_booking() where only one booking needs enrichment.
+        For lists, use _enrich_bookings_batch() to avoid N+1 queries.
+        """
+        region = self.location_repository.find_by_id(booking.get("region_id"))
+        booking["region_name"] = region.get("name") if region else None
+
+        cart_type = self.cart_type_repository.find_by_id(booking.get("cart_type_id"))
+        booking["cart_type_name"] = cart_type.get("name") if cart_type else None
+
+        timeslot = self.timeslot_repository.find_by_id(booking.get("timeslot_id"))
+        if timeslot:
+            booking["timeslot_label"] = (
+                f"{timeslot.get('start_time', '?')} - {timeslot.get('end_time', '?')}"
+            )
+        else:
+            booking["timeslot_label"] = None
+
+        assigned = booking.get("assigned_cart_id")
+        booking["cart_label"] = f"CART-{assigned}" if assigned is not None else None
+
+        return booking
+
+    def _enrich_bookings_batch(self, bookings: list[dict]) -> list[dict]:
+        """Batch-enrich a list of bookings with display names.
+
+        Fetches all locations, cart types, and timeslots in 3 queries total
+        (instead of 3 per booking) to avoid N+1 round-trips to Neon.
+        """
+        if not bookings:
+            return bookings
+
+        locations = {r["id"]: r for r in self.location_repository.find_all()}
+        cart_types = {ct["id"]: ct for ct in self.cart_type_repository.find_all()}
+        timeslots = {ts["id"]: ts for ts in self.timeslot_repository.find_all()}
+
+        for booking in bookings:
+            region = locations.get(booking.get("region_id"))
+            booking["region_name"] = region.get("name") if region else None
+
+            cart_type = cart_types.get(booking.get("cart_type_id"))
+            booking["cart_type_name"] = cart_type.get("name") if cart_type else None
+
+            timeslot = timeslots.get(booking.get("timeslot_id"))
+            if timeslot:
+                booking["timeslot_label"] = (
+                    f"{timeslot.get('start_time', '?')} - {timeslot.get('end_time', '?')}"
+                )
+            else:
+                booking["timeslot_label"] = None
+
+            assigned = booking.get("assigned_cart_id")
+            booking["cart_label"] = f"CART-{assigned}" if assigned is not None else None
+
+        return bookings
+
     # ── CRUD ──────────────────────────────────────────────────────────
 
     def create_booking(self, booking_data: dict) -> dict:
@@ -295,17 +355,20 @@ class BookingService(BaseService):
         booking = self.booking_repository.find_by_id(booking_id)
         if booking:
             booking = self._check_and_expire(booking)
+            booking = self._enrich_booking(booking)
         return booking
 
     def list_bookings(self) -> list[dict]:
         """Retrieve all bookings. Runs lazy expiry check on each."""
         bookings = self.booking_repository.find_all()
-        return [self._check_and_expire(b) for b in bookings]
+        bookings = [self._check_and_expire(b) for b in bookings]
+        return self._enrich_bookings_batch(bookings)
 
     def list_bookings_by_user(self, user_id: int) -> list[dict]:
         """Retrieve all bookings belonging to a specific user. Runs lazy expiry check."""
         bookings = self.booking_repository.find_by_user_id(user_id)
-        return [self._check_and_expire(b) for b in bookings]
+        bookings = [self._check_and_expire(b) for b in bookings]
+        return self._enrich_bookings_batch(bookings)
 
     def cancel_booking(self, booking_id: int) -> dict:
         """
@@ -386,9 +449,11 @@ class BookingService(BaseService):
                 f"Only CONFIRMED bookings can be started."
             )
 
-        return self.booking_repository.update(booking_id, {
+        updated = self.booking_repository.update(booking_id, {
             "status": "IN_PROGRESS",
         })
+        # TODO: send notification to user that service has started
+        return updated
 
     def complete_booking(self, booking_id: int) -> dict:
         """

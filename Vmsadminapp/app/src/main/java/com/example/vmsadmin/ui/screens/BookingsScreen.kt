@@ -126,13 +126,13 @@ fun BookingsScreen(viewModel: BookingViewModel) {
                                 BookingCard(
                                     booking = booking,
                                     onStart = {
-                                        dialogTitle = "Start Booking?"
-                                        dialogMessage = "Start booking #${booking.id}? This will mark it as in progress."
+                                        dialogTitle = "Start Service?"
+                                        dialogMessage = "Start service for booking #${booking.id}? This will mark it as in progress."
                                         dialogAction = { viewModel.startBooking(booking.id) }
                                         showDialog = true
                                     },
                                     onComplete = {
-                                        dialogTitle = "Complete Booking?"
+                                        dialogTitle = "Complete Service?"
                                         dialogMessage = "Mark booking #${booking.id} as completed?"
                                         dialogAction = { viewModel.completeBooking(booking.id) }
                                         showDialog = true
@@ -181,8 +181,10 @@ private fun BookingCard(
         InfoRow(label = "Cart Type", value = booking.cart_type_name ?: "Type ${booking.cart_type_id ?: "-"}")
         InfoRow(label = "Timeslot", value = booking.timeslot_label ?: "Slot ${booking.timeslot_id ?: "-"}")
         InfoRow(label = "Date", value = booking.date ?: "-")
-        if (booking.assigned_cart_id != null) {
-            InfoRow(label = "Cart", value = "CART-${booking.assigned_cart_id}")
+        val cartDisplay = booking.cart_label
+            ?: if (booking.assigned_cart_id != null) "CART-${booking.assigned_cart_id}" else null
+        if (cartDisplay != null) {
+            InfoRow(label = "Cart", value = cartDisplay)
         }
 
         // Action buttons based on status
@@ -206,7 +208,7 @@ private fun BookingCard(
                                 contentColor = MaterialTheme.colorScheme.error
                             )
                         ) {
-                            Text("Cancel")
+                            Text("Cancel Booking")
                         }
                     }
                     "CONFIRMED" -> {
@@ -218,14 +220,14 @@ private fun BookingCard(
                                 contentColor = MaterialTheme.colorScheme.error
                             )
                         ) {
-                            Text("Cancel")
+                            Text("Cancel Booking")
                         }
                         Button(
                             onClick = onStart,
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Start")
+                            Text("Start Service")
                         }
                     }
                     "IN_PROGRESS" -> {
@@ -234,7 +236,7 @@ private fun BookingCard(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Complete")
+                            Text("Complete Service")
                         }
                     }
                 }
