@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from sqlalchemy import func
+
 from core.database.db_connection import SessionLocal
 from modules.location.model.location_model import Location
 
@@ -48,10 +50,12 @@ class LocationRepository:
             session.close()
 
     def find_by_name(self, name: str) -> dict | None:
-        """Retrieve a location by name."""
+        """Retrieve a location by name (case-insensitive)."""
         session = self._session_factory()
         try:
-            location = session.query(Location).filter(Location.name == name).first()
+            location = session.query(Location).filter(
+                func.lower(Location.name) == name.lower()
+            ).first()
             return location.to_dict() if location else None
         finally:
             session.close()

@@ -1,5 +1,62 @@
 # Development Log
 
+## 11 Mar 2026 — Day 22: Admin System Management Panel (Regions)
+
+### Summary
+- Implemented the first configuration module (Regions) inside the Manage tab of the VMS Admin Android app.
+- Backend already had CRUD endpoints at `/api/v1/locations`; Android app now fully consumes them.
+- Fixed case-insensitive duplicate region name detection in the backend.
+- Added region delete support with confirmation dialog.
+- Added proper HTTP error parsing for user-facing error messages (Snackbar).
+
+### Backend Changes
+
+#### `location_repository.py` — Case-Insensitive Duplicate Check
+- `find_by_name()` now uses `func.lower()` for case-insensitive comparison.
+- "Delhi" and "delhi" are now correctly treated as duplicates.
+
+### Android — New Files
+
+| File | Purpose |
+|------|---------|
+| `RegionRepository.kt` | Data layer — get/create/update/toggle/delete with `HttpException` error parsing |
+| `RegionViewModel.kt` | State management — `RegionUiState`, CRUD, dialog state, delete confirmation |
+| `RegionsScreen.kt` | UI — LazyColumn, AppCard items, toggle switch, Edit/Delete buttons, FAB, Snackbar errors |
+
+### Android — Modified Files
+
+| File | Change |
+|------|--------|
+| `Models.kt` | Added `Region`, `CreateRegionRequest`, `UpdateRegionRequest` data classes |
+| `ApiService.kt` | Added `getRegions()`, `createRegion()`, `updateRegion()`, `deleteRegion()` endpoints |
+| `PlaceholderScreens.kt` | Rewrote `ManageScreen` with card-based menu (Regions active, 4 others "Soon") |
+| `MainScreen.kt` | Added `regionViewModel` param, `manage/regions` nested route |
+| `AppNavigation.kt` | Passes `regionViewModel` to `MainScreen` |
+| `MainActivity.kt` | Creates `RegionRepository` + `RegionViewModel`, passes to nav |
+| `ApiClient.kt` | Updated `BASE_URL` to `192.168.1.3` |
+| `network_security_config.xml` | Added `192.168.1.3` to cleartext traffic policy |
+
+### Key Features
+- **Manage Screen**: 5 config cards — Regions (active), Cart Types / Timeslots / Carts / Fee Config ("Soon")
+- **Regions Screen**: Pull-to-refresh, shimmer loading, animated list entry, empty state
+- **Region Cards**: Name + Active/Inactive toggle + Edit button + Delete button (red)
+- **Add/Edit Dialog**: Name input with blank validation
+- **Delete Confirmation**: "Are you sure?" dialog with red Delete button
+- **Error Handling**: `HttpException` body parsed for FastAPI `detail` field → shown in Snackbar
+- **Case-Insensitive**: Backend rejects "delhi" if "Delhi" already exists
+
+### Architecture
+- Repository pattern with `HttpException` error parsing via `parseErrorDetail()`
+- ViewModel manages dialog state (add/edit/delete confirmation) with `StateFlow`
+- Snackbar + `LaunchedEffect` for transient error display
+- Backend `find_by_name` uses `func.lower()` for case-insensitive SQL comparison
+
+**Status**:
+Regions management panel fully implemented.
+System stable.
+
+---
+
 ## 07 Mar 2026 — Day 21: Admin App UI System Upgrade (Dark/Light Dashboard)
 
 ### Summary
@@ -17,7 +74,7 @@
   - `MainScreen.kt`: Updated bottom navigation to a floating, rounded bar with outlined Material icons.
 
 ---
-## 06 Mar 2026 — Day 19: Auth Stability + Payment Approval Automation
+## 05 Mar 2026 — Day 19: Auth Stability + Payment Approval Automation
 
 ### Summary
 - Payment approval now auto-confirms bookings (one-click admin workflow).

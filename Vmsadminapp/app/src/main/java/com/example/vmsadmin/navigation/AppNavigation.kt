@@ -12,6 +12,7 @@ import com.example.vmsadmin.viewmodel.AuthViewModel
 import com.example.vmsadmin.viewmodel.BookingViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
+import com.example.vmsadmin.viewmodel.RegionViewModel
 
 @Composable
 fun AppNavigation(
@@ -19,6 +20,7 @@ fun AppNavigation(
     dashboardViewModel: DashboardViewModel,
     paymentViewModel: PaymentViewModel,
     bookingViewModel: BookingViewModel,
+    regionViewModel: RegionViewModel,
     startDestination: String
 ) {
     val navController = rememberNavController()
@@ -47,7 +49,8 @@ fun AppNavigation(
             MainScreen(
                 viewModel = dashboardViewModel,
                 paymentViewModel = paymentViewModel,
-                bookingViewModel = bookingViewModel
+                bookingViewModel = bookingViewModel,
+                regionViewModel = regionViewModel
             )
         }
     }

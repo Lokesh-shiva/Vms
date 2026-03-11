@@ -57,3 +57,23 @@ data class PaymentConfig(
     val upi_id: String? = null,
     val merchant_name: String? = null
 )
+
+@Serializable
+data class Region(
+    val id: Int,
+    val name: String,
+    val is_serviceable: Boolean = true,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class CreateRegionRequest(
+    val name: String
+)
+
+@Serializable
+data class UpdateRegionRequest(
+    val name: String? = null,
+    val is_serviceable: Boolean? = null
+)

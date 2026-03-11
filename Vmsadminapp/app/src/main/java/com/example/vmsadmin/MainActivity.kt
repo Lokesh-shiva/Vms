@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.ViewModelProvider
 import com.example.vmsadmin.data.BookingRepository
 import com.example.vmsadmin.data.PaymentRepository
+import com.example.vmsadmin.data.RegionRepository
 import com.example.vmsadmin.data.TokenManager
 import com.example.vmsadmin.navigation.AppNavigation
 import com.example.vmsadmin.network.ApiClient
@@ -19,6 +20,8 @@ import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModelFactory
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModelFactory
+import com.example.vmsadmin.viewmodel.RegionViewModel
+import com.example.vmsadmin.viewmodel.RegionViewModelFactory
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.runBlocking
 
@@ -44,6 +47,10 @@ class MainActivity : ComponentActivity() {
         val dashboardViewModelFactory = DashboardViewModelFactory(paymentRepository, bookingRepository)
         val dashboardViewModel = ViewModelProvider(this, dashboardViewModelFactory)[DashboardViewModel::class.java]
 
+        val regionRepository = RegionRepository(apiService)
+        val regionViewModelFactory = RegionViewModelFactory(regionRepository)
+        val regionViewModel = ViewModelProvider(this, regionViewModelFactory)[RegionViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -54,6 +61,7 @@ class MainActivity : ComponentActivity() {
                     dashboardViewModel = dashboardViewModel,
                     paymentViewModel = paymentViewModel,
                     bookingViewModel = bookingViewModel,
+                    regionViewModel = regionViewModel,
                     startDestination = startDestination
                 )
             }

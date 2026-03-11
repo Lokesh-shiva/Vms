@@ -28,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.vmsadmin.viewmodel.BookingViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
+import com.example.vmsadmin.viewmodel.RegionViewModel
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Dashboard : BottomNavItem("dashboard", "Dashboard", Icons.Outlined.Home)
@@ -40,7 +41,8 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
 fun MainScreen(
     viewModel: DashboardViewModel,
     paymentViewModel: PaymentViewModel,
-    bookingViewModel: BookingViewModel
+    bookingViewModel: BookingViewModel,
+    regionViewModel: RegionViewModel
 ) {
     val navController = rememberNavController()
 
@@ -118,7 +120,14 @@ fun MainScreen(
                 PaymentsScreen(paymentViewModel)
             }
             composable(BottomNavItem.Manage.route) {
-                ManageScreen()
+                ManageScreen(
+                    onNavigateToRegions = {
+                        navController.navigate("manage/regions")
+                    }
+                )
+            }
+            composable("manage/regions") {
+                RegionsScreen(viewModel = regionViewModel)
             }
         }
     }
