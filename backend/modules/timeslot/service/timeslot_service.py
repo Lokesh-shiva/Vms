@@ -131,5 +131,18 @@ class TimeslotService(BaseService):
 
         Returns:
             True if deleted, False if timeslot was not found.
+
+        Raises:
+            ValueError: If the timeslot is still referenced by other records.
         """
-        return self.timeslot_repository.delete(timeslot_id)
+        try:
+            return self.timeslot_repository.delete(timeslot_id)
+        except Exception as e:
+            # Check if it's a foreign key violation (psycopg2.errors.ForeignKeyViolation)
+            error_str = str(e)
+            if "ForeignKeyViolation" in error_str or "violates foreign key constraint" in error_str:
+                raise ValueError(
+                    "Cannot delete timeslot because it is still referenced by existing bookings. "
+                    "Try making it inactive instead."
+                )
+            raise

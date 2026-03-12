@@ -19,14 +19,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.vmsadmin.models.Region
+import com.example.vmsadmin.models.CartType
 import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.ui.components.shimmerEffect
-import com.example.vmsadmin.viewmodel.RegionViewModel
+import com.example.vmsadmin.viewmodel.CartTypeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegionsScreen(viewModel: RegionViewModel) {
+fun CartTypesScreen(viewModel: CartTypeViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     var visible by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -39,43 +39,43 @@ fun RegionsScreen(viewModel: RegionViewModel) {
     }
 
     LaunchedEffect(Unit) {
-        viewModel.loadRegions()
+        viewModel.loadCartTypes()
         visible = true
     }
 
-    // ── Add Region Dialog ────────────────────────────────────────────
+    // ── Add Cart Type Dialog ─────────────────────────────────────────
     if (uiState.showAddDialog) {
-        RegionNameDialog(
-            title = "Add Region",
+        CartTypeNameDialog(
+            title = "Add Cart Type",
             initialName = "",
-            onConfirm = { name -> viewModel.addRegion(name) },
+            onConfirm = { name -> viewModel.addCartType(name) },
             onDismiss = { viewModel.dismissAddDialog() }
         )
     }
 
-    // ── Edit Region Dialog ───────────────────────────────────────────
-    if (uiState.showEditDialog && uiState.editingRegion != null) {
-        RegionNameDialog(
-            title = "Edit Region",
-            initialName = uiState.editingRegion!!.name,
-            onConfirm = { name -> viewModel.updateRegion(uiState.editingRegion!!.id, name) },
+    // ── Edit Cart Type Dialog ────────────────────────────────────────
+    if (uiState.showEditDialog && uiState.editingCartType != null) {
+        CartTypeNameDialog(
+            title = "Edit Cart Type",
+            initialName = uiState.editingCartType!!.name,
+            onConfirm = { name -> viewModel.updateCartType(uiState.editingCartType!!.id, name) },
             onDismiss = { viewModel.dismissEditDialog() }
         )
     }
 
     // ── Delete Confirmation Dialog ───────────────────────────────────
-    if (uiState.showDeleteConfirm && uiState.deletingRegion != null) {
+    if (uiState.showDeleteConfirm && uiState.deletingCartType != null) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeleteConfirm() },
             title = {
-                Text("Delete Region", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Delete Cart Type", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             },
             text = {
-                Text("Are you sure you want to delete \"${uiState.deletingRegion!!.name}\"? This action cannot be undone.")
+                Text("Are you sure you want to delete \"${uiState.deletingCartType!!.name}\"? This action cannot be undone.")
             },
             confirmButton = {
                 Button(
-                    onClick = { viewModel.deleteRegion(uiState.deletingRegion!!.id) },
+                    onClick = { viewModel.deleteCartType(uiState.deletingCartType!!.id) },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.error
                     ),
@@ -102,7 +102,7 @@ fun RegionsScreen(viewModel: RegionViewModel) {
             TopAppBar(
                 title = {
                     Text(
-                        "Regions",
+                        "Cart Types",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -119,7 +119,7 @@ fun RegionsScreen(viewModel: RegionViewModel) {
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Region")
+                Icon(Icons.Default.Add, contentDescription = "Add Cart Type")
             }
         }
     ) { innerPadding ->
@@ -129,7 +129,7 @@ fun RegionsScreen(viewModel: RegionViewModel) {
                 .padding(innerPadding)
         ) {
             when {
-                uiState.isLoading && uiState.regions.isEmpty() -> {
+                uiState.isLoading && uiState.cartTypes.isEmpty() -> {
                     // Skeleton Loader
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -150,7 +150,7 @@ fun RegionsScreen(viewModel: RegionViewModel) {
                         }
                     }
                 }
-                uiState.error != null && uiState.regions.isEmpty() -> {
+                uiState.error != null && uiState.cartTypes.isEmpty() -> {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -161,24 +161,24 @@ fun RegionsScreen(viewModel: RegionViewModel) {
                             style = MaterialTheme.typography.bodyLarge
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.loadRegions() }) {
+                        Button(onClick = { viewModel.loadCartTypes() }) {
                             Text("Retry")
                         }
                     }
                 }
-                uiState.regions.isEmpty() -> {
+                uiState.cartTypes.isEmpty() -> {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "No regions configured",
+                            text = "No cart types configured",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Tap + to add your first region",
+                            text = "Tap + to add your first cart type",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -187,7 +187,7 @@ fun RegionsScreen(viewModel: RegionViewModel) {
                 else -> {
                     PullToRefreshBox(
                         isRefreshing = uiState.isRefreshing,
-                        onRefresh = { viewModel.refreshRegions() },
+                        onRefresh = { viewModel.refreshCartTypes() },
                         modifier = Modifier.fillMaxSize()
                     ) {
                         LazyColumn(
@@ -196,9 +196,9 @@ fun RegionsScreen(viewModel: RegionViewModel) {
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             itemsIndexed(
-                                uiState.regions,
-                                key = { _, region -> region.id }
-                            ) { index, region ->
+                                uiState.cartTypes,
+                                key = { _, cartType -> cartType.id }
+                            ) { index, cartType ->
                                 AnimatedVisibility(
                                     visible = visible,
                                     enter = fadeIn(animationSpec = tween(400, delayMillis = index * 50)) +
@@ -207,13 +207,13 @@ fun RegionsScreen(viewModel: RegionViewModel) {
                                                 animationSpec = tween(400, delayMillis = index * 50)
                                             )
                                 ) {
-                                    RegionCard(
-                                        region = region,
-                                        isUpdating = uiState.updatingIds.contains(region.id),
-                                        onEdit = { viewModel.showEditDialog(region) },
-                                        onDelete = { viewModel.showDeleteConfirm(region) },
+                                    CartTypeCard(
+                                        cartType = cartType,
+                                        isUpdating = uiState.updatingIds.contains(cartType.id),
+                                        onEdit = { viewModel.showEditDialog(cartType) },
+                                        onDelete = { viewModel.showDeleteConfirm(cartType) },
                                         onToggle = { isActive ->
-                                            viewModel.toggleRegion(region.id, isActive)
+                                            viewModel.toggleCartType(cartType.id, isActive)
                                         }
                                     )
                                 }
@@ -227,8 +227,8 @@ fun RegionsScreen(viewModel: RegionViewModel) {
 }
 
 @Composable
-private fun RegionCard(
-    region: Region,
+private fun CartTypeCard(
+    cartType: CartType,
     isUpdating: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -242,23 +242,23 @@ private fun RegionCard(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = region.name,
+                    text = cartType.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (region.is_serviceable) "Active" else "Inactive",
+                    text = if (cartType.is_active) "Active" else "Inactive",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (region.is_serviceable)
+                    color = if (cartType.is_active)
                         MaterialTheme.colorScheme.primary
                     else
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             }
             Switch(
-                checked = region.is_serviceable,
+                checked = cartType.is_active,
                 onCheckedChange = onToggle,
                 enabled = !isUpdating,
                 colors = SwitchDefaults.colors(
@@ -314,7 +314,7 @@ private fun RegionCard(
 }
 
 @Composable
-private fun RegionNameDialog(
+private fun CartTypeNameDialog(
     title: String,
     initialName: String,
     onConfirm: (String) -> Unit,
@@ -335,11 +335,11 @@ private fun RegionNameDialog(
                     name = it
                     isError = it.isBlank()
                 },
-                label = { Text("Region Name") },
+                label = { Text("Cart Type Name") },
                 singleLine = true,
                 isError = isError,
                 supportingText = if (isError) {
-                    { Text("Region name cannot be empty") }
+                    { Text("Cart type name cannot be empty") }
                 } else null,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)

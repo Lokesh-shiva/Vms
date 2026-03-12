@@ -3,40 +3,40 @@ package com.example.vmsadmin.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.vmsadmin.data.RegionRepository
-import com.example.vmsadmin.models.Region
+import com.example.vmsadmin.data.CartTypeRepository
+import com.example.vmsadmin.models.CartType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-data class RegionUiState(
-    val regions: List<Region> = emptyList(),
+data class CartTypeUiState(
+    val cartTypes: List<CartType> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val error: String? = null,
     val showAddDialog: Boolean = false,
     val showEditDialog: Boolean = false,
-    val editingRegion: Region? = null,
+    val editingCartType: CartType? = null,
     val showDeleteConfirm: Boolean = false,
-    val deletingRegion: Region? = null,
+    val deletingCartType: CartType? = null,
     val updatingIds: Set<Int> = emptySet()
 )
 
-class RegionViewModel(
-    private val regionRepository: RegionRepository
+class CartTypeViewModel(
+    private val cartTypeRepository: CartTypeRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(RegionUiState())
-    val uiState: StateFlow<RegionUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(CartTypeUiState())
+    val uiState: StateFlow<CartTypeUiState> = _uiState.asStateFlow()
 
-    fun loadRegions() {
+    fun loadCartTypes() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                val regions = regionRepository.getRegions()
+                val cartTypes = cartTypeRepository.getCartTypes()
                 _uiState.value = _uiState.value.copy(
-                    regions = regions,
+                    cartTypes = cartTypes,
                     isLoading = false
                 )
             } catch (e: Exception) {
@@ -48,13 +48,13 @@ class RegionViewModel(
         }
     }
 
-    fun refreshRegions() {
+    fun refreshCartTypes() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
             try {
-                val regions = regionRepository.getRegions()
+                val cartTypes = cartTypeRepository.getCartTypes()
                 _uiState.value = _uiState.value.copy(
-                    regions = regions,
+                    cartTypes = cartTypes,
                     isRefreshing = false
                 )
             } catch (e: Exception) {
@@ -66,77 +66,77 @@ class RegionViewModel(
         }
     }
 
-    fun addRegion(name: String) {
+    fun addCartType(name: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                regionRepository.createRegion(name)
+                cartTypeRepository.createCartType(name)
                 _uiState.value = _uiState.value.copy(showAddDialog = false)
-                loadRegions()
+                loadCartTypes()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Failed to add region"
+                    error = e.message ?: "Failed to add cart type"
                 )
             }
         }
     }
 
-    fun updateRegion(id: Int, name: String) {
+    fun updateCartType(id: Int, name: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                regionRepository.updateRegion(id, name)
-                _uiState.value = _uiState.value.copy(showEditDialog = false, editingRegion = null)
-                loadRegions()
+                cartTypeRepository.updateCartType(id, name)
+                _uiState.value = _uiState.value.copy(showEditDialog = false, editingCartType = null)
+                loadCartTypes()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Failed to update region"
+                    error = e.message ?: "Failed to update cart type"
                 )
             }
         }
     }
 
-    fun toggleRegion(id: Int, isActive: Boolean) {
-        val originalList = _uiState.value.regions
+    fun toggleCartType(id: Int, isActive: Boolean) {
+        val originalList = _uiState.value.cartTypes
         val updatedList = originalList.map { 
-            if (it.id == id) it.copy(is_serviceable = isActive) else it 
+            if (it.id == id) it.copy(is_active = isActive) else it 
         }
         _uiState.value = _uiState.value.copy(
-            regions = updatedList,
+            cartTypes = updatedList,
             updatingIds = _uiState.value.updatingIds + id,
             error = null
         )
         viewModelScope.launch {
             try {
-                regionRepository.toggleRegionActive(id, isActive)
+                cartTypeRepository.toggleCartTypeActive(id, isActive)
                 _uiState.value = _uiState.value.copy(
                     updatingIds = _uiState.value.updatingIds - id
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
-                    regions = originalList,
+                    cartTypes = originalList,
                     updatingIds = _uiState.value.updatingIds - id,
-                    error = e.message ?: "Failed to toggle region"
+                    error = e.message ?: "Failed to toggle cart type"
                 )
             }
         }
     }
 
-    fun deleteRegion(id: Int) {
+    fun deleteCartType(id: Int) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isLoading = true, error = null,
-                showDeleteConfirm = false, deletingRegion = null
+                showDeleteConfirm = false, deletingCartType = null
             )
             try {
-                regionRepository.deleteRegion(id)
-                loadRegions()
+                cartTypeRepository.deleteCartType(id)
+                loadCartTypes()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Failed to delete region"
+                    error = e.message ?: "Failed to delete cart type"
                 )
             }
         }
@@ -150,20 +150,20 @@ class RegionViewModel(
         _uiState.value = _uiState.value.copy(showAddDialog = false)
     }
 
-    fun showEditDialog(region: Region) {
-        _uiState.value = _uiState.value.copy(showEditDialog = true, editingRegion = region)
+    fun showEditDialog(cartType: CartType) {
+        _uiState.value = _uiState.value.copy(showEditDialog = true, editingCartType = cartType)
     }
 
     fun dismissEditDialog() {
-        _uiState.value = _uiState.value.copy(showEditDialog = false, editingRegion = null)
+        _uiState.value = _uiState.value.copy(showEditDialog = false, editingCartType = null)
     }
 
-    fun showDeleteConfirm(region: Region) {
-        _uiState.value = _uiState.value.copy(showDeleteConfirm = true, deletingRegion = region)
+    fun showDeleteConfirm(cartType: CartType) {
+        _uiState.value = _uiState.value.copy(showDeleteConfirm = true, deletingCartType = cartType)
     }
 
     fun dismissDeleteConfirm() {
-        _uiState.value = _uiState.value.copy(showDeleteConfirm = false, deletingRegion = null)
+        _uiState.value = _uiState.value.copy(showDeleteConfirm = false, deletingCartType = null)
     }
 
     fun clearError() {
@@ -171,13 +171,13 @@ class RegionViewModel(
     }
 }
 
-class RegionViewModelFactory(
-    private val regionRepository: RegionRepository
+class CartTypeViewModelFactory(
+    private val cartTypeRepository: CartTypeRepository
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(RegionViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(CartTypeViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return RegionViewModel(regionRepository) as T
+            return CartTypeViewModel(cartTypeRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

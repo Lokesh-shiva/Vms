@@ -28,7 +28,9 @@ import androidx.navigation.compose.rememberNavController
 import com.example.vmsadmin.viewmodel.BookingViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
+import com.example.vmsadmin.viewmodel.CartTypeViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
+import com.example.vmsadmin.viewmodel.TimeslotViewModel
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Dashboard : BottomNavItem("dashboard", "Dashboard", Icons.Outlined.Home)
@@ -42,7 +44,9 @@ fun MainScreen(
     viewModel: DashboardViewModel,
     paymentViewModel: PaymentViewModel,
     bookingViewModel: BookingViewModel,
-    regionViewModel: RegionViewModel
+    regionViewModel: RegionViewModel,
+    cartTypeViewModel: CartTypeViewModel,
+    timeslotViewModel: TimeslotViewModel
 ) {
     val navController = rememberNavController()
 
@@ -123,11 +127,23 @@ fun MainScreen(
                 ManageScreen(
                     onNavigateToRegions = {
                         navController.navigate("manage/regions")
+                    },
+                    onNavigateToCartTypes = {
+                        navController.navigate("manage/cart-types")
+                    },
+                    onNavigateToTimeslots = {
+                        navController.navigate("manage/timeslots")
                     }
                 )
             }
             composable("manage/regions") {
                 RegionsScreen(viewModel = regionViewModel)
+            }
+            composable("manage/cart-types") {
+                CartTypesScreen(viewModel = cartTypeViewModel)
+            }
+            composable("manage/timeslots") {
+                TimeslotsScreen(viewModel = timeslotViewModel)
             }
         }
     }

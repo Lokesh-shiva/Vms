@@ -77,3 +77,50 @@ data class UpdateRegionRequest(
     val name: String? = null,
     val is_serviceable: Boolean? = null
 )
+
+@Serializable
+data class CartType(
+    val id: Int,
+    val name: String,
+    val description: String? = null,
+    val is_active: Boolean = true,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class CreateCartTypeRequest(
+    val name: String
+)
+
+@Serializable
+data class UpdateCartTypeRequest(
+    val name: String? = null,
+    val is_active: Boolean? = null
+)
+
+@Serializable
+data class Timeslot(
+    val id: Int,
+    val start_time: String,
+    val end_time: String,
+    val capacity: Int,
+    val is_active: Boolean = true,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class CreateTimeslotRequest(
+    val start_time: String,
+    val end_time: String,
+    val capacity: Int
+)
+
+@Serializable
+data class UpdateTimeslotRequest(
+    val start_time: String? = null,
+    val end_time: String? = null,
+    val capacity: Int? = null,
+    val is_active: Boolean? = null
+)

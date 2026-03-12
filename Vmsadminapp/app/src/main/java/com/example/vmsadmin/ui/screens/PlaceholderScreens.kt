@@ -21,7 +21,9 @@ import com.example.vmsadmin.ui.components.AppCard
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManageScreen(
-    onNavigateToRegions: () -> Unit = {}
+    onNavigateToRegions: () -> Unit = {},
+    onNavigateToCartTypes: () -> Unit = {},
+    onNavigateToTimeslots: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -61,7 +63,8 @@ fun ManageScreen(
                     title = "Cart Types",
                     subtitle = "Configure cart categories and pricing",
                     icon = Icons.Outlined.ShoppingCart,
-                    enabled = false
+                    enabled = true,
+                    onClick = onNavigateToCartTypes
                 )
             }
             item {
@@ -69,7 +72,8 @@ fun ManageScreen(
                     title = "Timeslots",
                     subtitle = "Set up available booking timeslots",
                     icon = Icons.Outlined.DateRange,
-                    enabled = false
+                    enabled = true,
+                    onClick = onNavigateToTimeslots
                 )
             }
             item {

@@ -3,40 +3,42 @@ package com.example.vmsadmin.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.vmsadmin.data.RegionRepository
-import com.example.vmsadmin.models.Region
+import com.example.vmsadmin.data.TimeslotRepository
+import com.example.vmsadmin.models.Timeslot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-data class RegionUiState(
-    val regions: List<Region> = emptyList(),
+data class TimeslotUiState(
+    val timeslots: List<Timeslot> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val error: String? = null,
+    val selectedTimeslot: Timeslot? = null,
     val showAddDialog: Boolean = false,
     val showEditDialog: Boolean = false,
-    val editingRegion: Region? = null,
+    val editingTimeslot: Timeslot? = null,
     val showDeleteConfirm: Boolean = false,
-    val deletingRegion: Region? = null,
-    val updatingIds: Set<Int> = emptySet()
+    val deletingTimeslot: Timeslot? = null,
+    val updatingTimeslotIds: Set<Int> = emptySet()
 )
 
-class RegionViewModel(
-    private val regionRepository: RegionRepository
+class TimeslotViewModel(
+    private val timeslotRepository: TimeslotRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(RegionUiState())
-    val uiState: StateFlow<RegionUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow(TimeslotUiState())
+    val uiState: StateFlow<TimeslotUiState> = _uiState.asStateFlow()
 
-    fun loadRegions() {
+    fun loadTimeslots() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                val regions = regionRepository.getRegions()
+                val timeslots = timeslotRepository.getTimeslots()
+                    .sortedBy { it.start_time }
                 _uiState.value = _uiState.value.copy(
-                    regions = regions,
+                    timeslots = timeslots,
                     isLoading = false
                 )
             } catch (e: Exception) {
@@ -48,13 +50,14 @@ class RegionViewModel(
         }
     }
 
-    fun refreshRegions() {
+    fun refreshTimeslots() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRefreshing = true, error = null)
             try {
-                val regions = regionRepository.getRegions()
+                val timeslots = timeslotRepository.getTimeslots()
+                    .sortedBy { it.start_time }
                 _uiState.value = _uiState.value.copy(
-                    regions = regions,
+                    timeslots = timeslots,
                     isRefreshing = false
                 )
             } catch (e: Exception) {
@@ -66,77 +69,87 @@ class RegionViewModel(
         }
     }
 
-    fun addRegion(name: String) {
+    fun addTimeslot(startTime: String, endTime: String, capacity: Int) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                regionRepository.createRegion(name)
+                timeslotRepository.createTimeslot(startTime, endTime, capacity)
                 _uiState.value = _uiState.value.copy(showAddDialog = false)
-                loadRegions()
+                loadTimeslots()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Failed to add region"
+                    error = e.message ?: "Failed to add timeslot"
                 )
             }
         }
     }
 
-    fun updateRegion(id: Int, name: String) {
+    fun updateTimeslot(id: Int, startTime: String, endTime: String, capacity: Int) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                regionRepository.updateRegion(id, name)
-                _uiState.value = _uiState.value.copy(showEditDialog = false, editingRegion = null)
-                loadRegions()
+                timeslotRepository.updateTimeslot(
+                    id = id,
+                    startTime = startTime,
+                    endTime = endTime,
+                    capacity = capacity
+                )
+                _uiState.value = _uiState.value.copy(
+                    showEditDialog = false,
+                    editingTimeslot = null
+                )
+                loadTimeslots()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Failed to update region"
+                    error = e.message ?: "Failed to update timeslot"
                 )
             }
         }
     }
 
-    fun toggleRegion(id: Int, isActive: Boolean) {
-        val originalList = _uiState.value.regions
-        val updatedList = originalList.map { 
-            if (it.id == id) it.copy(is_serviceable = isActive) else it 
+    fun toggleTimeslot(id: Int, isActive: Boolean) {
+        val originalList = _uiState.value.timeslots
+        val updatedList = originalList.map {
+            if (it.id == id) it.copy(is_active = isActive) else it
         }
         _uiState.value = _uiState.value.copy(
-            regions = updatedList,
-            updatingIds = _uiState.value.updatingIds + id,
+            timeslots = updatedList,
+            updatingTimeslotIds = _uiState.value.updatingTimeslotIds + id,
             error = null
         )
         viewModelScope.launch {
             try {
-                regionRepository.toggleRegionActive(id, isActive)
-                _uiState.value = _uiState.value.copy(
-                    updatingIds = _uiState.value.updatingIds - id
-                )
+                timeslotRepository.toggleTimeslotActive(id, isActive)
             } catch (e: Exception) {
+                // Revert optimistic update on failure
                 _uiState.value = _uiState.value.copy(
-                    regions = originalList,
-                    updatingIds = _uiState.value.updatingIds - id,
-                    error = e.message ?: "Failed to toggle region"
+                    timeslots = originalList,
+                    error = e.message ?: "Failed to toggle timeslot"
+                )
+            } finally {
+                // Always clear the updating flag
+                _uiState.value = _uiState.value.copy(
+                    updatingTimeslotIds = _uiState.value.updatingTimeslotIds - id
                 )
             }
         }
     }
 
-    fun deleteRegion(id: Int) {
+    fun deleteTimeslot(id: Int) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isLoading = true, error = null,
-                showDeleteConfirm = false, deletingRegion = null
+                showDeleteConfirm = false, deletingTimeslot = null
             )
             try {
-                regionRepository.deleteRegion(id)
-                loadRegions()
+                timeslotRepository.deleteTimeslot(id)
+                loadTimeslots()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Failed to delete region"
+                    error = e.message ?: "Failed to delete timeslot"
                 )
             }
         }
@@ -150,20 +163,20 @@ class RegionViewModel(
         _uiState.value = _uiState.value.copy(showAddDialog = false)
     }
 
-    fun showEditDialog(region: Region) {
-        _uiState.value = _uiState.value.copy(showEditDialog = true, editingRegion = region)
+    fun showEditDialog(timeslot: Timeslot) {
+        _uiState.value = _uiState.value.copy(showEditDialog = true, editingTimeslot = timeslot)
     }
 
     fun dismissEditDialog() {
-        _uiState.value = _uiState.value.copy(showEditDialog = false, editingRegion = null)
+        _uiState.value = _uiState.value.copy(showEditDialog = false, editingTimeslot = null)
     }
 
-    fun showDeleteConfirm(region: Region) {
-        _uiState.value = _uiState.value.copy(showDeleteConfirm = true, deletingRegion = region)
+    fun showDeleteConfirm(timeslot: Timeslot) {
+        _uiState.value = _uiState.value.copy(showDeleteConfirm = true, deletingTimeslot = timeslot)
     }
 
     fun dismissDeleteConfirm() {
-        _uiState.value = _uiState.value.copy(showDeleteConfirm = false, deletingRegion = null)
+        _uiState.value = _uiState.value.copy(showDeleteConfirm = false, deletingTimeslot = null)
     }
 
     fun clearError() {
@@ -171,13 +184,13 @@ class RegionViewModel(
     }
 }
 
-class RegionViewModelFactory(
-    private val regionRepository: RegionRepository
+class TimeslotViewModelFactory(
+    private val timeslotRepository: TimeslotRepository
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(RegionViewModel::class.java)) {
+        if (modelClass.isAssignableFrom(TimeslotViewModel::class.java)) {
             @Suppress("UNCHECKED_CAST")
-            return RegionViewModel(regionRepository) as T
+            return TimeslotViewModel(timeslotRepository) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

@@ -2,13 +2,19 @@ package com.example.vmsadmin.network
 
 import com.example.vmsadmin.models.ApiResponse
 import com.example.vmsadmin.models.Booking
+import com.example.vmsadmin.models.CartType
+import com.example.vmsadmin.models.CreateCartTypeRequest
 import com.example.vmsadmin.models.CreateRegionRequest
+import com.example.vmsadmin.models.CreateTimeslotRequest
 import com.example.vmsadmin.models.LoginRequest
 import com.example.vmsadmin.models.LoginResponse
 import com.example.vmsadmin.models.Payment
 import com.example.vmsadmin.models.PaymentConfig
 import com.example.vmsadmin.models.Region
+import com.example.vmsadmin.models.Timeslot
+import com.example.vmsadmin.models.UpdateCartTypeRequest
 import com.example.vmsadmin.models.UpdateRegionRequest
+import com.example.vmsadmin.models.UpdateTimeslotRequest
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -61,4 +67,42 @@ interface ApiService {
 
     @DELETE("/api/v1/locations/{location_id}")
     suspend fun deleteRegion(@Path("location_id") locationId: Int): ApiResponse<JsonElement>
+
+    // ── Cart Type endpoints ──────────────────────────────────────────
+    @GET("/api/v1/cart-types")
+    suspend fun getCartTypes(): ApiResponse<List<CartType>>
+
+    @GET("/api/v1/cart-types/{cart_type_id}")
+    suspend fun getCartType(@Path("cart_type_id") cartTypeId: Int): ApiResponse<CartType>
+
+    @POST("/api/v1/cart-types")
+    suspend fun createCartType(@Body request: CreateCartTypeRequest): ApiResponse<CartType>
+
+    @PUT("/api/v1/cart-types/{cart_type_id}")
+    suspend fun updateCartType(
+        @Path("cart_type_id") cartTypeId: Int,
+        @Body request: UpdateCartTypeRequest
+    ): ApiResponse<CartType>
+
+    @DELETE("/api/v1/cart-types/{cart_type_id}")
+    suspend fun deleteCartType(@Path("cart_type_id") cartTypeId: Int): ApiResponse<JsonElement>
+
+    // ── Timeslot endpoints ───────────────────────────────────────────
+    @GET("/api/v1/timeslots")
+    suspend fun getTimeslots(): ApiResponse<List<Timeslot>>
+
+    @GET("/api/v1/timeslots/{timeslot_id}")
+    suspend fun getTimeslot(@Path("timeslot_id") timeslotId: Int): ApiResponse<Timeslot>
+
+    @POST("/api/v1/timeslots")
+    suspend fun createTimeslot(@Body request: CreateTimeslotRequest): ApiResponse<Timeslot>
+
+    @PUT("/api/v1/timeslots/{timeslot_id}")
+    suspend fun updateTimeslot(
+        @Path("timeslot_id") timeslotId: Int,
+        @Body request: UpdateTimeslotRequest
+    ): ApiResponse<Timeslot>
+
+    @DELETE("/api/v1/timeslots/{timeslot_id}")
+    suspend fun deleteTimeslot(@Path("timeslot_id") timeslotId: Int): ApiResponse<JsonElement>
 }

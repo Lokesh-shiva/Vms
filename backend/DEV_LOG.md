@@ -1,5 +1,55 @@
 # Development Log
 
+## 12 Mar 2026 — Day 23: Admin System Management Panel (Cart Types & Timeslots)
+
+### Summary
+- Implemented **Cart Types** and **Timeslots** management modules in the VMS Admin Android app.
+- Backend fix for Timeslots deletion: added proper error handling for `ForeignKeyViolation` (prevents 500 errors when deleting timeslots referenced by bookings).
+- Android app now supports full CRUD for Timeslots with optimistic UI for active/inactive toggle.
+- Enabled Timeslots and Cart Types cards in the Manage screen.
+
+### Backend Changes
+
+#### `timeslot_service.py` & `timeslot_routes.py` — Error Handling
+- Added `try-except IntegrityError` handling in `delete_timeslot` service method.
+- Surfacing user-friendly message for foreign key constraints: *"Cannot delete timeslot because it is still referenced by existing bookings."*
+- Updated router to catch `ValueError` and return `400 Bad Request`.
+
+### Android — New Files
+
+| File | Purpose |
+|------|---------|
+| `CartTypeRepository.kt` | CRUD for cart categories with backend error parsing |
+| `CartTypeViewModel.kt` | UI state, add/edit/delete dialog management for Cart Types |
+| `CartTypesScreen.kt` | UI for Cart Types with pull-to-refresh, shimmer, and status toggles |
+| `TimeslotRepository.kt` | CRUD for timeslots + toggle logic |
+| `TimeslotViewModel.kt` | Optimistic UI updates for toggling active status, sorting by `start_time` |
+| `TimeslotsScreen.kt` | UI for Timeslots with time format validation and range checks |
+
+### Android — Modified Files
+
+| File | Change |
+|------|--------|
+| `Models.kt` | Added `CartType`, `Timeslot` and their respective Request data classes |
+| `ApiService.kt` | Added 10 new endpoints (5 for Cart Types, 5 for Timeslots) |
+| `PlaceholderScreens.kt` | Enabled Cart Types and Timeslots cards; removed "Soon" badges |
+| `MainScreen.kt` | Added ViewModels to params and registered new manage routes |
+| `AppNavigation.kt` | Wired ViewModels through the navigation graph |
+| `MainActivity.kt` | Instantiated repositories and ViewModels for the new modules |
+
+### Key Features
+- **Optimistic Toggle**: Switch updates instantly on click; ID added to `updatingTimeslotIds` to disable further interaction while request is in flight.
+- **Sorting**: Timeslots automatically sorted by `start_time` in ascending order.
+- **Validation**: Client-side checks for `end_time > start_time` and valid `HH:mm` format.
+- **Robust Errors**: Backend validation errors (overlapping timeslots) are parsed and displayed via Snackbar.
+
+**Status**:
+Cart Types and Timeslots modules fully operational.
+Backend error handling improved.
+System stable.
+
+---
+
 ## 11 Mar 2026 — Day 22: Admin System Management Panel (Regions)
 
 ### Summary

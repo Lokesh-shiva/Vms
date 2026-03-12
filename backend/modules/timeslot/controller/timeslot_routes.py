@@ -65,7 +65,10 @@ def update_timeslot(timeslot_id: int, request_data: dict):
 @router.delete("/{timeslot_id}")
 def delete_timeslot(timeslot_id: int):
     """Delete a timeslot by ID."""
-    deleted = timeslot_service.delete_timeslot(timeslot_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Timeslot not found.")
-    return _success(None, "Timeslot deleted successfully.")
+    try:
+        deleted = timeslot_service.delete_timeslot(timeslot_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Timeslot not found.")
+        return _success(None, "Timeslot deleted successfully.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
