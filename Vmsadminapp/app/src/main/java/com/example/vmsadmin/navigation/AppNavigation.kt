@@ -10,6 +10,7 @@ import com.example.vmsadmin.ui.screens.LoginScreen
 import com.example.vmsadmin.ui.screens.MainScreen
 import com.example.vmsadmin.viewmodel.AuthViewModel
 import com.example.vmsadmin.viewmodel.BookingViewModel
+import com.example.vmsadmin.viewmodel.CartViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.CartTypeViewModel
@@ -25,6 +26,7 @@ fun AppNavigation(
     regionViewModel: RegionViewModel,
     cartTypeViewModel: CartTypeViewModel,
     timeslotViewModel: TimeslotViewModel,
+    cartViewModel: CartViewModel,
     startDestination: String
 ) {
     val navController = rememberNavController()
@@ -56,7 +58,8 @@ fun AppNavigation(
                 bookingViewModel = bookingViewModel,
                 regionViewModel = regionViewModel,
                 cartTypeViewModel = cartTypeViewModel,
-                timeslotViewModel = timeslotViewModel
+                timeslotViewModel = timeslotViewModel,
+                cartViewModel = cartViewModel
             )
         }
     }

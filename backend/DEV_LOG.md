@@ -1,5 +1,45 @@
 # Development Log
 
+## 13 Mar 2026 — Day 24: Admin System Management Panel (Carts)
+
+### Summary
+- Implemented **Carts** management module in the VMS Admin Android app.
+- Added full cart CRUD integration with backend `/api/v1/carts` endpoints.
+- Enabled Carts navigation from the Manage screen and wired module end-to-end through app DI/navigation.
+- Added optimistic toggle behavior for cart active state using `ACTIVE` / `INACTIVE`.
+
+### Android — New Files
+
+| File | Purpose |
+|------|---------|
+| `CartRepository.kt` | CRUD for carts with backend error parsing (`detail`) |
+| `CartViewModel.kt` | `CartUiState`, optimistic toggle handling, dialog state management |
+| `CartsScreen.kt` | Carts UI with pull-to-refresh, shimmer loading, add/edit/delete dialogs, and status controls |
+
+### Android — Modified Files
+
+| File | Change |
+|------|--------|
+| `Models.kt` | Added `Cart`, `CreateCartRequest`, `UpdateCartRequest` |
+| `ApiService.kt` | Added 5 cart endpoints (`get`, `getById`, `create`, `update`, `delete`) |
+| `MainActivity.kt` | Instantiated `CartRepository` + `CartViewModel` and passed into navigation |
+| `AppNavigation.kt` | Added `cartViewModel` in navigation wiring |
+| `MainScreen.kt` | Registered `manage/carts` route and connected `CartsScreen` |
+| `PlaceholderScreens.kt` | Enabled Carts card and added click navigation callback |
+
+### Key Features
+- **Carts Screen UX**: `Scaffold`, FAB, `PullToRefreshBox`, `LazyColumn`, shimmer, empty/error states, snackbar errors.
+- **Cart Card**: shows label, region name, cart type name, `StatusBadge`, active switch, edit/delete actions.
+- **Dialogs**: add/edit dialog with cart label + region/cart-type dropdown selectors; delete confirmation dialog.
+- **Optimistic Toggle**: immediate status update in UI, rollback on failure, per-item disable via `updatingCartIds`.
+
+**Status**:
+Carts module fully operational in Android admin app.
+Manage navigation updated with live Carts route.
+System stable.
+
+---
+
 ## 12 Mar 2026 — Day 23: Admin System Management Panel (Cart Types & Timeslots)
 
 ### Summary

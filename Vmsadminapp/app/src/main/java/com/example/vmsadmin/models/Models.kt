@@ -124,3 +124,33 @@ data class UpdateTimeslotRequest(
     val capacity: Int? = null,
     val is_active: Boolean? = null
 )
+
+@Serializable
+data class Cart(
+    val id: Int,
+    val label: String? = null,
+    val region_id: Int,
+    val region_name: String? = null,
+    val cart_type_id: Int,
+    val cart_type_name: String? = null,
+    val status: String,
+    val is_active: Boolean = true,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class CreateCartRequest(
+    val label: String? = null,
+    val region_id: Int,
+    val cart_type_id: Int,
+    val is_active: Boolean = true
+)
+
+@Serializable
+data class UpdateCartRequest(
+    val label: String? = null,
+    val region_id: Int? = null,
+    val cart_type_id: Int? = null,
+    val is_active: Boolean? = null
+)

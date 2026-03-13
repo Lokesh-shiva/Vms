@@ -23,7 +23,8 @@ import com.example.vmsadmin.ui.components.AppCard
 fun ManageScreen(
     onNavigateToRegions: () -> Unit = {},
     onNavigateToCartTypes: () -> Unit = {},
-    onNavigateToTimeslots: () -> Unit = {}
+    onNavigateToTimeslots: () -> Unit = {},
+    onNavigateToCarts: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -81,7 +82,8 @@ fun ManageScreen(
                     title = "Carts",
                     subtitle = "Manage cart inventory and assignments",
                     icon = Icons.Outlined.Build,
-                    enabled = false
+                    enabled = true,
+                    onClick = onNavigateToCarts
                 )
             }
             item {

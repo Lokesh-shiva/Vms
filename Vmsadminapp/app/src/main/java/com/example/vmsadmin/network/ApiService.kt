@@ -2,7 +2,9 @@ package com.example.vmsadmin.network
 
 import com.example.vmsadmin.models.ApiResponse
 import com.example.vmsadmin.models.Booking
+import com.example.vmsadmin.models.Cart
 import com.example.vmsadmin.models.CartType
+import com.example.vmsadmin.models.CreateCartRequest
 import com.example.vmsadmin.models.CreateCartTypeRequest
 import com.example.vmsadmin.models.CreateRegionRequest
 import com.example.vmsadmin.models.CreateTimeslotRequest
@@ -12,6 +14,7 @@ import com.example.vmsadmin.models.Payment
 import com.example.vmsadmin.models.PaymentConfig
 import com.example.vmsadmin.models.Region
 import com.example.vmsadmin.models.Timeslot
+import com.example.vmsadmin.models.UpdateCartRequest
 import com.example.vmsadmin.models.UpdateCartTypeRequest
 import com.example.vmsadmin.models.UpdateRegionRequest
 import com.example.vmsadmin.models.UpdateTimeslotRequest
@@ -105,4 +108,23 @@ interface ApiService {
 
     @DELETE("/api/v1/timeslots/{timeslot_id}")
     suspend fun deleteTimeslot(@Path("timeslot_id") timeslotId: Int): ApiResponse<JsonElement>
+
+    // ── Cart endpoints ────────────────────────────────────────────────
+    @GET("/api/v1/carts")
+    suspend fun getCarts(): ApiResponse<List<Cart>>
+
+    @GET("/api/v1/carts/{id}")
+    suspend fun getCartById(@Path("id") id: Int): ApiResponse<Cart>
+
+    @POST("/api/v1/carts")
+    suspend fun createCart(@Body request: CreateCartRequest): ApiResponse<Cart>
+
+    @PUT("/api/v1/carts/{id}")
+    suspend fun updateCart(
+        @Path("id") id: Int,
+        @Body request: UpdateCartRequest
+    ): ApiResponse<Cart>
+
+    @DELETE("/api/v1/carts/{id}")
+    suspend fun deleteCart(@Path("id") id: Int): ApiResponse<JsonElement>
 }

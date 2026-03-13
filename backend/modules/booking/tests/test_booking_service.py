@@ -333,6 +333,33 @@ class TestBookingService(unittest.TestCase):
             self.service.confirm_booking(booking["id"])
         self.assertIn("No cart available", str(ctx.exception))
 
+    def test_confirm_skips_inactive_carts(self):
+        """Inactive carts are never selected during booking confirmation."""
+        self.cart_repo.update(1, {"is_active": False})
+        self.cart_repo.update(2, {"is_active": False})
+        self.cart_repo.update(3, {"is_active": False})
+
+        booking = self.service.create_booking(self._valid_data())
+        self.payment_service.initiate_payment(booking["id"])
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI123")
+        payment = self.payment_repo.find_by_booking_id(booking["id"])
+        self.payment_service.approve_payment(payment["id"])
+
+        with self.assertRaises(ValueError) as ctx:
+            self.service.confirm_booking(booking["id"])
+        self.assertIn("No cart available", str(ctx.exception))
+
+    def test_confirm_two_bookings_get_different_carts(self):
+        """Two sequential confirmations must assign two different carts."""
+        b1 = self._create_and_pay()
+        b2 = self._create_and_pay()
+        self.assertNotEqual(b1["assigned_cart_id"], b2["assigned_cart_id"])
+
+        c1 = self.cart_repo.find_by_id(b1["assigned_cart_id"])
+        c2 = self.cart_repo.find_by_id(b2["assigned_cart_id"])
+        self.assertEqual(c1["status"], "BUSY")
+        self.assertEqual(c2["status"], "BUSY")
+
     def test_confirm_expired_booking_fails(self):
         """Cannot confirm an expired booking."""
         booking = self.service.create_booking(self._valid_data())
@@ -431,6 +458,7 @@ class TestBookingService(unittest.TestCase):
     def test_cancel_completed_booking_blocked(self):
         """Cannot cancel a completed booking."""
         confirmed = self._create_and_pay()
+        self.service.start_booking(confirmed["id"])
         self.service.complete_booking(confirmed["id"])
 
         with self.assertRaises(ValueError) as ctx:
@@ -446,6 +474,7 @@ class TestBookingService(unittest.TestCase):
         cart = self.cart_repo.find_by_id(confirmed["assigned_cart_id"])
         self.assertEqual(cart["status"], "BUSY")
 
+        self.service.start_booking(confirmed["id"])
         completed = self.service.complete_booking(confirmed["id"])
         self.assertEqual(completed["status"], "COMPLETED")
 
@@ -461,11 +490,12 @@ class TestBookingService(unittest.TestCase):
     def test_complete_booking_already_completed(self):
         """Cannot complete an already completed booking."""
         confirmed = self._create_and_pay()
+        self.service.start_booking(confirmed["id"])
         self.service.complete_booking(confirmed["id"])
 
         with self.assertRaises(ValueError) as ctx:
             self.service.complete_booking(confirmed["id"])
-        self.assertIn("Only confirmed", str(ctx.exception))
+        self.assertIn("Only IN_PROGRESS", str(ctx.exception))
 
     # ── Read ─────────────────────────────────────────────────────────
 

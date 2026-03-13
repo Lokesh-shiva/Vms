@@ -303,52 +303,67 @@ class BookingService(BaseService):
         """
         Admin confirms a booking after payment approval.
 
-        Safety checks (in order):
-        1. Check if booking should be expired (auto-expire if past 10 min)
+        All validation and state changes happen inside a single DB
+        transaction so that cart claiming and booking confirmation are
+        atomic.  The cart row is locked with FOR UPDATE SKIP LOCKED to
+        prevent two concurrent confirmations from grabbing the same cart.
+
+        Order of operations:
+        1. Load booking, run expiry check
         2. Validate booking.status == PENDING_PAYMENT
         3. Validate payment.status == SUCCESS
-        4. Find available cart (fail if none)
-        5. Assign cart, lock it, set booking to CONFIRMED
+        4. Atomically claim an AVAILABLE cart (row-lock + set BUSY)
+        5. Assign cart to booking and set status = CONFIRMED
+        6. Commit — or rollback on any failure
         """
-        booking = self.booking_repository.find_by_id(booking_id)
-        if not booking:
-            raise ValueError("Booking not found.")
-
-        # 1. Expire check
-        booking = self._check_and_expire(booking)
-
-        # 2. Status validation
-        if booking["status"] != "PENDING_PAYMENT":
-            raise ValueError(
-                f"Cannot confirm booking in {booking['status']} status. "
-                f"Only PENDING_PAYMENT bookings can be confirmed."
-            )
-
-        # 3. Payment validation
-        payment = self.payment_repository.find_by_booking_id(booking_id)
-        if not payment:
-            raise ValueError("No payment found for this booking.")
-        if payment["status"] != "SUCCESS":
-            raise ValueError(
-                f"Payment is in {payment['status']} status. "
-                f"Only bookings with SUCCESS payment can be confirmed."
-            )
-
-        # 4. Find available cart
+        tx_session = self.booking_repository._session_factory()
         try:
-            cart = self._find_available_cart(
-                booking["region_id"], booking["cart_type_id"]
+            # 1. Load booking
+            booking = self.booking_repository.find_by_id(booking_id, session=tx_session)
+            if not booking:
+                raise ValueError("Booking not found.")
+
+            booking = self._check_and_expire(booking)
+
+            # 2. Validate booking status
+            if booking["status"] != "PENDING_PAYMENT":
+                raise ValueError(
+                    f"Cannot confirm booking in {booking['status']} status. "
+                    f"Only PENDING_PAYMENT bookings can be confirmed."
+                )
+
+            # 3. Validate payment status
+            payment = self.payment_repository.find_by_booking_id(
+                booking_id, session=tx_session
             )
-        except ValueError:
-            raise ValueError("No cart available at confirmation time.")
+            if not payment:
+                raise ValueError("No payment found for this booking.")
+            if payment["status"] != "SUCCESS":
+                raise ValueError(
+                    f"Payment is in {payment['status']} status. "
+                    f"Only bookings with SUCCESS payment can be confirmed."
+                )
 
-        # 5. Assign cart and confirm
-        self.cart_repository.update(cart["id"], {"status": "BUSY"})
+            # 4. Atomically claim a cart (row-level lock prevents races)
+            cart = self.cart_repository.claim_available_cart(
+                booking["region_id"], booking["cart_type_id"], session=tx_session
+            )
+            if cart is None:
+                raise ValueError("No cart available at confirmation time.")
 
-        return self.booking_repository.update(booking_id, {
-            "assigned_cart_id": cart["id"],
-            "status": "CONFIRMED",
-        })
+            # 5. Assign cart and confirm booking in the same transaction
+            confirmed = self.booking_repository.update(booking_id, {
+                "assigned_cart_id": cart.id,
+                "status": "CONFIRMED",
+            }, session=tx_session)
+
+            tx_session.commit()
+            return confirmed
+        except Exception:
+            tx_session.rollback()
+            raise
+        finally:
+            tx_session.close()
 
     def get_booking(self, booking_id: int) -> dict | None:
         """Retrieve a single booking by ID. Runs lazy expiry check."""

@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.ViewModelProvider
 import com.example.vmsadmin.data.BookingRepository
+import com.example.vmsadmin.data.CartRepository
 import com.example.vmsadmin.data.CartTypeRepository
 import com.example.vmsadmin.data.PaymentRepository
 import com.example.vmsadmin.data.RegionRepository
@@ -18,6 +19,8 @@ import com.example.vmsadmin.viewmodel.AuthViewModel
 import com.example.vmsadmin.viewmodel.AuthViewModelFactory
 import com.example.vmsadmin.viewmodel.BookingViewModel
 import com.example.vmsadmin.viewmodel.BookingViewModelFactory
+import com.example.vmsadmin.viewmodel.CartViewModel
+import com.example.vmsadmin.viewmodel.CartViewModelFactory
 import com.example.vmsadmin.viewmodel.CartTypeViewModel
 import com.example.vmsadmin.viewmodel.CartTypeViewModelFactory
 import com.example.vmsadmin.viewmodel.DashboardViewModel
@@ -65,6 +68,10 @@ class MainActivity : ComponentActivity() {
         val timeslotViewModelFactory = TimeslotViewModelFactory(timeslotRepository)
         val timeslotViewModel = ViewModelProvider(this, timeslotViewModelFactory)[TimeslotViewModel::class.java]
 
+        val cartRepository = CartRepository(apiService)
+        val cartViewModelFactory = CartViewModelFactory(cartRepository)
+        val cartViewModel = ViewModelProvider(this, cartViewModelFactory)[CartViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -78,6 +85,7 @@ class MainActivity : ComponentActivity() {
                     regionViewModel = regionViewModel,
                     cartTypeViewModel = cartTypeViewModel,
                     timeslotViewModel = timeslotViewModel,
+                    cartViewModel = cartViewModel,
                     startDestination = startDestination
                 )
             }

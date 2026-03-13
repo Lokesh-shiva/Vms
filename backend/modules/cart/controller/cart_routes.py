@@ -66,7 +66,10 @@ def update_cart(cart_id: int, request_data: dict):
 @router.delete("/{cart_id}", dependencies=[Depends(require_admin)])
 def delete_cart(cart_id: int):
     """Delete a cart by ID."""
-    deleted = cart_service.delete_cart(cart_id)
+    try:
+        deleted = cart_service.delete_cart(cart_id)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     if not deleted:
         raise HTTPException(status_code=404, detail="Cart not found.")
     return _success(None, "Cart deleted successfully.")

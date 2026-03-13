@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from sqlalchemy.exc import IntegrityError
+
 from core.database.db_connection import SessionLocal
 from modules.cart.model.cart_model import Cart
 
@@ -25,6 +27,7 @@ class CartRepository:
         session = self._session_factory()
         try:
             cart = Cart(
+                label=cart_data.get("label", ""),
                 region_id=cart_data.get("region_id"),
                 cart_type_id=cart_data.get("cart_type_id"),
                 status=cart_data.get("status", "AVAILABLE"),
@@ -32,6 +35,9 @@ class CartRepository:
             )
             session.add(cart)
             session.commit()
+            if not cart.label:
+                cart.label = f"CART-{cart.id}"
+                session.commit()
             session.refresh(cart)
             return cart.to_dict()
         except Exception:
@@ -88,8 +94,58 @@ class CartRepository:
             if own_session:
                 session.close()
 
+    def claim_available_cart(self, region_id: int, cart_type_id: int, session=None):
+        """Atomically find one AVAILABLE+active cart, lock it, and set it to BUSY.
+
+        Uses SELECT ... FOR UPDATE SKIP LOCKED on PostgreSQL so concurrent
+        callers never pick the same row.  Falls back to a plain SELECT on
+        SQLite (used in tests) where row-level locking is unavailable.
+
+        Returns the Cart ORM object (still attached to *session*) or None
+        if nothing is available.
+
+        The caller owns the transaction — commit/rollback happens outside.
+        """
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            query = (
+                session.query(Cart)
+                .filter(
+                    Cart.region_id == region_id,
+                    Cart.cart_type_id == cart_type_id,
+                    Cart.status == "AVAILABLE",
+                    Cart.is_active == True,  # noqa: E712
+                )
+            )
+
+            dialect = session.bind.dialect.name
+            if dialect != "sqlite":
+                query = query.with_for_update(skip_locked=True)
+
+            cart = query.first()
+            if cart is None:
+                return None
+
+            cart.status = "BUSY"
+            cart.updated_at = datetime.utcnow()
+            session.flush()
+            return cart
+        except Exception:
+            if own_session:
+                session.rollback()
+            raise
+        finally:
+            if own_session:
+                session.close()
+
     def delete(self, cart_id: int) -> bool:
-        """Delete a cart record by ID."""
+        """Delete a cart record by ID.
+
+        Raises ValueError when the cart is referenced by bookings (FK
+        constraint) so the service/route layer can return a 409 instead
+        of an unhandled 500.
+        """
         session = self._session_factory()
         try:
             cart = session.query(Cart).filter(Cart.id == cart_id).first()
@@ -98,6 +154,12 @@ class CartRepository:
             session.delete(cart)
             session.commit()
             return True
+        except IntegrityError:
+            session.rollback()
+            raise ValueError(
+                "Cannot delete cart because it is referenced by existing "
+                "bookings. Disable it instead."
+            )
         except Exception:
             session.rollback()
             raise
