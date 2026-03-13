@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.vmsadmin.data.BookingRepository
 import com.example.vmsadmin.data.CartRepository
 import com.example.vmsadmin.data.CartTypeRepository
+import com.example.vmsadmin.data.FeeConfigRepository
 import com.example.vmsadmin.data.PaymentRepository
 import com.example.vmsadmin.data.RegionRepository
 import com.example.vmsadmin.data.TimeslotRepository
@@ -25,6 +26,8 @@ import com.example.vmsadmin.viewmodel.CartTypeViewModel
 import com.example.vmsadmin.viewmodel.CartTypeViewModelFactory
 import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModelFactory
+import com.example.vmsadmin.viewmodel.FeeConfigViewModel
+import com.example.vmsadmin.viewmodel.FeeConfigViewModelFactory
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModelFactory
 import com.example.vmsadmin.viewmodel.RegionViewModel
@@ -72,6 +75,10 @@ class MainActivity : ComponentActivity() {
         val cartViewModelFactory = CartViewModelFactory(cartRepository)
         val cartViewModel = ViewModelProvider(this, cartViewModelFactory)[CartViewModel::class.java]
 
+        val feeConfigRepository = FeeConfigRepository(apiService)
+        val feeConfigViewModelFactory = FeeConfigViewModelFactory(feeConfigRepository)
+        val feeConfigViewModel = ViewModelProvider(this, feeConfigViewModelFactory)[FeeConfigViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -86,6 +93,7 @@ class MainActivity : ComponentActivity() {
                     cartTypeViewModel = cartTypeViewModel,
                     timeslotViewModel = timeslotViewModel,
                     cartViewModel = cartViewModel,
+                    feeConfigViewModel = feeConfigViewModel,
                     startDestination = startDestination
                 )
             }

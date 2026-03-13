@@ -28,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.vmsadmin.viewmodel.BookingViewModel
 import com.example.vmsadmin.viewmodel.CartViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModel
+import com.example.vmsadmin.viewmodel.FeeConfigViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.CartTypeViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
@@ -48,7 +49,8 @@ fun MainScreen(
     regionViewModel: RegionViewModel,
     cartTypeViewModel: CartTypeViewModel,
     timeslotViewModel: TimeslotViewModel,
-    cartViewModel: CartViewModel
+    cartViewModel: CartViewModel,
+    feeConfigViewModel: FeeConfigViewModel
 ) {
     val navController = rememberNavController()
 
@@ -138,6 +140,9 @@ fun MainScreen(
                     },
                     onNavigateToCarts = {
                         navController.navigate("manage/carts")
+                    },
+                    onNavigateToFeeConfig = {
+                        navController.navigate("manage/fee-config")
                     }
                 )
             }
@@ -153,6 +158,13 @@ fun MainScreen(
             composable("manage/carts") {
                 CartsScreen(
                     viewModel = cartViewModel,
+                    regionViewModel = regionViewModel,
+                    cartTypeViewModel = cartTypeViewModel
+                )
+            }
+            composable("manage/fee-config") {
+                FeeConfigScreen(
+                    viewModel = feeConfigViewModel,
                     regionViewModel = regionViewModel,
                     cartTypeViewModel = cartTypeViewModel
                 )

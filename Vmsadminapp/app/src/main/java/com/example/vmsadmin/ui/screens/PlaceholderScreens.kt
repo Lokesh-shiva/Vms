@@ -24,7 +24,8 @@ fun ManageScreen(
     onNavigateToRegions: () -> Unit = {},
     onNavigateToCartTypes: () -> Unit = {},
     onNavigateToTimeslots: () -> Unit = {},
-    onNavigateToCarts: () -> Unit = {}
+    onNavigateToCarts: () -> Unit = {},
+    onNavigateToFeeConfig: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -91,7 +92,8 @@ fun ManageScreen(
                     title = "Fee Configuration",
                     subtitle = "Set fees per region and cart type",
                     icon = Icons.Outlined.Info,
-                    enabled = false
+                    enabled = true,
+                    onClick = onNavigateToFeeConfig
                 )
             }
         }

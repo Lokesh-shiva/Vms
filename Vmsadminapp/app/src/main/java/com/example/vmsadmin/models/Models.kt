@@ -154,3 +154,35 @@ data class UpdateCartRequest(
     val cart_type_id: Int? = null,
     val is_active: Boolean? = null
 )
+
+@Serializable
+data class FeeConfig(
+    val id: Int,
+    val region_id: Int,
+    val cart_type_id: Int,
+    val booking_fee: Double,
+    val cancellation_fee_pct: Double,
+    val platform_fee_pct: Double,
+    val is_active: Boolean = true,
+    val region_name: String? = null,
+    val cart_type_name: String? = null,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class CreateFeeConfigRequest(
+    val region_id: Int,
+    val cart_type_id: Int,
+    val booking_fee: Double,
+    val cancellation_fee_pct: Double,
+    val platform_fee_pct: Double
+)
+
+@Serializable
+data class UpdateFeeConfigRequest(
+    val booking_fee: Double? = null,
+    val cancellation_fee_pct: Double? = null,
+    val platform_fee_pct: Double? = null,
+    val is_active: Boolean? = null
+)

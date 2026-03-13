@@ -6,8 +6,10 @@ import com.example.vmsadmin.models.Cart
 import com.example.vmsadmin.models.CartType
 import com.example.vmsadmin.models.CreateCartRequest
 import com.example.vmsadmin.models.CreateCartTypeRequest
+import com.example.vmsadmin.models.CreateFeeConfigRequest
 import com.example.vmsadmin.models.CreateRegionRequest
 import com.example.vmsadmin.models.CreateTimeslotRequest
+import com.example.vmsadmin.models.FeeConfig
 import com.example.vmsadmin.models.LoginRequest
 import com.example.vmsadmin.models.LoginResponse
 import com.example.vmsadmin.models.Payment
@@ -16,6 +18,7 @@ import com.example.vmsadmin.models.Region
 import com.example.vmsadmin.models.Timeslot
 import com.example.vmsadmin.models.UpdateCartRequest
 import com.example.vmsadmin.models.UpdateCartTypeRequest
+import com.example.vmsadmin.models.UpdateFeeConfigRequest
 import com.example.vmsadmin.models.UpdateRegionRequest
 import com.example.vmsadmin.models.UpdateTimeslotRequest
 import kotlinx.serialization.json.JsonElement
@@ -127,4 +130,26 @@ interface ApiService {
 
     @DELETE("/api/v1/carts/{id}")
     suspend fun deleteCart(@Path("id") id: Int): ApiResponse<JsonElement>
+
+    // ── Fee Config endpoints ──────────────────────────────────────────
+    @GET("/api/v1/fee-config/all")
+    suspend fun getFeeConfigs(): ApiResponse<List<FeeConfig>>
+
+    @GET("/api/v1/fee-config/region/{region_id}/cart-type/{cart_type_id}")
+    suspend fun getFeeConfig(
+        @Path("region_id") regionId: Int,
+        @Path("cart_type_id") cartTypeId: Int
+    ): ApiResponse<FeeConfig>
+
+    @POST("/api/v1/fee-config/create")
+    suspend fun createFeeConfig(@Body request: CreateFeeConfigRequest): ApiResponse<FeeConfig>
+
+    @PUT("/api/v1/fee-config/{id}")
+    suspend fun updateFeeConfig(
+        @Path("id") id: Int,
+        @Body request: UpdateFeeConfigRequest
+    ): ApiResponse<FeeConfig>
+
+    @DELETE("/api/v1/fee-config/{id}")
+    suspend fun deleteFeeConfig(@Path("id") id: Int): ApiResponse<JsonElement>
 }

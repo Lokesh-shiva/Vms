@@ -14,6 +14,7 @@ import com.example.vmsadmin.viewmodel.CartViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.CartTypeViewModel
+import com.example.vmsadmin.viewmodel.FeeConfigViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
 import com.example.vmsadmin.viewmodel.TimeslotViewModel
 
@@ -27,6 +28,7 @@ fun AppNavigation(
     cartTypeViewModel: CartTypeViewModel,
     timeslotViewModel: TimeslotViewModel,
     cartViewModel: CartViewModel,
+    feeConfigViewModel: FeeConfigViewModel,
     startDestination: String
 ) {
     val navController = rememberNavController()
@@ -59,7 +61,8 @@ fun AppNavigation(
                 regionViewModel = regionViewModel,
                 cartTypeViewModel = cartTypeViewModel,
                 timeslotViewModel = timeslotViewModel,
-                cartViewModel = cartViewModel
+                cartViewModel = cartViewModel,
+                feeConfigViewModel = feeConfigViewModel
             )
         }
     }

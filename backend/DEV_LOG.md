@@ -1,5 +1,47 @@
 # Development Log
 
+## 13 Mar 2026 — Day 25: Admin Fee Configuration Panel
+
+### Summary
+- Implemented **Fee Configuration** management module in the VMS Admin Android app.
+- Added full fee config CRUD integration with backend `/api/v1/fee-config` endpoints.
+- Enabled Fee Configuration navigation from the Manage screen and wired module end-to-end through app DI/navigation.
+- Form dialog includes region/cart-type dropdowns with duplicate-combo prevention and numeric fee validation.
+
+### Android — New Files
+
+| File | Purpose |
+|------|---------|
+| `FeeConfigRepository.kt` | CRUD for fee configs with backend error parsing (`detail`) |
+| `FeeConfigViewModel.kt` | `FeeConfigUiState`, dialog state management, sorted config list |
+| `FeeConfigScreen.kt` | Fee config UI with pull-to-refresh, shimmer loading, add/edit/delete dialogs, region/cart-type dropdowns |
+
+### Android — Modified Files
+
+| File | Change |
+|------|--------|
+| `Models.kt` | Added `FeeConfig`, `CreateFeeConfigRequest`, `UpdateFeeConfigRequest` |
+| `ApiService.kt` | Added 5 fee config endpoints (`getAll`, `getByRegionAndCartType`, `create`, `update`, `delete`) |
+| `MainActivity.kt` | Instantiated `FeeConfigRepository` + `FeeConfigViewModel` and passed into navigation |
+| `AppNavigation.kt` | Added `feeConfigViewModel` in navigation wiring |
+| `MainScreen.kt` | Added `feeConfigViewModel` param, registered `manage/fee-config` route |
+| `PlaceholderScreens.kt` | Enabled Fee Configuration card with click navigation callback |
+
+### Key Features
+- **Fee Config Screen UX**: `Scaffold`, FAB, `PullToRefreshBox`, `LazyColumn`, shimmer, empty/error states, snackbar errors.
+- **Fee Config Card**: shows region name, cart type name, booking fee (₹), cancellation fee (%), platform fee (%), active status badge, edit/delete actions.
+- **Add Dialog**: region/cart-type dropdowns with smart filtering (already-configured combos hidden), three numeric fee fields with validation.
+- **Edit Dialog**: read-only region/cart-type display, editable fee fields.
+- **Validation**: booking_fee >= 0, 0 <= percentages <= 100, cancellation + platform <= 100, client-side duplicate region+cartType prevention.
+- **Sorted List**: configs sorted by region name then cart type name for readability.
+
+**Status**:
+Fee Configuration module fully operational in Android admin app.
+Manage navigation updated with live Fee Config route.
+System stable.
+
+---
+
 ## 13 Mar 2026 — Day 24: Admin System Management Panel (Carts)
 
 ### Summary
