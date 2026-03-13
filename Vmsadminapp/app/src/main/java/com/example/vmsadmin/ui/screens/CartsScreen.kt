@@ -1,5 +1,6 @@
 package com.example.vmsadmin.ui.screens
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -20,7 +21,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.Delete
@@ -28,12 +32,14 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -56,7 +62,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.example.vmsadmin.models.Cart
 import com.example.vmsadmin.models.CartType
@@ -73,7 +81,8 @@ import com.example.vmsadmin.viewmodel.RegionViewModel
 fun CartsScreen(
     viewModel: CartViewModel,
     regionViewModel: RegionViewModel,
-    cartTypeViewModel: CartTypeViewModel
+    cartTypeViewModel: CartTypeViewModel,
+    onBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val regionState by regionViewModel.uiState.collectAsState()
@@ -85,6 +94,13 @@ fun CartsScreen(
         uiState.error?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSuccess()
         }
     }
 
@@ -107,6 +123,7 @@ fun CartsScreen(
             initialLabel = "",
             initialRegionId = null,
             initialCartTypeId = null,
+            isSubmitting = uiState.isSubmitting,
             onConfirm = { label, regionId, cartTypeId ->
                 viewModel.addCart(label, regionId, cartTypeId)
             },
@@ -123,6 +140,7 @@ fun CartsScreen(
             initialLabel = cart.label ?: "",
             initialRegionId = cart.region_id,
             initialCartTypeId = cart.cart_type_id,
+            isSubmitting = uiState.isSubmitting,
             onConfirm = { label, regionId, cartTypeId ->
                 viewModel.updateCart(
                     id = cart.id,
@@ -170,6 +188,11 @@ fun CartsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 title = {
                     Text(
                         "Carts",
@@ -439,6 +462,7 @@ private fun CartFormDialog(
     initialLabel: String,
     initialRegionId: Int?,
     initialCartTypeId: Int?,
+    isSubmitting: Boolean,
     onConfirm: (label: String, regionId: Int, cartTypeId: Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -450,12 +474,23 @@ private fun CartFormDialog(
     var cartTypeError by remember { mutableStateOf(false) }
     var regionExpanded by remember { mutableStateOf(false) }
     var cartTypeExpanded by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     val selectedRegionName = regions.firstOrNull { it.id == selectedRegionId }?.name
     val selectedCartTypeName = cartTypes.firstOrNull { it.id == selectedCartTypeId }?.name
 
+    fun submit() {
+        labelError = label.isBlank()
+        regionError = selectedRegionId == null
+        cartTypeError = selectedCartTypeId == null
+        if (!labelError && !regionError && !cartTypeError) {
+            keyboardController?.hide()
+            onConfirm(label.trim(), selectedRegionId!!, selectedCartTypeId!!)
+        }
+    }
+
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
         title = {
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         },
@@ -477,7 +512,9 @@ private fun CartFormDialog(
                         null
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { submit() })
                 )
 
                 Box {
@@ -583,27 +620,28 @@ private fun CartFormDialog(
         },
         confirmButton = {
             Button(
-                onClick = {
-                    labelError = label.isBlank()
-                    regionError = selectedRegionId == null
-                    cartTypeError = selectedCartTypeId == null
-                    if (!labelError && !regionError && !cartTypeError) {
-                        onConfirm(
-                            label.trim(),
-                            selectedRegionId!!,
-                            selectedCartTypeId!!
-                        )
-                    }
-                },
-                enabled = regions.isNotEmpty() && cartTypes.isNotEmpty(),
+                onClick = { submit() },
+                enabled = !isSubmitting && regions.isNotEmpty() && cartTypes.isNotEmpty(),
+                modifier = Modifier.heightIn(min = 48.dp),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Save")
+                AnimatedContent(targetState = isSubmitting, label = "save") { submitting ->
+                    if (submitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Save")
+                    }
+                }
             }
         },
         dismissButton = {
             OutlinedButton(
                 onClick = onDismiss,
+                enabled = !isSubmitting,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text("Cancel")

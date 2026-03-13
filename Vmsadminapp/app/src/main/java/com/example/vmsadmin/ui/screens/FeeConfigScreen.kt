@@ -1,5 +1,6 @@
 package com.example.vmsadmin.ui.screens
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -20,21 +21,26 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -54,7 +60,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.vmsadmin.models.CartType
@@ -72,7 +80,8 @@ import com.example.vmsadmin.viewmodel.RegionViewModel
 fun FeeConfigScreen(
     viewModel: FeeConfigViewModel,
     regionViewModel: RegionViewModel,
-    cartTypeViewModel: CartTypeViewModel
+    cartTypeViewModel: CartTypeViewModel,
+    onBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val regionState by regionViewModel.uiState.collectAsState()
@@ -84,6 +93,13 @@ fun FeeConfigScreen(
         uiState.error?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSuccess()
         }
     }
 
@@ -106,6 +122,7 @@ fun FeeConfigScreen(
             initialBookingFee = "",
             initialCancellationPct = "",
             initialPlatformPct = "",
+            isSubmitting = uiState.isSubmitting,
             onConfirm = { regionId, cartTypeId, bookingFee, cancellationPct, platformPct ->
                 viewModel.addConfig(regionId, cartTypeId, bookingFee, cancellationPct, platformPct)
             },
@@ -126,6 +143,7 @@ fun FeeConfigScreen(
             initialBookingFee = config.booking_fee.toBigDecimal().stripTrailingZeros().toPlainString(),
             initialCancellationPct = config.cancellation_fee_pct.toBigDecimal().stripTrailingZeros().toPlainString(),
             initialPlatformPct = config.platform_fee_pct.toBigDecimal().stripTrailingZeros().toPlainString(),
+            isSubmitting = uiState.isSubmitting,
             onConfirm = { _, _, bookingFee, cancellationPct, platformPct ->
                 viewModel.updateConfig(config.id, bookingFee, cancellationPct, platformPct)
             },
@@ -144,10 +162,10 @@ fun FeeConfigScreen(
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeleteConfirm() },
             title = {
-                Text("Delete Fee Config", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Deactivate Fee Config", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             },
             text = {
-                Text("Are you sure you want to delete the fee configuration for \"$regionName - $cartTypeName\"? This action cannot be undone.")
+                Text("Are you sure you want to deactivate the fee configuration for \"$regionName - $cartTypeName\"? You can reactivate it later.")
             },
             confirmButton = {
                 Button(
@@ -155,7 +173,7 @@ fun FeeConfigScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text("Delete")
+                    Text("Deactivate")
                 }
             },
             dismissButton = {
@@ -174,6 +192,11 @@ fun FeeConfigScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 title = {
                     Text(
                         "Fee Configuration",
@@ -323,7 +346,8 @@ fun FeeConfigScreen(
                                         regionDisplayName = resolvedRegionName ?: "Region ${config.region_id}",
                                         cartTypeDisplayName = resolvedCartTypeName ?: "Type ${config.cart_type_id}",
                                         onEdit = { viewModel.showEditDialog(config) },
-                                        onDelete = { viewModel.showDeleteConfirm(config) }
+                                        onDelete = { viewModel.showDeleteConfirm(config) },
+                                        onReactivate = { viewModel.reactivateConfig(config.id) }
                                     )
                                 }
                             }
@@ -341,8 +365,12 @@ private fun FeeConfigCard(
     regionDisplayName: String,
     cartTypeDisplayName: String,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onReactivate: () -> Unit
 ) {
+    val isActive = config.is_active
+    val contentAlpha = if (isActive) 1f else 0.5f
+
     AppCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -354,22 +382,22 @@ private fun FeeConfigCard(
                     text = regionDisplayName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = cartTypeDisplayName,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = contentAlpha)
                 )
             }
-            StatusBadge(status = if (config.is_active) "CONFIRMED" else "CANCELLED")
+            StatusBadge(status = if (isActive) "CONFIRMED" else "CANCELLED")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        FeeInfoRow(label = "Booking Fee", value = "₹%.2f".format(config.booking_fee))
-        FeeInfoRow(label = "Cancellation Fee", value = "%.1f%%".format(config.cancellation_fee_pct))
-        FeeInfoRow(label = "Platform Fee", value = "%.1f%%".format(config.platform_fee_pct))
+        FeeInfoRow(label = "Booking Fee", value = "₹%.2f".format(config.booking_fee), alpha = contentAlpha)
+        FeeInfoRow(label = "Cancellation Fee", value = "%.1f%%".format(config.cancellation_fee_pct), alpha = contentAlpha)
+        FeeInfoRow(label = "Platform Fee", value = "%.1f%%".format(config.platform_fee_pct), alpha = contentAlpha)
 
         Spacer(modifier = Modifier.height(12.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
@@ -380,42 +408,61 @@ private fun FeeConfigCard(
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedButton(
-                onClick = onDelete,
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Icon(
-                    Icons.Outlined.Delete,
-                    contentDescription = "Delete",
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Delete", style = MaterialTheme.typography.labelMedium)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            OutlinedButton(
-                onClick = onEdit,
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                Icon(
-                    Icons.Outlined.Edit,
-                    contentDescription = "Edit",
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Edit", style = MaterialTheme.typography.labelMedium)
+            if (isActive) {
+                OutlinedButton(
+                    onClick = onDelete,
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        Icons.Outlined.Delete,
+                        contentDescription = "Deactivate",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Deactivate", style = MaterialTheme.typography.labelMedium)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedButton(
+                    onClick = onEdit,
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.Edit,
+                        contentDescription = "Edit",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Edit", style = MaterialTheme.typography.labelMedium)
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onReactivate,
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        Icons.Outlined.Refresh,
+                        contentDescription = "Reactivate",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Reactivate", style = MaterialTheme.typography.labelMedium)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun FeeInfoRow(label: String, value: String) {
+private fun FeeInfoRow(label: String, value: String, alpha: Float = 1f) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -425,13 +472,13 @@ private fun FeeInfoRow(label: String, value: String) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha)
         )
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
         )
     }
 }
@@ -449,6 +496,7 @@ private fun FeeConfigFormDialog(
     initialBookingFee: String,
     initialCancellationPct: String,
     initialPlatformPct: String,
+    isSubmitting: Boolean,
     onConfirm: (regionId: Int, cartTypeId: Int, bookingFee: Double, cancellationPct: Double, platformPct: Double) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -468,6 +516,7 @@ private fun FeeConfigFormDialog(
 
     var regionExpanded by remember { mutableStateOf(false) }
     var cartTypeExpanded by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     val selectedRegionName = regions.firstOrNull { it.id == selectedRegionId }?.name
     val selectedCartTypeName = cartTypes.firstOrNull { it.id == selectedCartTypeId }?.name
@@ -483,8 +532,55 @@ private fun FeeConfigFormDialog(
         cartTypes
     }
 
+    fun submit() {
+        var valid = true
+
+        if (!isEditMode) {
+            if (selectedRegionId == null) {
+                regionError = true; valid = false
+            }
+            if (selectedCartTypeId == null) {
+                cartTypeError = true; valid = false
+            }
+            if (valid && existingConfigs.any {
+                    it.region_id == selectedRegionId && it.cart_type_id == selectedCartTypeId
+                }) {
+                duplicateError = "Configuration already exists for this region and cart type"
+                valid = false
+            }
+        }
+
+        val fee = bookingFee.toDoubleOrNull()
+        if (fee == null || fee < 0) {
+            bookingFeeError = "Enter a valid fee (>= 0)"
+            valid = false
+        }
+
+        val cancel = cancellationPct.toDoubleOrNull()
+        if (cancel == null || cancel < 0 || cancel > 100) {
+            cancellationPctError = "Enter a value between 0 and 100"
+            valid = false
+        }
+
+        val platform = platformPct.toDoubleOrNull()
+        if (platform == null || platform < 0 || platform > 100) {
+            platformPctError = "Enter a value between 0 and 100"
+            valid = false
+        }
+
+        if (valid && cancel != null && platform != null && (cancel + platform) > 100) {
+            sumError = "Cancellation + Platform fees cannot exceed 100%"
+            valid = false
+        }
+
+        if (valid) {
+            keyboardController?.hide()
+            onConfirm(selectedRegionId!!, selectedCartTypeId!!, fee!!, cancel!!, platform!!)
+        }
+    }
+
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
         title = {
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         },
@@ -625,7 +721,10 @@ private fun FeeConfigFormDialog(
                     singleLine = true,
                     isError = bookingFeeError != null,
                     supportingText = bookingFeeError?.let { err -> { Text(err) } },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -641,7 +740,10 @@ private fun FeeConfigFormDialog(
                     singleLine = true,
                     isError = cancellationPctError != null,
                     supportingText = cancellationPctError?.let { err -> { Text(err) } },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -657,7 +759,11 @@ private fun FeeConfigFormDialog(
                     singleLine = true,
                     isError = platformPctError != null,
                     supportingText = platformPctError?.let { err -> { Text(err) } },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { submit() }),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -681,66 +787,28 @@ private fun FeeConfigFormDialog(
         },
         confirmButton = {
             Button(
-                onClick = {
-                    var valid = true
-
-                    if (!isEditMode) {
-                        if (selectedRegionId == null) {
-                            regionError = true; valid = false
-                        }
-                        if (selectedCartTypeId == null) {
-                            cartTypeError = true; valid = false
-                        }
-                        if (valid && existingConfigs.any {
-                                it.region_id == selectedRegionId && it.cart_type_id == selectedCartTypeId
-                            }) {
-                            duplicateError = "Configuration already exists for this region and cart type"
-                            valid = false
-                        }
-                    }
-
-                    val fee = bookingFee.toDoubleOrNull()
-                    if (fee == null || fee < 0) {
-                        bookingFeeError = "Enter a valid fee (≥ 0)"
-                        valid = false
-                    }
-
-                    val cancel = cancellationPct.toDoubleOrNull()
-                    if (cancel == null || cancel < 0 || cancel > 100) {
-                        cancellationPctError = "Enter a value between 0 and 100"
-                        valid = false
-                    }
-
-                    val platform = platformPct.toDoubleOrNull()
-                    if (platform == null || platform < 0 || platform > 100) {
-                        platformPctError = "Enter a value between 0 and 100"
-                        valid = false
-                    }
-
-                    if (valid && cancel != null && platform != null && (cancel + platform) > 100) {
-                        sumError = "Cancellation + Platform fees cannot exceed 100%"
-                        valid = false
-                    }
-
-                    if (valid) {
-                        onConfirm(
-                            selectedRegionId!!,
-                            selectedCartTypeId!!,
-                            fee!!,
-                            cancel!!,
-                            platform!!
-                        )
-                    }
-                },
-                enabled = if (!isEditMode) regions.isNotEmpty() && cartTypes.isNotEmpty() else true,
+                onClick = { submit() },
+                enabled = !isSubmitting && (if (!isEditMode) regions.isNotEmpty() && cartTypes.isNotEmpty() else true),
+                modifier = Modifier.heightIn(min = 48.dp),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Save")
+                AnimatedContent(targetState = isSubmitting, label = "save") { submitting ->
+                    if (submitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Save")
+                    }
+                }
             }
         },
         dismissButton = {
             OutlinedButton(
                 onClick = onDismiss,
+                enabled = !isSubmitting,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text("Cancel")

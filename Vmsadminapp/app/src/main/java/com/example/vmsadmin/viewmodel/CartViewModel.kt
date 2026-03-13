@@ -5,16 +5,20 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.CartRepository
 import com.example.vmsadmin.models.Cart
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class CartUiState(
     val carts: List<Cart> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
+    val isSubmitting: Boolean = false,
     val error: String? = null,
+    val successMessage: String? = null,
     val showAddDialog: Boolean = false,
     val showEditDialog: Boolean = false,
     val editingCart: Cart? = null,
@@ -68,28 +72,30 @@ class CartViewModel(
     }
 
     fun addCart(label: String, regionId: Int, cartTypeId: Int) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
                 cartRepository.createCart(
                     label = label,
                     regionId = regionId,
                     cartTypeId = cartTypeId
                 )
-                _uiState.value = _uiState.value.copy(showAddDialog = false)
+                delay(200)
                 loadCarts()
+                _uiState.update { it.copy(successMessage = "Cart saved", showAddDialog = false) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to add cart"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to add cart") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
 
     fun updateCart(id: Int, label: String, regionId: Int, cartTypeId: Int) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
                 cartRepository.updateCart(
                     id = id,
@@ -97,17 +103,13 @@ class CartViewModel(
                     regionId = regionId,
                     cartTypeId = cartTypeId
                 )
-                _uiState.value = _uiState.value.copy(
-                    showEditDialog = false,
-                    editingCart = null,
-                    selectedCart = null
-                )
+                delay(200)
                 loadCarts()
+                _uiState.update { it.copy(successMessage = "Cart updated", showEditDialog = false, editingCart = null, selectedCart = null) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to update cart"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to update cart") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
@@ -143,21 +145,18 @@ class CartViewModel(
     }
 
     fun deleteCart(id: Int) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true,
-                error = null,
-                showDeleteConfirm = false,
-                deletingCart = null
-            )
+            _uiState.update { it.copy(isSubmitting = true, error = null, showDeleteConfirm = false, deletingCart = null) }
             try {
                 cartRepository.deleteCart(id)
+                delay(200)
                 loadCarts()
+                _uiState.update { it.copy(successMessage = "Cart deleted") }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to delete cart"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to delete cart") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
@@ -203,7 +202,11 @@ class CartViewModel(
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearSuccess() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 }
 

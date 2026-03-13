@@ -4,11 +4,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -17,7 +21,9 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.example.vmsadmin.models.CartType
 import com.example.vmsadmin.ui.components.AppCard
@@ -26,7 +32,7 @@ import com.example.vmsadmin.viewmodel.CartTypeViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CartTypesScreen(viewModel: CartTypeViewModel) {
+fun CartTypesScreen(viewModel: CartTypeViewModel, onBack: () -> Unit = {}) {
     val uiState by viewModel.uiState.collectAsState()
     var visible by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -35,6 +41,13 @@ fun CartTypesScreen(viewModel: CartTypeViewModel) {
         uiState.error?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSuccess()
         }
     }
 
@@ -48,6 +61,7 @@ fun CartTypesScreen(viewModel: CartTypeViewModel) {
         CartTypeNameDialog(
             title = "Add Cart Type",
             initialName = "",
+            isSubmitting = uiState.isSubmitting,
             onConfirm = { name -> viewModel.addCartType(name) },
             onDismiss = { viewModel.dismissAddDialog() }
         )
@@ -58,6 +72,7 @@ fun CartTypesScreen(viewModel: CartTypeViewModel) {
         CartTypeNameDialog(
             title = "Edit Cart Type",
             initialName = uiState.editingCartType!!.name,
+            isSubmitting = uiState.isSubmitting,
             onConfirm = { name -> viewModel.updateCartType(uiState.editingCartType!!.id, name) },
             onDismiss = { viewModel.dismissEditDialog() }
         )
@@ -100,6 +115,11 @@ fun CartTypesScreen(viewModel: CartTypeViewModel) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 title = {
                     Text(
                         "Cart Types",
@@ -317,14 +337,25 @@ private fun CartTypeCard(
 private fun CartTypeNameDialog(
     title: String,
     initialName: String,
+    isSubmitting: Boolean,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
     var isError by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    fun submit() {
+        if (name.isBlank()) {
+            isError = true
+        } else {
+            keyboardController?.hide()
+            onConfirm(name.trim())
+        }
+    }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
         title = {
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         },
@@ -342,26 +373,35 @@ private fun CartTypeNameDialog(
                     { Text("Cart type name cannot be empty") }
                 } else null,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { submit() })
             )
         },
         confirmButton = {
             Button(
-                onClick = {
-                    if (name.isBlank()) {
-                        isError = true
-                    } else {
-                        onConfirm(name.trim())
-                    }
-                },
+                onClick = { submit() },
+                enabled = !isSubmitting,
+                modifier = Modifier.heightIn(min = 48.dp),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Save")
+                AnimatedContent(targetState = isSubmitting, label = "save") { submitting ->
+                    if (submitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Save")
+                    }
+                }
             }
         },
         dismissButton = {
             OutlinedButton(
                 onClick = onDismiss,
+                enabled = !isSubmitting,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text("Cancel")

@@ -5,16 +5,20 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.FeeConfigRepository
 import com.example.vmsadmin.models.FeeConfig
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class FeeConfigUiState(
     val feeConfigs: List<FeeConfig> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
+    val isSubmitting: Boolean = false,
     val error: String? = null,
+    val successMessage: String? = null,
     val showAddDialog: Boolean = false,
     val showEditDialog: Boolean = false,
     val editingConfig: FeeConfig? = null,
@@ -72,17 +76,18 @@ class FeeConfigViewModel(
         cancellationFeePct: Double,
         platformFeePct: Double
     ) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
                 repository.createFeeConfig(regionId, cartTypeId, bookingFee, cancellationFeePct, platformFeePct)
-                _uiState.value = _uiState.value.copy(showAddDialog = false)
+                delay(200)
                 loadConfigs()
+                _uiState.update { it.copy(successMessage = "Fee config saved", showAddDialog = false) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to add fee config"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to add fee config") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
@@ -93,8 +98,9 @@ class FeeConfigViewModel(
         cancellationFeePct: Double,
         platformFeePct: Double
     ) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
                 repository.updateFeeConfig(
                     id = id,
@@ -102,31 +108,47 @@ class FeeConfigViewModel(
                     cancellationFeePct = cancellationFeePct,
                     platformFeePct = platformFeePct
                 )
-                _uiState.value = _uiState.value.copy(showEditDialog = false, editingConfig = null)
+                delay(200)
                 loadConfigs()
+                _uiState.update { it.copy(successMessage = "Configuration updated", showEditDialog = false, editingConfig = null) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to update fee config"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to update fee config") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
 
     fun deleteConfig(id: Int) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true, error = null,
-                showDeleteConfirm = false, deletingConfig = null
-            )
+            _uiState.update { it.copy(isSubmitting = true, error = null, showDeleteConfirm = false, deletingConfig = null) }
             try {
                 repository.deleteFeeConfig(id)
+                delay(200)
                 loadConfigs()
+                _uiState.update { it.copy(successMessage = "Fee config deactivated") }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to delete fee config"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to delete fee config") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
+            }
+        }
+    }
+
+    fun reactivateConfig(id: Int) {
+        if (_uiState.value.isSubmitting) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
+            try {
+                repository.updateFeeConfig(id = id, isActive = true)
+                delay(200)
+                loadConfigs()
+                _uiState.update { it.copy(successMessage = "Fee config reactivated") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: "Failed to reactivate fee config") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
@@ -156,15 +178,18 @@ class FeeConfigViewModel(
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearSuccess() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 
     private fun sortConfigs(configs: List<FeeConfig>): List<FeeConfig> {
         return configs.sortedWith(
-            compareBy(
-                { it.region_name ?: "" },
-                { it.cart_type_name ?: "" }
-            )
+            compareBy<FeeConfig> { !it.is_active }
+                .thenBy { it.region_name ?: "" }
+                .thenBy { it.cart_type_name ?: "" }
         )
     }
 }

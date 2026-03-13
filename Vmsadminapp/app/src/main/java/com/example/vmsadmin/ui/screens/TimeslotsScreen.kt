@@ -4,12 +4,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -18,7 +21,9 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.vmsadmin.models.Timeslot
@@ -28,7 +33,7 @@ import com.example.vmsadmin.viewmodel.TimeslotViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TimeslotsScreen(viewModel: TimeslotViewModel) {
+fun TimeslotsScreen(viewModel: TimeslotViewModel, onBack: () -> Unit = {}) {
     val uiState by viewModel.uiState.collectAsState()
     var visible by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -37,6 +42,13 @@ fun TimeslotsScreen(viewModel: TimeslotViewModel) {
         uiState.error?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
+        }
+    }
+
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSuccess()
         }
     }
 
@@ -52,6 +64,7 @@ fun TimeslotsScreen(viewModel: TimeslotViewModel) {
             initialStartTime = "",
             initialEndTime = "",
             initialCapacity = "",
+            isSubmitting = uiState.isSubmitting,
             onConfirm = { startTime, endTime, capacity ->
                 viewModel.addTimeslot(startTime, endTime, capacity)
             },
@@ -67,6 +80,7 @@ fun TimeslotsScreen(viewModel: TimeslotViewModel) {
             initialStartTime = ts.start_time,
             initialEndTime = ts.end_time,
             initialCapacity = ts.capacity.toString(),
+            isSubmitting = uiState.isSubmitting,
             onConfirm = { startTime, endTime, capacity ->
                 viewModel.updateTimeslot(ts.id, startTime, endTime, capacity)
             },
@@ -118,6 +132,11 @@ fun TimeslotsScreen(viewModel: TimeslotViewModel) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 title = {
                     Text(
                         "Timeslots",
@@ -388,6 +407,7 @@ private fun TimeslotFormDialog(
     initialStartTime: String,
     initialEndTime: String,
     initialCapacity: String,
+    isSubmitting: Boolean,
     onConfirm: (startTime: String, endTime: String, capacity: Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -398,6 +418,7 @@ private fun TimeslotFormDialog(
     var endTimeError by remember { mutableStateOf(false) }
     var capacityError by remember { mutableStateOf(false) }
     var timeRangeError by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     fun validate(): Boolean {
         startTimeError = startTime.isBlank() || !isValidTimeFormat(startTime)
@@ -411,8 +432,15 @@ private fun TimeslotFormDialog(
         return !startTimeError && !endTimeError && !capacityError && !timeRangeError
     }
 
+    fun submit() {
+        if (validate()) {
+            keyboardController?.hide()
+            onConfirm(startTime.trim(), endTime.trim(), capacityText.trim().toInt())
+        }
+    }
+
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!isSubmitting) onDismiss() },
         title = {
             Text(
                 title,
@@ -437,7 +465,8 @@ private fun TimeslotFormDialog(
                         { Text("Enter a valid time (e.g. 09:00)") }
                     } else null,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
                 OutlinedTextField(
                     value = endTime,
@@ -456,7 +485,8 @@ private fun TimeslotFormDialog(
                         { Text("End time must be after start time") }
                     } else null,
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
                 OutlinedTextField(
                     value = capacityText,
@@ -471,7 +501,11 @@ private fun TimeslotFormDialog(
                     supportingText = if (capacityError) {
                         { Text("Capacity must be a number greater than 0") }
                     } else null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { submit() }),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -479,19 +513,28 @@ private fun TimeslotFormDialog(
         },
         confirmButton = {
             Button(
-                onClick = {
-                    if (validate()) {
-                        onConfirm(startTime.trim(), endTime.trim(), capacityText.trim().toInt())
-                    }
-                },
+                onClick = { submit() },
+                enabled = !isSubmitting,
+                modifier = Modifier.heightIn(min = 48.dp),
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Save")
+                AnimatedContent(targetState = isSubmitting, label = "save") { submitting ->
+                    if (submitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Save")
+                    }
+                }
             }
         },
         dismissButton = {
             OutlinedButton(
                 onClick = onDismiss,
+                enabled = !isSubmitting,
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text("Cancel")

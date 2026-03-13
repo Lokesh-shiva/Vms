@@ -5,16 +5,20 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.TimeslotRepository
 import com.example.vmsadmin.models.Timeslot
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class TimeslotUiState(
     val timeslots: List<Timeslot> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
+    val isSubmitting: Boolean = false,
     val error: String? = null,
+    val successMessage: String? = null,
     val selectedTimeslot: Timeslot? = null,
     val showAddDialog: Boolean = false,
     val showEditDialog: Boolean = false,
@@ -70,24 +74,26 @@ class TimeslotViewModel(
     }
 
     fun addTimeslot(startTime: String, endTime: String, capacity: Int) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
                 timeslotRepository.createTimeslot(startTime, endTime, capacity)
-                _uiState.value = _uiState.value.copy(showAddDialog = false)
+                delay(200)
                 loadTimeslots()
+                _uiState.update { it.copy(successMessage = "Timeslot saved", showAddDialog = false) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to add timeslot"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to add timeslot") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
 
     fun updateTimeslot(id: Int, startTime: String, endTime: String, capacity: Int) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
                 timeslotRepository.updateTimeslot(
                     id = id,
@@ -95,16 +101,13 @@ class TimeslotViewModel(
                     endTime = endTime,
                     capacity = capacity
                 )
-                _uiState.value = _uiState.value.copy(
-                    showEditDialog = false,
-                    editingTimeslot = null
-                )
+                delay(200)
                 loadTimeslots()
+                _uiState.update { it.copy(successMessage = "Timeslot updated", showEditDialog = false, editingTimeslot = null) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to update timeslot"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to update timeslot") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
@@ -138,19 +141,18 @@ class TimeslotViewModel(
     }
 
     fun deleteTimeslot(id: Int) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true, error = null,
-                showDeleteConfirm = false, deletingTimeslot = null
-            )
+            _uiState.update { it.copy(isSubmitting = true, error = null, showDeleteConfirm = false, deletingTimeslot = null) }
             try {
                 timeslotRepository.deleteTimeslot(id)
+                delay(200)
                 loadTimeslots()
+                _uiState.update { it.copy(successMessage = "Timeslot deleted") }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to delete timeslot"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to delete timeslot") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
@@ -180,7 +182,11 @@ class TimeslotViewModel(
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearSuccess() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 }
 

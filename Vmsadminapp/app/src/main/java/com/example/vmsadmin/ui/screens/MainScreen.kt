@@ -96,7 +96,8 @@ fun MainScreen(
                     NavigationBarItem(
                         icon = { Icon(item.icon, contentDescription = item.title, modifier = Modifier.size(24.dp)) },
                         label = { Text(item.title) },
-                        selected = currentRoute == item.route,
+                        selected = currentRoute == item.route ||
+                                (item.route == "manage" && currentRoute?.startsWith("manage/") == true),
                         onClick = {
                             navController.navigate(item.route) {
                                 navController.graph.startDestinationRoute?.let { route ->
@@ -147,26 +148,28 @@ fun MainScreen(
                 )
             }
             composable("manage/regions") {
-                RegionsScreen(viewModel = regionViewModel)
+                RegionsScreen(viewModel = regionViewModel, onBack = { navController.popBackStack() })
             }
             composable("manage/cart-types") {
-                CartTypesScreen(viewModel = cartTypeViewModel)
+                CartTypesScreen(viewModel = cartTypeViewModel, onBack = { navController.popBackStack() })
             }
             composable("manage/timeslots") {
-                TimeslotsScreen(viewModel = timeslotViewModel)
+                TimeslotsScreen(viewModel = timeslotViewModel, onBack = { navController.popBackStack() })
             }
             composable("manage/carts") {
                 CartsScreen(
                     viewModel = cartViewModel,
                     regionViewModel = regionViewModel,
-                    cartTypeViewModel = cartTypeViewModel
+                    cartTypeViewModel = cartTypeViewModel,
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable("manage/fee-config") {
                 FeeConfigScreen(
                     viewModel = feeConfigViewModel,
                     regionViewModel = regionViewModel,
-                    cartTypeViewModel = cartTypeViewModel
+                    cartTypeViewModel = cartTypeViewModel,
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

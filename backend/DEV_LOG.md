@@ -1,6 +1,47 @@
 # Development Log
 
-## 13 Mar 2026 — Day 25: Admin Fee Configuration Panel
+## 13 Mar 2026 — Day 24: Admin App UX Hardening + UI Polish
+
+### Summary
+- Added `isSubmitting` state to all 5 admin ViewModels to prevent duplicate form submissions.
+- Replaced static Save buttons with loading-aware buttons (animated spinner + disabled state) across all add/edit dialogs.
+- Added success snackbar feedback after every create/update/delete operation.
+- Improved keyboard usability with IME actions (`Next`/`Done`) and `onDone` submit in all form dialogs.
+- Fixed light-theme glassmorphism in `AppCard` — dark mode keeps glass effect, light mode uses clean solid surface.
+- Fixed login screen text field visibility with explicit theme-aware colors.
+- Added `LocalSoftwareKeyboardController` to hide keyboard on form submit.
+
+### Android — Modified Files
+
+| File | Change |
+|------|--------|
+| `RegionViewModel.kt` | Added `isSubmitting`, `successMessage` to `RegionUiState`; refactored `addRegion`, `updateRegion`, `deleteRegion` with submit guard, `delay(200)`, `finally` block, success messages |
+| `CartTypeViewModel.kt` | Same pattern: `isSubmitting`, `successMessage`, submit guard, success feedback |
+| `TimeslotViewModel.kt` | Same pattern: `isSubmitting`, `successMessage`, submit guard, success feedback |
+| `CartViewModel.kt` | Same pattern: `isSubmitting`, `successMessage`, submit guard, success feedback |
+| `FeeConfigViewModel.kt` | Same pattern: `isSubmitting`, `successMessage`, submit guard, success feedback |
+| `RegionsScreen.kt` | Success snackbar, `isSubmitting` passed to `RegionNameDialog`, `AnimatedContent` Save button, IME Done action, keyboard hide |
+| `CartTypesScreen.kt` | Success snackbar, `isSubmitting` passed to `CartTypeNameDialog`, `AnimatedContent` Save button, IME Done action, keyboard hide |
+| `TimeslotsScreen.kt` | Success snackbar, `isSubmitting` passed to `TimeslotFormDialog`, `AnimatedContent` Save button, IME Next/Done actions, keyboard hide |
+| `CartsScreen.kt` | Success snackbar, `isSubmitting` passed to `CartFormDialog`, `AnimatedContent` Save button, IME Done action, keyboard hide |
+| `FeeConfigScreen.kt` | Success snackbar, `isSubmitting` passed to `FeeConfigFormDialog`, `AnimatedContent` Save button, IME Next/Done actions, keyboard hide |
+| `AppCard.kt` | Conditional glass effect: dark theme keeps translucent gradient + glass border; light theme uses solid `MaterialTheme.colorScheme.surface` with transparent border |
+| `LoginScreen.kt` | Explicit `OutlinedTextFieldDefaults.colors()` for strong text contrast in both themes; IME Next/Done with keyboard hide on login; horizontal padding increased to 24dp |
+
+### Key Patterns
+- **ViewModel submit guard**: `if (_uiState.value.isSubmitting) return` at top of every action prevents race conditions even if UI guard is bypassed.
+- **Submit flow**: `isSubmitting = true` → repo call → `delay(200)` → reload list → set `successMessage` + dismiss dialog → `finally { isSubmitting = false }`.
+- **Dialog UX**: `onDismissRequest` blocked while submitting; Cancel button disabled during submit.
+- **AnimatedContent**: Smooth transition between Save text and spinner in button.
+- **Keyboard**: `LocalSoftwareKeyboardController.current?.hide()` called before every submit to prevent flicker.
+
+**Status**:
+Admin UX hardened — no duplicate requests, visible saving feedback, smoother form interactions, improved theme consistency, better keyboard usability.
+System stable.
+
+---
+
+## 13 Mar 2026 — Day 24: Admin Fee Configuration Panel
 
 ### Summary
 - Implemented **Fee Configuration** management module in the VMS Admin Android app.

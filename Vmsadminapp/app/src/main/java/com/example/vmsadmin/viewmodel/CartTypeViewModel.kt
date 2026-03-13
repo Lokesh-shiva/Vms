@@ -5,16 +5,20 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.CartTypeRepository
 import com.example.vmsadmin.models.CartType
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class CartTypeUiState(
     val cartTypes: List<CartType> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
+    val isSubmitting: Boolean = false,
     val error: String? = null,
+    val successMessage: String? = null,
     val showAddDialog: Boolean = false,
     val showEditDialog: Boolean = false,
     val editingCartType: CartType? = null,
@@ -67,33 +71,35 @@ class CartTypeViewModel(
     }
 
     fun addCartType(name: String) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
                 cartTypeRepository.createCartType(name)
-                _uiState.value = _uiState.value.copy(showAddDialog = false)
+                delay(200)
                 loadCartTypes()
+                _uiState.update { it.copy(successMessage = "Cart type saved", showAddDialog = false) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to add cart type"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to add cart type") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
 
     fun updateCartType(id: Int, name: String) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
                 cartTypeRepository.updateCartType(id, name)
-                _uiState.value = _uiState.value.copy(showEditDialog = false, editingCartType = null)
+                delay(200)
                 loadCartTypes()
+                _uiState.update { it.copy(successMessage = "Cart type updated", showEditDialog = false, editingCartType = null) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to update cart type"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to update cart type") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
@@ -125,19 +131,18 @@ class CartTypeViewModel(
     }
 
     fun deleteCartType(id: Int) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true, error = null,
-                showDeleteConfirm = false, deletingCartType = null
-            )
+            _uiState.update { it.copy(isSubmitting = true, error = null, showDeleteConfirm = false, deletingCartType = null) }
             try {
                 cartTypeRepository.deleteCartType(id)
+                delay(200)
                 loadCartTypes()
+                _uiState.update { it.copy(successMessage = "Cart type deleted") }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to delete cart type"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to delete cart type") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
@@ -167,7 +172,11 @@ class CartTypeViewModel(
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearSuccess() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 }
 

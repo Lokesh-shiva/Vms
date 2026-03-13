@@ -3,6 +3,7 @@ package com.example.vmsadmin.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,7 +25,8 @@ fun AppCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    // Glassmorphism effect: translucent background with a subtle gradient border
+    val isDark = isSystemInDarkTheme()
+
     val glassBrush = Brush.linearGradient(
         colors = listOf(
             Color.White.copy(alpha = 0.15f),
@@ -41,18 +43,32 @@ fun AppCard(
         modifier = cardModifier,
         shape = RoundedCornerShape(18.dp),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = 8.dp, // soft shadow
+            defaultElevation = if (isDark) 8.dp else 4.dp,
             pressedElevation = 2.dp
         ),
         colors = CardDefaults.cardColors(
-            // Translucent background using theme surface for glass effect
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f) 
+            containerColor = if (isDark)
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+            else
+                MaterialTheme.colorScheme.surface
         ),
-        border = BorderStroke(1.dp, glassBrush)
+        border = if (isDark) BorderStroke(1.dp, glassBrush) else BorderStroke(0.dp, Color.Transparent)
     ) {
         Column(
             modifier = Modifier
-                .background(Color.White.copy(alpha = 0.02f)) // subtle inner glow
+                .then(
+                    if (isDark)
+                        Modifier.background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    Color.White.copy(alpha = 0.05f),
+                                    Color.White.copy(alpha = 0.02f)
+                                )
+                            )
+                        )
+                    else
+                        Modifier.background(MaterialTheme.colorScheme.surface)
+                )
                 .padding(20.dp),
             content = content
         )

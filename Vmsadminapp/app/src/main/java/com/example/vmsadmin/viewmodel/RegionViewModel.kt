@@ -5,16 +5,20 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.RegionRepository
 import com.example.vmsadmin.models.Region
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class RegionUiState(
     val regions: List<Region> = emptyList(),
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
+    val isSubmitting: Boolean = false,
     val error: String? = null,
+    val successMessage: String? = null,
     val showAddDialog: Boolean = false,
     val showEditDialog: Boolean = false,
     val editingRegion: Region? = null,
@@ -67,33 +71,35 @@ class RegionViewModel(
     }
 
     fun addRegion(name: String) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
                 regionRepository.createRegion(name)
-                _uiState.value = _uiState.value.copy(showAddDialog = false)
+                delay(200)
                 loadRegions()
+                _uiState.update { it.copy(successMessage = "Region saved", showAddDialog = false) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to add region"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to add region") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
 
     fun updateRegion(id: Int, name: String) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
                 regionRepository.updateRegion(id, name)
-                _uiState.value = _uiState.value.copy(showEditDialog = false, editingRegion = null)
+                delay(200)
                 loadRegions()
+                _uiState.update { it.copy(successMessage = "Region updated", showEditDialog = false, editingRegion = null) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to update region"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to update region") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
@@ -125,19 +131,18 @@ class RegionViewModel(
     }
 
     fun deleteRegion(id: Int) {
+        if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                isLoading = true, error = null,
-                showDeleteConfirm = false, deletingRegion = null
-            )
+            _uiState.update { it.copy(isSubmitting = true, error = null, showDeleteConfirm = false, deletingRegion = null) }
             try {
                 regionRepository.deleteRegion(id)
+                delay(200)
                 loadRegions()
+                _uiState.update { it.copy(successMessage = "Region deleted") }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to delete region"
-                )
+                _uiState.update { it.copy(error = e.message ?: "Failed to delete region") }
+            } finally {
+                _uiState.update { it.copy(isSubmitting = false) }
             }
         }
     }
@@ -167,7 +172,11 @@ class RegionViewModel(
     }
 
     fun clearError() {
-        _uiState.value = _uiState.value.copy(error = null)
+        _uiState.update { it.copy(error = null) }
+    }
+
+    fun clearSuccess() {
+        _uiState.update { it.copy(successMessage = null) }
     }
 }
 
