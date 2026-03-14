@@ -186,3 +186,11 @@ data class UpdateFeeConfigRequest(
     val platform_fee_pct: Double? = null,
     val is_active: Boolean? = null
 )
+
+@Serializable
+data class DashboardStats(
+    val active_services: Int = 0,
+    val payments_under_review: Int = 0,
+    val completed_today: Int = 0,
+    val total_bookings: Int = 0
+)

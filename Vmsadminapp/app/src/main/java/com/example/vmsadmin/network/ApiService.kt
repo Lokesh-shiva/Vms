@@ -6,6 +6,7 @@ import com.example.vmsadmin.models.Cart
 import com.example.vmsadmin.models.CartType
 import com.example.vmsadmin.models.CreateCartRequest
 import com.example.vmsadmin.models.CreateCartTypeRequest
+import com.example.vmsadmin.models.DashboardStats
 import com.example.vmsadmin.models.CreateFeeConfigRequest
 import com.example.vmsadmin.models.CreateRegionRequest
 import com.example.vmsadmin.models.CreateTimeslotRequest
@@ -33,6 +34,10 @@ interface ApiService {
 
     @POST("/api/v1/auth/login")
     suspend fun login(@Body request: LoginRequest): ApiResponse<LoginResponse>
+
+    // ── Admin Dashboard ──────────────────────────────────────────────
+    @GET("/api/v1/admin/dashboard")
+    suspend fun getDashboardStats(): ApiResponse<DashboardStats>
 
     @GET("/api/v1/bookings")
     suspend fun getBookings(): ApiResponse<List<Booking>>

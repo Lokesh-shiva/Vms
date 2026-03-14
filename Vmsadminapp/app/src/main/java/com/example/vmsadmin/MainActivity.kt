@@ -4,10 +4,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
 import com.example.vmsadmin.data.BookingRepository
 import com.example.vmsadmin.data.CartRepository
 import com.example.vmsadmin.data.CartTypeRepository
+import com.example.vmsadmin.data.DashboardRepository
 import com.example.vmsadmin.data.FeeConfigRepository
 import com.example.vmsadmin.data.PaymentRepository
 import com.example.vmsadmin.data.RegionRepository
@@ -56,7 +61,8 @@ class MainActivity : ComponentActivity() {
         val bookingViewModelFactory = BookingViewModelFactory(bookingRepository)
         val bookingViewModel = ViewModelProvider(this, bookingViewModelFactory)[BookingViewModel::class.java]
 
-        val dashboardViewModelFactory = DashboardViewModelFactory(paymentRepository, bookingRepository)
+        val dashboardRepository = DashboardRepository(apiService)
+        val dashboardViewModelFactory = DashboardViewModelFactory(dashboardRepository)
         val dashboardViewModel = ViewModelProvider(this, dashboardViewModelFactory)[DashboardViewModel::class.java]
 
         val regionRepository = RegionRepository(apiService)
@@ -84,18 +90,23 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             VmsAdminTheme {
-                AppNavigation(
-                    authViewModel = authViewModel,
-                    dashboardViewModel = dashboardViewModel,
-                    paymentViewModel = paymentViewModel,
-                    bookingViewModel = bookingViewModel,
-                    regionViewModel = regionViewModel,
-                    cartTypeViewModel = cartTypeViewModel,
-                    timeslotViewModel = timeslotViewModel,
-                    cartViewModel = cartViewModel,
-                    feeConfigViewModel = feeConfigViewModel,
-                    startDestination = startDestination
-                )
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    AppNavigation(
+                        authViewModel = authViewModel,
+                        dashboardViewModel = dashboardViewModel,
+                        paymentViewModel = paymentViewModel,
+                        bookingViewModel = bookingViewModel,
+                        regionViewModel = regionViewModel,
+                        cartTypeViewModel = cartTypeViewModel,
+                        timeslotViewModel = timeslotViewModel,
+                        cartViewModel = cartViewModel,
+                        feeConfigViewModel = feeConfigViewModel,
+                        startDestination = startDestination
+                    )
+                }
             }
         }
     }
