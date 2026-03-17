@@ -33,6 +33,7 @@ class Item(Base):
     description = Column(String, nullable=True, default="")
     price = Column(Numeric(10, 2), nullable=False)
     image_urls = Column(JSON, nullable=True, default=list)
+    image_url = Column(String, nullable=True)
     is_available = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
@@ -48,6 +49,7 @@ class Item(Base):
             "description": self.description or "",
             "price": float(self.price) if self.price is not None else 0.0,
             "image_urls": self.image_urls or [],
+            "image_url": self.image_url or (self.image_urls[0] if self.image_urls else None),
             "is_available": self.is_available,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

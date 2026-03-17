@@ -21,10 +21,22 @@ class ItemRepository(private val apiService: ApiService) {
         throw Exception(response.message ?: "Failed to fetch items")
     }
 
-    suspend fun createItem(name: String, price: Double, cartTypeId: Int): Item {
+    suspend fun createItem(
+        name: String,
+        price: Double,
+        cartTypeId: Int,
+        description: String? = null,
+        imageUrl: String? = null
+    ): Item {
         try {
             val response = apiService.createItem(
-                CreateItemRequest(name = name, price = price, cart_type_id = cartTypeId)
+                CreateItemRequest(
+                    name = name,
+                    price = price,
+                    cart_type_id = cartTypeId,
+                    description = description,
+                    image_url = imageUrl
+                )
             )
             if (response.success && response.data != null) {
                 return response.data
@@ -39,7 +51,9 @@ class ItemRepository(private val apiService: ApiService) {
         id: Int,
         name: String? = null,
         price: Double? = null,
-        cartTypeId: Int? = null
+        cartTypeId: Int? = null,
+        description: String? = null,
+        imageUrl: String? = null
     ): Item {
         try {
             val response = apiService.updateItem(
@@ -47,7 +61,9 @@ class ItemRepository(private val apiService: ApiService) {
                 request = UpdateItemRequest(
                     name = name,
                     price = price,
-                    cart_type_id = cartTypeId
+                    cart_type_id = cartTypeId,
+                    description = description,
+                    image_url = imageUrl
                 )
             )
             if (response.success && response.data != null) {

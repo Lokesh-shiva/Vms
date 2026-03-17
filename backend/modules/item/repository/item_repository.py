@@ -30,6 +30,7 @@ class ItemRepository:
                 description=item_data.get("description", ""),
                 price=item_data.get("price", 0.0),
                 image_urls=item_data.get("image_urls", []),
+                image_url=item_data.get("image_url"),
                 is_available=item_data.get("is_available", True),
             )
             session.add(item)

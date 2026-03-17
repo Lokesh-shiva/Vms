@@ -203,6 +203,7 @@ data class Item(
     val cart_type_id: Int,
     val cart_type_name: String? = null,
     val description: String? = null,
+    val image_url: String? = null,
     val is_available: Boolean = true,
     val created_at: String? = null,
     val updated_at: String? = null
@@ -212,7 +213,9 @@ data class Item(
 data class CreateItemRequest(
     val name: String,
     val price: Double,
-    val cart_type_id: Int
+    val cart_type_id: Int,
+    val description: String? = null,
+    val image_url: String? = null
 )
 
 @Serializable
@@ -220,5 +223,7 @@ data class UpdateItemRequest(
     val name: String? = null,
     val price: Double? = null,
     val is_available: Boolean? = null,
-    val cart_type_id: Int? = null
+    val cart_type_id: Int? = null,
+    val description: String? = null,
+    val image_url: String? = null
 )

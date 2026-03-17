@@ -165,6 +165,33 @@ class TestItemService(unittest.TestCase):
         """Deleting a non-existent item returns False."""
         self.assertFalse(self.service.delete_item(999))
 
+    # ── image_url ─────────────────────────────────────────────────────
+
+    def test_create_item_with_image_url(self):
+        """Creating an item with image_url stores and returns it correctly."""
+        url = "https://example.com/chai.jpg"
+        result = self.service.create_item(self._valid_data(image_url=url))
+        self.assertEqual(result["image_url"], url)
+
+    def test_update_item_image_url(self):
+        """Updating image_url persists the new value."""
+        created = self.service.create_item(self._valid_data())
+        new_url = "https://example.com/new-image.png"
+        updated = self.service.update_item(created["id"], {"image_url": new_url})
+        self.assertEqual(updated["image_url"], new_url)
+
+    def test_item_without_image_still_valid(self):
+        """Creating an item without image_url succeeds and returns image_url as None."""
+        result = self.service.create_item(self._valid_data())
+        self.assertIsNone(result["image_url"])
+
+    def test_to_dict_fallback_image(self):
+        """to_dict() falls back to first image_urls entry when image_url is None."""
+        created = self.service.create_item(
+            self._valid_data(image_urls=["https://example.com/fallback.jpg"])
+        )
+        self.assertEqual(created["image_url"], "https://example.com/fallback.jpg")
+
 
 if __name__ == "__main__":
     unittest.main()

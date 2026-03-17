@@ -16,16 +16,21 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.foundation.background
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.vmsadmin.models.CartType
 import com.example.vmsadmin.models.Item
 import com.example.vmsadmin.ui.components.AppCard
@@ -65,10 +70,12 @@ fun ItemsScreen(viewModel: ItemViewModel, onBack: () -> Unit = {}) {
             initialName = "",
             initialPrice = "",
             initialCartTypeId = null,
+            initialDescription = "",
+            initialImageUrl = "",
             cartTypes = uiState.cartTypes,
             isSubmitting = uiState.isSubmitting,
-            onConfirm = { name, price, cartTypeId ->
-                viewModel.addItem(name, price, cartTypeId)
+            onConfirm = { name, price, cartTypeId, description, imageUrl ->
+                viewModel.addItem(name, price, cartTypeId, description, imageUrl)
             },
             onDismiss = { viewModel.dismissAddDialog() }
         )
@@ -82,10 +89,12 @@ fun ItemsScreen(viewModel: ItemViewModel, onBack: () -> Unit = {}) {
             initialName = item.name,
             initialPrice = item.price.toString(),
             initialCartTypeId = item.cart_type_id,
+            initialDescription = item.description ?: "",
+            initialImageUrl = item.image_url ?: "",
             cartTypes = uiState.cartTypes,
             isSubmitting = uiState.isSubmitting,
-            onConfirm = { name, price, cartTypeId ->
-                viewModel.updateItem(item.id, name, price, cartTypeId)
+            onConfirm = { name, price, cartTypeId, description, imageUrl ->
+                viewModel.updateItem(item.id, name, price, cartTypeId, description, imageUrl)
             },
             onDismiss = { viewModel.dismissEditDialog() }
         )
@@ -354,6 +363,38 @@ private fun ItemCard(
     onToggle: () -> Unit
 ) {
     AppCard {
+        // ── Image area ───────────────────────────────────────────────
+        val hasImage = !item.image_url.isNullOrBlank() && item.image_url.startsWith("http")
+        if (hasImage) {
+            AsyncImage(
+                model = item.image_url,
+                contentDescription = item.name,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No image",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+        // ── Name + availability toggle ───────────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -366,6 +407,16 @@ private fun ItemCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+                if (!item.description.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = item.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -440,13 +491,17 @@ private fun ItemDialog(
     initialName: String,
     initialPrice: String,
     initialCartTypeId: Int?,
+    initialDescription: String,
+    initialImageUrl: String,
     cartTypes: List<CartType>,
     isSubmitting: Boolean,
-    onConfirm: (name: String, price: Double, cartTypeId: Int) -> Unit,
+    onConfirm: (name: String, price: Double, cartTypeId: Int, description: String?, imageUrl: String?) -> Unit,
     onDismiss: () -> Unit
 ) {
     var name by remember { mutableStateOf(initialName) }
     var price by remember { mutableStateOf(initialPrice) }
+    var description by remember { mutableStateOf(initialDescription) }
+    var imageUrl by remember { mutableStateOf(initialImageUrl) }
     var selectedCartType by remember {
         mutableStateOf(cartTypes.find { it.id == initialCartTypeId })
     }
@@ -463,7 +518,13 @@ private fun ItemDialog(
         cartTypeError = selectedCartType == null
         if (!nameError && !priceError && !cartTypeError) {
             keyboardController?.hide()
-            onConfirm(name.trim(), parsedPrice!!, selectedCartType!!.id)
+            onConfirm(
+                name.trim(),
+                parsedPrice!!,
+                selectedCartType!!.id,
+                description.ifBlank { null },
+                imageUrl.ifBlank { null }
+            )
         }
     }
 
@@ -507,9 +568,8 @@ private fun ItemDialog(
                     shape = RoundedCornerShape(12.dp),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Decimal,
-                        imeAction = ImeAction.Done
-                    ),
-                    keyboardActions = KeyboardActions(onDone = { submit() })
+                        imeAction = ImeAction.Next
+                    )
                 )
 
                 ExposedDropdownMenuBox(
@@ -547,6 +607,31 @@ private fun ItemDialog(
                         }
                     }
                 }
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (optional)") },
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                )
+
+                OutlinedTextField(
+                    value = imageUrl,
+                    onValueChange = { imageUrl = it },
+                    label = { Text("Image URL (optional)") },
+                    placeholder = { Text("Paste image link (e.g., from Imgur)", style = MaterialTheme.typography.bodySmall) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Uri,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { submit() })
+                )
             }
         },
         confirmButton = {

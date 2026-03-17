@@ -92,12 +92,24 @@ class ItemViewModel(
         }
     }
 
-    fun addItem(name: String, price: Double, cartTypeId: Int) {
+    fun addItem(
+        name: String,
+        price: Double,
+        cartTypeId: Int,
+        description: String? = null,
+        imageUrl: String? = null
+    ) {
         if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
-                itemRepository.createItem(name, price, cartTypeId)
+                itemRepository.createItem(
+                    name = name,
+                    price = price,
+                    cartTypeId = cartTypeId,
+                    description = description?.ifBlank { null },
+                    imageUrl = imageUrl?.ifBlank { null }
+                )
                 delay(200)
                 loadItems()
                 _uiState.update { it.copy(successMessage = "Item added", showAddDialog = false) }
@@ -109,12 +121,26 @@ class ItemViewModel(
         }
     }
 
-    fun updateItem(id: Int, name: String, price: Double, cartTypeId: Int) {
+    fun updateItem(
+        id: Int,
+        name: String,
+        price: Double,
+        cartTypeId: Int,
+        description: String? = null,
+        imageUrl: String? = null
+    ) {
         if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
-                itemRepository.updateItem(id = id, name = name, price = price, cartTypeId = cartTypeId)
+                itemRepository.updateItem(
+                    id = id,
+                    name = name,
+                    price = price,
+                    cartTypeId = cartTypeId,
+                    description = description?.ifBlank { null },
+                    imageUrl = imageUrl?.ifBlank { null }
+                )
                 delay(200)
                 loadItems()
                 _uiState.update {

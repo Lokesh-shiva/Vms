@@ -1187,3 +1187,18 @@ System stable.
   - User updates with automatic `updated_at` timestamp refresh.
   - Deletion of user records and subsequent "Not Found" validation.
 
+## 17 Mar 2026 — Day 27.5: Item Visual Support
+
+- **Backend**: Added `image_url` (String, nullable) field to `Item` model alongside existing `image_urls` (JSON list).
+- **to_dict() fallback**: `image_url` resolves to explicit `image_url` value, or falls back to first entry in `image_urls` if present, ensuring backward compatibility.
+- **Schema validation**: Added `image_url` (optional string) to both `CreateItemSchema` and `UpdateItemSchema` with non-empty string enforcement when provided.
+- **Repository**: `create()` now persists `image_url`; `update()` handles it generically via existing `setattr` loop.
+- **Tests**: Added 4 new tests — `test_create_item_with_image_url`, `test_update_item_image_url`, `test_item_without_image_still_valid`, `test_to_dict_fallback_image`. All 20 tests pass.
+- **Admin App**: Added `image_url: String? = null` to `Item`, `CreateItemRequest`, `UpdateItemRequest` models.
+- **Admin App**: `ItemRepository`, `ItemViewModel` updated to pass `description` and `imageUrl` through to the API.
+- **Admin App**: `ItemCard` now shows `AsyncImage` (Coil) when a valid URL is present, or a placeholder icon otherwise. Description shown below name with 2-line ellipsis.
+- **Admin App**: `ItemDialog` adds Description and Image URL fields with UX hint "Paste image link (e.g., from Imgur)".
+- **Admin App**: Coil 2.7.0 added to `libs.versions.toml` and `build.gradle.kts`.
+- **User App**: Added `Item` data class with `description` and `image_url` fields for future UI rendering.
+- **No breaking changes**: Existing items without images work correctly with placeholder fallback.
+

@@ -47,6 +47,18 @@ class CreateItemSchema:
         else:
             self.validated_data["price"] = float(price)
 
+        # image_url — optional, single URL string
+        image_url = self._data.get("image_url")
+        if image_url is not None:
+            if not isinstance(image_url, str):
+                self.errors.append("'image_url' must be a string.")
+            elif len(image_url.strip()) == 0:
+                self.errors.append("'image_url' cannot be empty.")
+            else:
+                self.validated_data["image_url"] = image_url.strip()
+        else:
+            self.validated_data["image_url"] = None
+
         # image_urls — optional, list of valid URL strings
         image_urls = self._data.get("image_urls")
         if image_urls is not None:
@@ -121,6 +133,18 @@ class UpdateItemSchema:
                 self.errors.append("'price' must be greater than or equal to 0.")
             else:
                 self.validated_data["price"] = float(price)
+
+        if "image_url" in self._data:
+            image_url = self._data["image_url"]
+            if image_url is not None:
+                if not isinstance(image_url, str):
+                    self.errors.append("'image_url' must be a string.")
+                elif len(image_url.strip()) == 0:
+                    self.errors.append("'image_url' cannot be empty.")
+                else:
+                    self.validated_data["image_url"] = image_url.strip()
+            else:
+                self.validated_data["image_url"] = None
 
         if "image_urls" in self._data:
             image_urls = self._data["image_urls"]
