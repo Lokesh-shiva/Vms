@@ -63,7 +63,9 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
 
     // Image loading
-    implementation(libs.coil.compose)
+    // Using direct coordinate to ensure Coil is on classpath even if
+    // version catalog alias resolution changes.
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
