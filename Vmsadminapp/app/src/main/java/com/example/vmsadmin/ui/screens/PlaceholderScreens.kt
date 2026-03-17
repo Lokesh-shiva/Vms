@@ -4,11 +4,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.List
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,7 +26,8 @@ fun ManageScreen(
     onNavigateToCartTypes: () -> Unit = {},
     onNavigateToTimeslots: () -> Unit = {},
     onNavigateToCarts: () -> Unit = {},
-    onNavigateToFeeConfig: () -> Unit = {}
+    onNavigateToFeeConfig: () -> Unit = {},
+    onNavigateToItems: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -94,6 +96,15 @@ fun ManageScreen(
                     icon = Icons.Outlined.Info,
                     enabled = true,
                     onClick = onNavigateToFeeConfig
+                )
+            }
+            item {
+                ManageCard(
+                    title = "Items",
+                    subtitle = "Manage menu items by cart type",
+                    icon = Icons.Outlined.List,
+                    enabled = true,
+                    onClick = onNavigateToItems
                 )
             }
         }

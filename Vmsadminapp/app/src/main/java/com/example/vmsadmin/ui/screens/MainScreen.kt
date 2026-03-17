@@ -27,10 +27,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.vmsadmin.viewmodel.BookingViewModel
 import com.example.vmsadmin.viewmodel.CartViewModel
+import com.example.vmsadmin.viewmodel.CartTypeViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.FeeConfigViewModel
+import com.example.vmsadmin.viewmodel.ItemViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
-import com.example.vmsadmin.viewmodel.CartTypeViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
 import com.example.vmsadmin.viewmodel.TimeslotViewModel
 
@@ -50,7 +51,8 @@ fun MainScreen(
     cartTypeViewModel: CartTypeViewModel,
     timeslotViewModel: TimeslotViewModel,
     cartViewModel: CartViewModel,
-    feeConfigViewModel: FeeConfigViewModel
+    feeConfigViewModel: FeeConfigViewModel,
+    itemViewModel: ItemViewModel
 ) {
     val navController = rememberNavController()
 
@@ -144,6 +146,9 @@ fun MainScreen(
                     },
                     onNavigateToFeeConfig = {
                         navController.navigate("manage/fee-config")
+                    },
+                    onNavigateToItems = {
+                        navController.navigate("manage/items")
                     }
                 )
             }
@@ -169,6 +174,12 @@ fun MainScreen(
                     viewModel = feeConfigViewModel,
                     regionViewModel = regionViewModel,
                     cartTypeViewModel = cartTypeViewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("manage/items") {
+                ItemsScreen(
+                    viewModel = itemViewModel,
                     onBack = { navController.popBackStack() }
                 )
             }

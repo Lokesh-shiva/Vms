@@ -22,6 +22,9 @@ import com.example.vmsadmin.models.UpdateCartTypeRequest
 import com.example.vmsadmin.models.UpdateFeeConfigRequest
 import com.example.vmsadmin.models.UpdateRegionRequest
 import com.example.vmsadmin.models.UpdateTimeslotRequest
+import com.example.vmsadmin.models.CreateItemRequest
+import com.example.vmsadmin.models.Item
+import com.example.vmsadmin.models.UpdateItemRequest
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -29,6 +32,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiService {
 
@@ -157,4 +161,25 @@ interface ApiService {
 
     @DELETE("/api/v1/fee-config/{id}")
     suspend fun deleteFeeConfig(@Path("id") id: Int): ApiResponse<JsonElement>
+
+    // ── Item endpoints ────────────────────────────────────────────────
+    @GET("/api/v1/items")
+    suspend fun getItems(): ApiResponse<List<Item>>
+
+    @GET("/api/v1/items")
+    suspend fun getItemsByCartType(
+        @Query("cart_type_id") cartTypeId: Int
+    ): ApiResponse<List<Item>>
+
+    @POST("/api/v1/items")
+    suspend fun createItem(@Body request: CreateItemRequest): ApiResponse<Item>
+
+    @PUT("/api/v1/items/{item_id}")
+    suspend fun updateItem(
+        @Path("item_id") itemId: Int,
+        @Body request: UpdateItemRequest
+    ): ApiResponse<Item>
+
+    @DELETE("/api/v1/items/{item_id}")
+    suspend fun deleteItem(@Path("item_id") itemId: Int): ApiResponse<JsonElement>
 }

@@ -14,6 +14,7 @@ import com.example.vmsadmin.data.CartRepository
 import com.example.vmsadmin.data.CartTypeRepository
 import com.example.vmsadmin.data.DashboardRepository
 import com.example.vmsadmin.data.FeeConfigRepository
+import com.example.vmsadmin.data.ItemRepository
 import com.example.vmsadmin.data.PaymentRepository
 import com.example.vmsadmin.data.RegionRepository
 import com.example.vmsadmin.data.TimeslotRepository
@@ -25,14 +26,16 @@ import com.example.vmsadmin.viewmodel.AuthViewModel
 import com.example.vmsadmin.viewmodel.AuthViewModelFactory
 import com.example.vmsadmin.viewmodel.BookingViewModel
 import com.example.vmsadmin.viewmodel.BookingViewModelFactory
-import com.example.vmsadmin.viewmodel.CartViewModel
-import com.example.vmsadmin.viewmodel.CartViewModelFactory
 import com.example.vmsadmin.viewmodel.CartTypeViewModel
 import com.example.vmsadmin.viewmodel.CartTypeViewModelFactory
+import com.example.vmsadmin.viewmodel.CartViewModel
+import com.example.vmsadmin.viewmodel.CartViewModelFactory
 import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModelFactory
 import com.example.vmsadmin.viewmodel.FeeConfigViewModel
 import com.example.vmsadmin.viewmodel.FeeConfigViewModelFactory
+import com.example.vmsadmin.viewmodel.ItemViewModel
+import com.example.vmsadmin.viewmodel.ItemViewModelFactory
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModelFactory
 import com.example.vmsadmin.viewmodel.RegionViewModel
@@ -85,6 +88,10 @@ class MainActivity : ComponentActivity() {
         val feeConfigViewModelFactory = FeeConfigViewModelFactory(feeConfigRepository)
         val feeConfigViewModel = ViewModelProvider(this, feeConfigViewModelFactory)[FeeConfigViewModel::class.java]
 
+        val itemRepository = ItemRepository(apiService)
+        val itemViewModelFactory = ItemViewModelFactory(itemRepository, cartTypeRepository)
+        val itemViewModel = ViewModelProvider(this, itemViewModelFactory)[ItemViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -104,6 +111,7 @@ class MainActivity : ComponentActivity() {
                         timeslotViewModel = timeslotViewModel,
                         cartViewModel = cartViewModel,
                         feeConfigViewModel = feeConfigViewModel,
+                        itemViewModel = itemViewModel,
                         startDestination = startDestination
                     )
                 }

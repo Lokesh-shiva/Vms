@@ -1,5 +1,43 @@
 # Development Log
 
+## 17 Mar 2026 — Day 27: Items Management + Category Grouping Module
+
+### Summary
+- Implemented full Items Management module in the VMS Admin Android app.
+- Backend has no `item-categories` endpoint — `CartType` is used as the item grouping "category" (Part 10 fallback).
+- Items are grouped under cart types in the UI; toggling a cart type header mass-activates/deactivates all items in that group (optimistic update with rollback).
+- Full CRUD: add, edit, toggle availability, delete items.
+- `updatingCartTypeIds: Set<Int>` prevents spam taps on category-level toggle switch.
+- Items and cart types loaded in parallel via `async`/`await`; items enriched with `cart_type_name` and sorted alphabetically within each group.
+- Empty cart type sections show a header with "0 items" label.
+
+### Android — New Files
+
+| File | Description |
+|------|-------------|
+| `data/ItemRepository.kt` | CRUD + `parseErrorDetail` pattern; wraps `GET /api/v1/items`, `POST`, `PUT`, `DELETE` |
+| `viewmodel/ItemViewModel.kt` | `ItemUiState` with `items`, `cartTypes`, `updatingIds`, `updatingCartTypeIds`; `toggleItemsByCartType()` for mass toggle; `ItemViewModelFactory` |
+| `ui/screens/ItemsScreen.kt` | Grouped list by cart type; `CategoryHeader` with mass-toggle `Switch`; `ItemCard` with price, availability badge, edit/delete buttons; `ItemDialog` with name/price/cart-type dropdown; shimmer skeleton; pull-to-refresh; snackbars |
+
+### Android — Modified Files
+
+| File | Change |
+|------|--------|
+| `models/Models.kt` | Added `Item`, `CreateItemRequest`, `UpdateItemRequest` data classes |
+| `network/ApiService.kt` | Added `getItems()`, `getItemsByCartType(@Query)`, `createItem()`, `updateItem()`, `deleteItem()` endpoints |
+| `ui/screens/PlaceholderScreens.kt` | Added `onNavigateToItems` callback + Items `ManageCard` entry |
+| `ui/screens/MainScreen.kt` | Added `itemViewModel` param + `composable("manage/items")` route |
+| `navigation/AppNavigation.kt` | Added `itemViewModel: ItemViewModel` param, wired to `MainScreen` |
+| `MainActivity.kt` | Instantiated `ItemRepository`, `ItemViewModelFactory`, `itemViewModel`; passed to `AppNavigation` |
+
+### Key Design Decisions
+- `CartType` acts as "category" — no backend changes needed.
+- Mass toggle fires sequential `toggleItem()` calls per item; any failure rolls back all items in the group.
+- `updatingCartTypeIds` disables the group-level switch during pending backend calls to prevent duplicate requests.
+- Items sorted by `(cart_type_name, item_name)` for consistent display order.
+
+---
+
 ## 13 Mar 2026 — Day 24: Admin App UX Hardening + UI Polish
 
 ### Summary
