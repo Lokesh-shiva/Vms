@@ -6,6 +6,7 @@ import com.example.vmsuser.models.CartType
 import com.example.vmsuser.models.ConfirmPaymentRequest
 import com.example.vmsuser.models.CreateBookingRequest
 import com.example.vmsuser.models.InitiatePaymentResponse
+import com.example.vmsuser.models.Item
 import com.example.vmsuser.models.LoginRequest
 import com.example.vmsuser.models.LoginResponse
 import com.example.vmsuser.models.Payment
@@ -39,6 +40,9 @@ interface ApiService {
 
     @GET("/api/v1/timeslots")
     suspend fun getTimeslots(): ApiResponse<List<Timeslot>>
+
+    @GET("/api/v1/items")
+    suspend fun getItems(): ApiResponse<List<Item>>
 
     // ── Bookings ─────────────────────────────────────────────────────
     @POST("/api/v1/bookings")

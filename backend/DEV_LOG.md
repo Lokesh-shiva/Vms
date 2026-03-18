@@ -1,5 +1,50 @@
 # Development Log
 
+## 18 Mar 2026 — Day 28: User App Home Screen + Item Browsing + Local Cart State
+
+### Summary
+- Replaced placeholder `HomeScreen` with a real, functional browsing experience.
+- Items fetched from backend, filtered by `is_available`, sorted by name, and grouped by cart type.
+- Cart type categories shown as horizontal chips (`LazyRow`).
+- Items displayed in a flat `LazyColumn` (no nesting) using `forEach { } + items { }` pattern.
+- Empty cart type sections are hidden (only groups with ≥ 1 available item shown).
+- Local `cart: Map<Int, Int>` (itemId → quantity) for add/remove state — no backend yet.
+- Coil `AsyncImage` used for images; placeholder icon shown when `image_url` is null/missing.
+- Image rendered with `aspectRatio(1.6f)` for consistent sizing across all item cards.
+- Add/remove controls use `+ Add` button (qty=0) or `- qty +` stepper (qty>0) with vertical alignment.
+
+### Android — New Files
+
+| File | Description |
+|------|-------------|
+| `repository/ItemRepository.kt` | Fetches items via `GET /api/v1/items`; uses `parseErrorDetail` for HTTP error parsing |
+| `ui/screens/ItemCard.kt` | Reusable item card: Coil image, optional description, price, add/stepper controls |
+
+### Android — Modified Files
+
+| File | Change |
+|------|--------|
+| `gradle/libs.versions.toml` | Added `coil = "2.7.0"` version and `coil-compose` library entry |
+| `app/build.gradle.kts` | Added `implementation(libs.coil.compose)` |
+| `network/ApiService.kt` | Added `GET /api/v1/items` endpoint (`getItems()`) |
+| `viewmodel/HomeViewModel.kt` | Full rewrite: flat `HomeUiState` with `items`, `groupedItems`, `cartTypes`, `cart`, `isLoading`, `error`; concurrent fetch via `async/await`; cart add/remove logic; `HomeViewModelFactory` updated |
+| `ui/screens/HomeScreen.kt` | Full rewrite: single flat `LazyColumn`, loading/error/empty states, cart type chips, grouped items |
+| `MainActivity.kt` | Instantiated `ItemRepository`, updated `HomeViewModelFactory` call to pass both repos |
+
+### Key Design Decisions
+- **No nested LazyColumn**: used `LazyColumn { forEach { item { } + items { } } }` to avoid scroll conflicts.
+- **Availability filter**: `items.filter { it.is_available }` before grouping prevents hidden items appearing.
+- **Sorted display**: both `cartTypes` and `items` sorted by `name` for consistent, intentional ordering.
+- **Empty section pruning**: `groupedItems.filter { it.value.isNotEmpty() }` ensures only non-empty sections render.
+- **`aspectRatio(1.6f)`**: cleaner than fixed `height(150.dp)` — handles all image sizes naturally.
+
+**Status**:
+Home screen item browsing operational.
+Local cart state (no backend) ready for future checkout flow.
+System stable.
+
+---
+
 ## 17 Mar 2026 — Day 27: Items Management + Category Grouping Module
 
 ### Summary

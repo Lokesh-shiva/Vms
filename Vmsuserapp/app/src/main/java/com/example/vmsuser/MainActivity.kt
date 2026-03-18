@@ -15,6 +15,7 @@ import com.example.vmsuser.navigation.AppNavigation
 import com.example.vmsuser.network.ApiClient
 import com.example.vmsuser.repository.AuthRepository
 import com.example.vmsuser.repository.BookingRepository
+import com.example.vmsuser.repository.ItemRepository
 import com.example.vmsuser.repository.LocationRepository
 import com.example.vmsuser.repository.PaymentRepository
 import com.example.vmsuser.ui.theme.VmsUserTheme
@@ -43,7 +44,8 @@ class MainActivity : ComponentActivity() {
         val authViewModel = ViewModelProvider(this, authViewModelFactory)[AuthViewModel::class.java]
 
         val locationRepository = LocationRepository(apiService)
-        val homeViewModelFactory = HomeViewModelFactory(locationRepository)
+        val itemRepository = ItemRepository(apiService)
+        val homeViewModelFactory = HomeViewModelFactory(locationRepository, itemRepository)
         val homeViewModel = ViewModelProvider(this, homeViewModelFactory)[HomeViewModel::class.java]
 
         val bookingRepository = BookingRepository(apiService)

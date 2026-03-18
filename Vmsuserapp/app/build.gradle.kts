@@ -61,6 +61,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
 
+    // Image loading
+    implementation(libs.coil.compose)
+
     // Local Storage
     implementation(libs.androidx.datastore.preferences)
 
