@@ -7,9 +7,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.vmsuser.data.AddressManager
 import com.example.vmsuser.network.ApiClient
 import com.example.vmsuser.ui.screens.BookingScreen
 import com.example.vmsuser.ui.screens.BookingStatusScreen
+import com.example.vmsuser.ui.screens.CartScreen
 import com.example.vmsuser.ui.screens.HomeScreen
 import com.example.vmsuser.ui.screens.LoginScreen
 import com.example.vmsuser.ui.screens.PaymentScreen
@@ -25,6 +27,7 @@ fun AppNavigation(
     homeViewModel: HomeViewModel,
     bookingViewModel: BookingViewModel,
     paymentViewModel: PaymentViewModel,
+    addressManager: AddressManager,
     startDestination: String
 ) {
     val navController = rememberNavController()
@@ -74,11 +77,31 @@ fun AppNavigation(
                 onNavigateToBooking = {
                     navController.navigate("booking")
                 },
+                onNavigateToCart = {
+                    navController.navigate("cart")
+                },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate("login") {
                         popUpTo(0)
                     }
+                }
+            )
+        }
+
+        // ── Cart Screen ──────────────────────────────────────────────
+        composable("cart") {
+            CartScreen(
+                homeViewModel = homeViewModel,
+                bookingViewModel = bookingViewModel,
+                addressManager = addressManager,
+                onNavigateToBookingStatus = { bookingId ->
+                    navController.navigate("booking_status/$bookingId") {
+                        popUpTo("cart") { inclusive = true }
+                    }
+                },
+                onBack = {
+                    navController.popBackStack()
                 }
             )
         }

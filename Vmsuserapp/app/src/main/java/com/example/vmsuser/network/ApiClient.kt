@@ -36,7 +36,11 @@ object ApiClient {
             .addInterceptor(loggingInterceptor)
             .addInterceptor(authInterceptor)
             .addInterceptor { chain ->
-                val response = chain.proceed(chain.request())
+                val response = try {
+                    chain.proceed(chain.request())
+                } catch (e: java.io.IOException) {
+                    throw e  // rethrow cleanly — coroutine catch blocks will handle it
+                }
                 if (response.code == 401 && !chain.request().url.encodedPath.contains("/auth/login")) {
                     Log.e("AUTH", "401 Unauthorized — forcing logout")
                     CoroutineScope(Dispatchers.IO).launch {

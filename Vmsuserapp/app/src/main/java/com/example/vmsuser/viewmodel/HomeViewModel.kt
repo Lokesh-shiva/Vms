@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsuser.models.CartType
 import com.example.vmsuser.models.Item
+import com.example.vmsuser.models.Region
+import com.example.vmsuser.models.Timeslot
 import com.example.vmsuser.repository.ItemRepository
 import com.example.vmsuser.repository.LocationRepository
 import kotlinx.coroutines.async
@@ -19,6 +21,8 @@ data class HomeUiState(
     val groupedItems: Map<Int, List<Item>> = emptyMap(),
     val cartTypes: List<CartType> = emptyList(),
     val cart: Map<Int, Int> = emptyMap(),   // itemId → quantity
+    val regions: List<Region> = emptyList(),
+    val timeslots: List<Timeslot> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -38,9 +42,13 @@ class HomeViewModel(
             try {
                 val cartTypesDeferred = async { locationRepository.getCartTypes() }
                 val itemsDeferred = async { itemRepository.getItems() }
+                val regionsDeferred = async { locationRepository.getRegions() }
+                val timeslotsDeferred = async { locationRepository.getTimeslots() }
 
                 val cartTypes = cartTypesDeferred.await().sortedBy { it.name }
                 val allItems = itemsDeferred.await()
+                val regions = regionsDeferred.await()
+                val timeslots = timeslotsDeferred.await()
 
                 // Filter available items and sort by name
                 val availableItems = allItems
@@ -58,6 +66,8 @@ class HomeViewModel(
                         cartTypes = cartTypes,
                         items = availableItems,
                         groupedItems = grouped,
+                        regions = regions,
+                        timeslots = timeslots,
                         error = null
                     )
                 }
@@ -91,6 +101,42 @@ class HomeViewModel(
     }
 
     fun getQuantity(itemId: Int): Int = _uiState.value.cart[itemId] ?: 0
+
+    /** Returns list of (Item, quantity) pairs for items in the cart */
+    fun getCartItems(): List<Pair<Item, Int>> {
+        val state = _uiState.value
+        val itemMap = state.items.associateBy { it.id }
+        return state.cart.mapNotNull { (itemId, qty) ->
+            val item = itemMap[itemId] ?: return@mapNotNull null
+            item to qty
+        }
+    }
+
+    /** Returns total amount for all cart items */
+    fun getTotalAmount(): Double {
+        val state = _uiState.value
+        val itemMap = state.items.associateBy { it.id }
+        return state.cart.entries.sumOf { (itemId, qty) ->
+            val price = itemMap[itemId]?.price ?: 0.0
+            price * qty
+        }
+    }
+
+    /** Returns the set of distinct cart_type_ids present in the cart */
+    fun getCartTypeIds(): Set<Int> {
+        val state = _uiState.value
+        val itemMap = state.items.associateBy { it.id }
+        return state.cart.keys.mapNotNull { itemId ->
+            itemMap[itemId]?.cart_type_id
+        }.toSet()
+    }
+
+    fun clearCart() {
+        _uiState.update { it.copy(cart = emptyMap()) }
+    }
+
+    /** Total count of items in cart (for badge) */
+    fun getCartCount(): Int = _uiState.value.cart.values.sum()
 }
 
 class HomeViewModelFactory(

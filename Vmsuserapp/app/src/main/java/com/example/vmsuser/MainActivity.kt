@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
                         homeViewModel = homeViewModel,
                         bookingViewModel = bookingViewModel,
                         paymentViewModel = paymentViewModel,
+                        addressManager = addressManager,
                         startDestination = startDestination
                     )
                 }

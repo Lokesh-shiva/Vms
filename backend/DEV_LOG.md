@@ -1,5 +1,55 @@
 # Development Log
 
+## 19 Mar 2026 — Day 29: Cart Screen + Checkout + Booking Creation
+
+### Summary
+- Implemented `CartScreen` with item list, quantity controls, address section, and checkout flow.
+- Added `AddressDialog` with field validation (name, phone 10-digit, address required).
+- Added `AddressManager` integration for local address storage via DataStore.
+- Implemented booking creation flow with full validation:
+  - **Mixed cart type prevention**: rejects orders spanning multiple cart types.
+  - **Safe region/timeslot fallback**: uses first available, errors if none.
+  - **Address validation**: blocks checkout if address is blank.
+  - **Double-submit prevention**: `isSubmitting` guard + button disabled state.
+  - **Cart clears only after successful API response** (not before).
+- Connected cart → backend booking API (`POST /api/v1/bookings`).
+- Updated `BookingStatusScreen` with booking ID, "Pending Payment" status, and navigation CTAs.
+- Added cart FAB with badge on `HomeScreen` for quick cart access.
+- Loaded regions and timeslots in `HomeViewModel.loadHome()` for checkout data.
+
+### Android — New Files
+
+| File | Description |
+|------|-------------|
+| `ui/screens/CartScreen.kt` | Cart item list, quantity controls, address section, checkout with all validations, Snackbar errors |
+| `ui/components/AddressDialog.kt` | Address form dialog with name/phone/address validation, saves via AddressManager |
+
+### Android — Modified Files
+
+| File | Change |
+|------|--------|
+| `viewmodel/HomeViewModel.kt` | Added `getCartItems()`, `getTotalAmount()`, `getCartTypeIds()`, `clearCart()`, `getCartCount()`; added `regions`/`timeslots` to `HomeUiState`; loads regions + timeslots in `loadHome()` |
+| `ui/screens/HomeScreen.kt` | Added `onNavigateToCart` callback; FAB with `BadgedBox` showing cart count |
+| `ui/screens/BookingStatusScreen.kt` | Full UI: booking ID card, "Pending Payment" status, "Proceed to Payment" + "Back to Home" buttons |
+| `navigation/AppNavigation.kt` | Added `cart` route; added `addressManager` parameter; wired `CartScreen` |
+| `MainActivity.kt` | Passes `addressManager` to `AppNavigation` |
+
+### Key Design Decisions
+- **Single cart type enforcement**: `getCartTypeIds().size > 1` → error. Prevents mixed category orders.
+- **Safe fallbacks**: `regions.firstOrNull()?.id` and `timeslots.firstOrNull { it.is_active }?.id` with null checks.
+- **Cart clear timing**: `clearCart()` called inside `LaunchedEffect` only when `createState is UiState.Success`.
+- **Double-submit**: `BookingViewModel.createBooking()` has `if (_createState.value is UiState.Loading) return` guard; button also disabled via `enabled = !isSubmitting`.
+- **Address full format**: concatenates name, address, pincode, phone into single string for API.
+- **Snackbar + Retry**: errors shown with Snackbar including "Retry" action label.
+- **Empty state UX**: Shopping cart icon + "Your cart is empty 🛒" + "Add items to get started" + "Browse Items" button.
+
+**Status**:
+Cart screen + checkout flow operational.
+Booking creation connected to backend API.
+System stable.
+
+---
+
 ## 18 Mar 2026 — Day 28: User App Home Screen + Item Browsing + Local Cart State
 
 ### Summary
