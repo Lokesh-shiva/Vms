@@ -168,7 +168,7 @@ class MatchRepository:
 
     def add_player(self, match_id: int, user_id: int, session) -> None:
         """Add a player to a match inside an existing transaction."""
-        player = MatchPlayer(match_id=match_id, user_id=user_id, has_paid=False)
+        player = MatchPlayer(match_id=match_id, user_id=user_id, has_arrived=False)
         session.add(player)
         session.flush()
 
@@ -176,7 +176,7 @@ class MatchRepository:
         """Add a player using its own session (used after match creation commit)."""
         session = self._session_factory()
         try:
-            player = MatchPlayer(match_id=match_id, user_id=user_id, has_paid=False)
+            player = MatchPlayer(match_id=match_id, user_id=user_id, has_arrived=False)
             session.add(player)
             session.commit()
         except Exception:

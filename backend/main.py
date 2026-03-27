@@ -37,6 +37,8 @@ from modules.match.model.match_model import Match, MatchPlayer  # noqa: F401 —
 from modules.payment.model.payment_model import Payment  # noqa: F401 — registers model
 from modules.payment.model.system_config_model import SystemConfig  # noqa: F401 — registers model
 from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401 — registers model
+from modules.sport.model.sport_model import Sport  # noqa: F401 — registers model
+from modules.matchmaking.model.queue_entry_model import QueueEntry  # noqa: F401 — registers model
 
 
 # ── Application ───────────────────────────────────────────────────────

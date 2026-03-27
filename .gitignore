@@ -45,3 +45,17 @@ backend/booking_test_out.txt
 backend/cart_test_out.txt
 backend/timeslot_test_out.txt
 backend/full_test_out.txt
+
+# MCP / IDE config (local environment)
+.gemini/
+.claude/
+
+# Tool results and temp files
+tool-results/
+*.tmp
+*.temp
+*_temp.*
+
+# Antigravity AI IDE config
+mcp_config.json
+.mcp_config.local.json
