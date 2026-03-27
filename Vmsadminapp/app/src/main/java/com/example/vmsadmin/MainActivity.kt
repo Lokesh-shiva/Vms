@@ -16,6 +16,7 @@ import com.example.vmsadmin.data.DashboardRepository
 import com.example.vmsadmin.data.FeeConfigRepository
 import com.example.vmsadmin.data.ItemRepository
 import com.example.vmsadmin.data.PaymentRepository
+import com.example.vmsadmin.data.MatchRepository
 import com.example.vmsadmin.data.RegionRepository
 import com.example.vmsadmin.data.TimeslotRepository
 import com.example.vmsadmin.data.TokenManager
@@ -36,6 +37,8 @@ import com.example.vmsadmin.viewmodel.FeeConfigViewModel
 import com.example.vmsadmin.viewmodel.FeeConfigViewModelFactory
 import com.example.vmsadmin.viewmodel.ItemViewModel
 import com.example.vmsadmin.viewmodel.ItemViewModelFactory
+import com.example.vmsadmin.viewmodel.MatchViewModel
+import com.example.vmsadmin.viewmodel.MatchViewModelFactory
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModelFactory
 import com.example.vmsadmin.viewmodel.RegionViewModel
@@ -92,6 +95,10 @@ class MainActivity : ComponentActivity() {
         val itemViewModelFactory = ItemViewModelFactory(itemRepository, cartTypeRepository)
         val itemViewModel = ViewModelProvider(this, itemViewModelFactory)[ItemViewModel::class.java]
 
+        val matchRepository = MatchRepository(apiService)
+        val matchViewModelFactory = MatchViewModelFactory(matchRepository)
+        val matchViewModel = ViewModelProvider(this, matchViewModelFactory)[MatchViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -112,6 +119,7 @@ class MainActivity : ComponentActivity() {
                         cartViewModel = cartViewModel,
                         feeConfigViewModel = feeConfigViewModel,
                         itemViewModel = itemViewModel,
+                        matchViewModel = matchViewModel,
                         startDestination = startDestination
                     )
                 }

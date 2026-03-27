@@ -173,3 +173,35 @@ sealed class UiState<out T> {
     data class Success<T>(val data: T) : UiState<T>()
     data class Error(val message: String) : UiState<Nothing>()
 }
+
+// ── Match ─────────────────────────────────────────────────────────────
+
+@Serializable
+data class Match(
+    val id: Int,
+    val created_by: Int,
+    val region_id: Int,
+    val cart_type_id: Int,
+    val cart_id: Int? = null,
+    val timeslot_id: Int,
+    val skill_level: String? = null,
+    val max_players: Int,
+    val joined_players: Int,
+    val status: String,
+    val sport_name: String? = null,
+    val ground_label: String? = null,
+    val timeslot_label: String? = null,
+    val region_name: String? = null,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class CreateMatchRequest(
+    val cart_type_id: Int,
+    val timeslot_id: Int,
+    val region_id: Int,
+    val max_players: Int,
+    val skill_level: String? = null
+)
+

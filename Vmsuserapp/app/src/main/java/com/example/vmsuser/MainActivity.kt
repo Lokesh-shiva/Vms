@@ -17,6 +17,7 @@ import com.example.vmsuser.repository.AuthRepository
 import com.example.vmsuser.repository.BookingRepository
 import com.example.vmsuser.repository.ItemRepository
 import com.example.vmsuser.repository.LocationRepository
+import com.example.vmsuser.repository.MatchRepository
 import com.example.vmsuser.repository.PaymentRepository
 import com.example.vmsuser.ui.theme.VmsUserTheme
 import com.example.vmsuser.viewmodel.AuthViewModel
@@ -25,6 +26,8 @@ import com.example.vmsuser.viewmodel.BookingViewModel
 import com.example.vmsuser.viewmodel.BookingViewModelFactory
 import com.example.vmsuser.viewmodel.HomeViewModel
 import com.example.vmsuser.viewmodel.HomeViewModelFactory
+import com.example.vmsuser.viewmodel.MatchViewModel
+import com.example.vmsuser.viewmodel.MatchViewModelFactory
 import com.example.vmsuser.viewmodel.PaymentViewModel
 import com.example.vmsuser.viewmodel.PaymentViewModelFactory
 import kotlinx.coroutines.flow.firstOrNull
@@ -56,6 +59,10 @@ class MainActivity : ComponentActivity() {
         val paymentViewModelFactory = PaymentViewModelFactory(paymentRepository)
         val paymentViewModel = ViewModelProvider(this, paymentViewModelFactory)[PaymentViewModel::class.java]
 
+        val matchRepository = MatchRepository(apiService)
+        val matchViewModelFactory = MatchViewModelFactory(matchRepository)
+        val matchViewModel = ViewModelProvider(this, matchViewModelFactory)[MatchViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "home"
 
@@ -70,6 +77,7 @@ class MainActivity : ComponentActivity() {
                         homeViewModel = homeViewModel,
                         bookingViewModel = bookingViewModel,
                         paymentViewModel = paymentViewModel,
+                        matchViewModel = matchViewModel,
                         addressManager = addressManager,
                         startDestination = startDestination
                     )

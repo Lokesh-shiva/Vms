@@ -43,6 +43,7 @@ fun HomeScreen(
     viewModel: HomeViewModel,
     onNavigateToBooking: () -> Unit,
     onNavigateToCart: () -> Unit,
+    onNavigateToMatches: () -> Unit = {},
     onLogout: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()

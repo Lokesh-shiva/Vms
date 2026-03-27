@@ -12,14 +12,19 @@ import com.example.vmsuser.network.ApiClient
 import com.example.vmsuser.ui.screens.BookingScreen
 import com.example.vmsuser.ui.screens.BookingStatusScreen
 import com.example.vmsuser.ui.screens.CartScreen
+import com.example.vmsuser.ui.screens.CreateMatchScreen
 import com.example.vmsuser.ui.screens.HomeScreen
 import com.example.vmsuser.ui.screens.LoginScreen
+import com.example.vmsuser.ui.screens.MatchListScreen
 import com.example.vmsuser.ui.screens.PaymentScreen
 import com.example.vmsuser.ui.screens.RegisterScreen
 import com.example.vmsuser.viewmodel.AuthViewModel
 import com.example.vmsuser.viewmodel.BookingViewModel
 import com.example.vmsuser.viewmodel.HomeViewModel
+import com.example.vmsuser.viewmodel.MatchViewModel
 import com.example.vmsuser.viewmodel.PaymentViewModel
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun AppNavigation(
@@ -27,6 +32,7 @@ fun AppNavigation(
     homeViewModel: HomeViewModel,
     bookingViewModel: BookingViewModel,
     paymentViewModel: PaymentViewModel,
+    matchViewModel: MatchViewModel,
     addressManager: AddressManager,
     startDestination: String
 ) {
@@ -79,6 +85,9 @@ fun AppNavigation(
                 },
                 onNavigateToCart = {
                     navController.navigate("cart")
+                },
+                onNavigateToMatches = {
+                    navController.navigate("matches")
                 },
                 onLogout = {
                     authViewModel.logout()
@@ -151,6 +160,29 @@ fun AppNavigation(
                         popUpTo(0)
                     }
                 }
+            )
+        }
+
+        // ── Match routes ──────────────────────────────────────────────
+        composable("matches") {
+            MatchListScreen(
+                viewModel = matchViewModel,
+                currentUserId = null,   // Server enforces auth; join/leave guarded by token
+                onCreateMatch = { navController.navigate("matches/create") }
+            )
+        }
+
+        composable("matches/create") {
+            val homeUiState by homeViewModel.uiState.collectAsState()
+            val cartTypes = homeUiState.cartTypes.map { it.id to it.name }
+            val timeslots = homeUiState.timeslots.map { it.id to "${it.start_time} - ${it.end_time}" }
+            val regions = homeUiState.regions.map { it.id to it.name }
+            CreateMatchScreen(
+                viewModel = matchViewModel,
+                cartTypes = cartTypes,
+                timeslots = timeslots,
+                regions = regions,
+                onSuccess = { navController.popBackStack() }
             )
         }
     }

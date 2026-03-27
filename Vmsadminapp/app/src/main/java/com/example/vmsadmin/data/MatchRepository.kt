@@ -1,0 +1,38 @@
+package com.example.vmsadmin.data
+
+import com.example.vmsadmin.models.Match
+import com.example.vmsadmin.network.ApiService
+import retrofit2.HttpException
+
+class MatchRepository(private val apiService: ApiService) {
+
+    suspend fun getMatches(): List<Match> {
+        return try {
+            val response = apiService.getMatches()
+            if (response.success && response.data != null) response.data
+            else throw Exception(response.message ?: "Failed to fetch matches")
+        } catch (e: HttpException) {
+            throw Exception("Failed to fetch matches: ${e.message()}")
+        }
+    }
+
+    suspend fun cancelMatch(matchId: Int): Match {
+        return try {
+            val response = apiService.cancelMatch(matchId)
+            if (response.success && response.data != null) response.data
+            else throw Exception(response.message ?: "Failed to cancel match")
+        } catch (e: HttpException) {
+            throw Exception("Failed to cancel match: ${e.message()}")
+        }
+    }
+
+    suspend fun completeMatch(matchId: Int): Match {
+        return try {
+            val response = apiService.completeMatch(matchId)
+            if (response.success && response.data != null) response.data
+            else throw Exception(response.message ?: "Failed to complete match")
+        } catch (e: HttpException) {
+            throw Exception("Failed to complete match: ${e.message()}")
+        }
+    }
+}

@@ -27,8 +27,12 @@ class AuthViewModel(
                 val response = apiService.login(request)
                 
                 if (response.success && response.data != null) {
-                    tokenManager.saveToken(response.data.access_token)
-                    _loginState.value = LoginState.Success
+                    if (response.data.role != "admin") {
+                        _loginState.value = LoginState.Error("Access denied: Administrative privileges required.")
+                    } else {
+                        tokenManager.saveToken(response.data.access_token)
+                        _loginState.value = LoginState.Success
+                    }
                 } else {
                     _loginState.value = LoginState.Error(response.message ?: "Login failed")
                 }

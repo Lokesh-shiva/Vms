@@ -57,6 +57,9 @@ private fun statusColors(status: String): Pair<Color, Color> {
         "PENDING"         -> Color(0xFFFF9800) to Color(0xFFFF9800)      // Orange
         "REJECTED"        -> Color(0xFFF44336) to Color(0xFFF44336)      // Red
         "APPROVED"        -> Color(0xFF4CAF50) to Color(0xFF4CAF50)      // Green
+        // Match statuses
+        "OPEN"            -> Color(0xFF00BCD4) to Color(0xFF00BCD4)      // Cyan
+        "FULL"            -> Color(0xFFFF9800) to Color(0xFFFF9800)      // Orange
         else              -> Color(0xFF9E9E9E) to Color(0xFF9E9E9E)      // Default
     }
 }

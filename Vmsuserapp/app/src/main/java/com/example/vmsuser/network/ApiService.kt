@@ -9,6 +9,8 @@ import com.example.vmsuser.models.InitiatePaymentResponse
 import com.example.vmsuser.models.Item
 import com.example.vmsuser.models.LoginRequest
 import com.example.vmsuser.models.LoginResponse
+import com.example.vmsuser.models.Match
+import com.example.vmsuser.models.CreateMatchRequest
 import com.example.vmsuser.models.Payment
 import com.example.vmsuser.models.Region
 import com.example.vmsuser.models.RegisterRequest
@@ -18,6 +20,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiService {
 
@@ -66,4 +69,20 @@ interface ApiService {
         @Path("booking_id") bookingId: Int,
         @Body request: ConfirmPaymentRequest
     ): ApiResponse<Payment>
+
+    // ── Matches ───────────────────────────────────────────────
+    @GET("/api/v1/matches")
+    suspend fun getMatches(
+        @Query("sport_id") sportId: Int? = null,
+        @Query("region_id") regionId: Int? = null
+    ): ApiResponse<List<Match>>
+
+    @POST("/api/v1/matches")
+    suspend fun createMatch(@Body request: CreateMatchRequest): ApiResponse<Match>
+
+    @POST("/api/v1/matches/{match_id}/join")
+    suspend fun joinMatch(@Path("match_id") matchId: Int): ApiResponse<Match>
+
+    @POST("/api/v1/matches/{match_id}/leave")
+    suspend fun leaveMatch(@Path("match_id") matchId: Int): ApiResponse<Match>
 }

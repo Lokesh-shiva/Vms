@@ -95,4 +95,8 @@ class AuthService:
         }
         token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-        return {"access_token": token, "token_type": "bearer"}
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "role": user["role"]
+        }

@@ -25,6 +25,8 @@ import com.example.vmsadmin.models.UpdateTimeslotRequest
 import com.example.vmsadmin.models.CreateItemRequest
 import com.example.vmsadmin.models.Item
 import com.example.vmsadmin.models.UpdateItemRequest
+import com.example.vmsadmin.models.Match
+import com.example.vmsadmin.models.CreateMatchRequest
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -182,4 +184,14 @@ interface ApiService {
 
     @DELETE("/api/v1/items/{item_id}")
     suspend fun deleteItem(@Path("item_id") itemId: Int): ApiResponse<JsonElement>
+
+    // ── Match endpoints ───────────────────────────────────────────────
+    @GET("/api/v1/matches")
+    suspend fun getMatches(): ApiResponse<List<Match>>
+
+    @POST("/api/v1/matches/{match_id}/cancel")
+    suspend fun cancelMatch(@Path("match_id") matchId: Int): ApiResponse<Match>
+
+    @POST("/api/v1/matches/{match_id}/complete")
+    suspend fun completeMatch(@Path("match_id") matchId: Int): ApiResponse<Match>
 }
