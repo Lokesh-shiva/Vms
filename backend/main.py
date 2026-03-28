@@ -33,6 +33,7 @@ from modules.auth.controller.auth_routes import router as auth_router
 from modules.fee_config.controller.fee_config_routes import router as fee_config_router
 from modules.admin.controller.admin_routes import router as admin_router
 from modules.match.controller.match_routes import router as match_router
+from modules.matchmaking.controller.matchmaking_routes import router as matchmaking_router
 from modules.match.model.match_model import Match, MatchPlayer  # noqa: F401 — registers models
 from modules.payment.model.payment_model import Payment  # noqa: F401 — registers model
 from modules.payment.model.system_config_model import SystemConfig  # noqa: F401 — registers model
@@ -90,6 +91,7 @@ app.include_router(auth_router)
 app.include_router(fee_config_router)
 app.include_router(admin_router)
 app.include_router(match_router)
+app.include_router(matchmaking_router)
 
 
 # ── Health Check ──────────────────────────────────────────────────────
