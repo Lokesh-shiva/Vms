@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 
 from core.database.db_connection import Base
 
@@ -35,6 +35,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role = Column(String, nullable=False, default=UserRole.USER.value)
     is_active = Column(Boolean, nullable=False, default=True)
+    region_id = Column(Integer, ForeignKey("locations.id"), nullable=True, index=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -48,6 +49,7 @@ class User(Base):
             "phone": self.phone,
             "role": self.role,
             "is_active": self.is_active,
+            "region_id": self.region_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
