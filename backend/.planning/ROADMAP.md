@@ -5,7 +5,7 @@
 | # | Phase | Goal | Requirements |
 |---|-------|------|--------------|
 | 1 | DB Models & Pricing | Setup core DB schema updates and dynamic pricing logic | PRICE-01, PRICE-02 |
-| 2 | Queue Management | Implement QueueEntry CRUD, status endpoints, and concurrency locking | QUEUE-01, QUEUE-02, QUEUE-03, QUEUE-04 | Plan 1/2 COMPLETE |
+| 2 | Queue Management | Implement QueueEntry CRUD, status endpoints, and concurrency locking | QUEUE-01, QUEUE-02, QUEUE-03, QUEUE-04 | COMPLETE (2/2 plans) |
 | 3 | Matching Engine | Implement cron/service logic to group queues and create matches with bookings | MATCH-01, MATCH-02, MATCH-03, MATCH-04 |
 | 4 | Match Lifecycle | Add endpoints for arrival, in-progress, and completion states | LIFECYCLE-01, LIFECYCLE-02, LIFECYCLE-03 |
 | 5 | Post-Match Payments | Trigger split payments at match completion | PAY-01, PAY-02 |
