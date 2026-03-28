@@ -107,4 +107,11 @@ class UpdateUserSchema:
             else:
                 self.validated_data["is_active"] = is_active
 
+        if "region_id" in self._data:
+            region_id = self._data["region_id"]
+            if region_id is not None and not isinstance(region_id, int):
+                self.errors.append("'region_id' must be an integer or null.")
+            else:
+                self.validated_data["region_id"] = region_id
+
         return len(self.errors) == 0
