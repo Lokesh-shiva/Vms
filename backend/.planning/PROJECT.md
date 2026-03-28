@@ -13,10 +13,12 @@ Frictionless, instant 2-player matchmaking based on sport, skill, and GPS region
 - ✓ Booking module (timeslot + ground allocation) — existing
 - ✓ Payment module (post-match payment MVP) — existing
 - ✓ RBAC (Admin/User authentication) — existing
+- ✓ Queue management — join/leave/status with duplicate guard, dynamic pricing integration (Validated in Phase 02: Queue Management)
+- ✓ Matchmaking REST API — POST play-now, DELETE leave, GET status with auth + region validation (Validated in Phase 02: Queue Management)
 
 ### Active
-- [ ] Automated queue-based matching (2 players)
-- [ ] Location (region) and skill-based matching
+- [ ] Automated queue-based matching (2 players) — queue infrastructure done, matching logic pending
+- [ ] Location (region) and skill-based matching — region captured at queue join, matching algorithm pending
 - [ ] Automated ground allocation *only* after match formation
 - [ ] Arrival detection & match flow (WAITING -> MATCHED -> ARRIVED -> IN_PROGRESS -> COMPLETED)
 - [ ] Dynamic pricing engine based on demand and time
@@ -34,7 +36,7 @@ Frictionless, instant 2-player matchmaking based on sport, skill, and GPS region
 | Ground lock strictly post-match | Maximizes ground utilization, avoids holding slots for unfulfilled queues | — Pending |
 
 ---
-*Last updated: 2026-03-27 after initialization*
+*Last updated: 2026-03-28 after Phase 02 (Queue Management) completion*
 
 ## Evolution
 This document evolves at phase transitions and milestone boundaries.
