@@ -3,10 +3,10 @@
 ## v1 Requirements
 
 ### Matchmaking Queue
-- [ ] **QUEUE-01**: User can join the matchmaking queue by providing `sport_id` and GPS region (detected).
-- [ ] **QUEUE-02**: System returns estimated wait time, players searching count, and dynamic price point upon queuing.
-- [ ] **QUEUE-03**: User can leave the queue before a match is formed.
-- [ ] **QUEUE-04**: User can query their queue status and updated wait time.
+- [x] **QUEUE-01**: User can join the matchmaking queue by providing `sport_id` and GPS region (detected).
+- [x] **QUEUE-02**: System returns estimated wait time, players searching count, and dynamic price point upon queuing.
+- [x] **QUEUE-03**: User can leave the queue before a match is formed.
+- [x] **QUEUE-04**: User can query their queue status and updated wait time.
 
 ### Automated Match Creation
 - [ ] **MATCH-01**: Service groups `QueueEntry` records by `region_id`, `sport_id`, and `skill_level` range.
