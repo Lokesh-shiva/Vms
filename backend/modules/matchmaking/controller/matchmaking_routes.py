@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from modules.auth.dependencies.auth_dependencies import require_user
 from modules.matchmaking.service.matchmaking_service import matchmaking_service
 from modules.matchmaking.schemas.matchmaking_schema import JoinQueueRequest
@@ -7,10 +8,17 @@ from modules.matchmaking.schemas.matchmaking_schema import JoinQueueRequest
 router = APIRouter(prefix="/api/v1/matchmaking", tags=["Matchmaking"])
 
 
-# -- Response helper ────────────────────────────────────────────────────
+# -- Response helpers ────────────────────────────────────────────────────
 
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
+
+
+def _error(message: str, status_code: int = 400):
+    return JSONResponse(
+        status_code=status_code,
+        content={"success": False, "data": None, "message": message}
+    )
 
 
 # -- Endpoints ──────────────────────────────────────────────────────────
@@ -26,10 +34,7 @@ def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_u
     """
     region_id = current_user.get("region_id")
     if not region_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Your account has no region set. Please update your profile before joining a match."
-        )
+        return _error("Your account has no region set. Please update your profile.")
 
     try:
         result = matchmaking_service.join_queue(
@@ -39,10 +44,11 @@ def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_u
             skill_level=request.skill_level,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return _error(str(e))
 
     entry = result["entry"]
-    data = {
+    # FLAT response — fields at top level, not inside "data"
+    return {
         "entry_id": entry["id"],
         "user_id": entry["user_id"],
         "region_id": entry["region_id"],
@@ -53,8 +59,8 @@ def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_u
         "estimated_wait_seconds": result["estimated_wait_seconds"],
         "pricing": result["pricing"],
         "created_at": entry["created_at"],
+        "message": "You have joined the queue. Looking for a match...",
     }
-    return _success(data, "You have joined the queue. Looking for a match...")
 
 
 @router.delete("/leave")
@@ -68,7 +74,7 @@ def leave_queue(current_user: dict = Depends(require_user)):
     try:
         updated = matchmaking_service.leave_queue(user_id=current_user["id"])
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return _error(str(e))
 
     return _success(updated, "You have left the queue.")
 
@@ -84,7 +90,7 @@ def queue_status(current_user: dict = Depends(require_user)):
     try:
         result = matchmaking_service.get_queue_status(user_id=current_user["id"])
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        return _error(str(e))
 
     entry = result["entry"]
     data = {

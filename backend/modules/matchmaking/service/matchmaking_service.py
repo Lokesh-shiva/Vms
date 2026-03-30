@@ -35,8 +35,7 @@ class MatchmakingService:
 
         if skill_level not in QueueEntry.VALID_SKILL_LEVELS:
             raise ValueError(
-                f"Invalid skill_level '{skill_level}'. "
-                f"Must be one of: {sorted(QueueEntry.VALID_SKILL_LEVELS)}"
+                "Invalid skill_level. Must be one of BEGINNER|INTERMEDIATE|ADVANCED."
             )
 
         # Duplicate guard: one active WAITING entry per user
@@ -102,7 +101,7 @@ class MatchmakingService:
         """
         entry = queue_entry_repository.find_waiting_by_user(user_id)
         if not entry:
-            raise ValueError(f"User {user_id} has no active queue entry.")
+            raise ValueError("User has no active queue entry.")
 
         db = SessionLocal()
         try:

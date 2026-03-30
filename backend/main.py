@@ -16,7 +16,7 @@ import os
 # Ensure the backend package is importable when running from project root.
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 
 from core.middleware.error_handler import ErrorHandlerMiddleware
@@ -67,6 +67,20 @@ app.add_middleware(ErrorHandlerMiddleware)
 
 
 # ── Custom HTTPException handler (standardized format) ────────────────
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Return HTTP errors with 'message' key for TestSprite test compatibility."""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "data": None,
+            "message": exc.detail if isinstance(exc.detail, str) else str(exc.detail),
+            "detail": exc.detail,
+        },
+    )
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
