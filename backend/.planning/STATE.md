@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Executing Phase 02
-last_updated: "2026-03-30T13:00:00.000Z"
+status: Executing Phase 03
+last_updated: "2026-03-30T14:30:00.000Z"
 progress:
-  total_phases: 2
-  completed_phases: 0
-  total_plans: 5
-  completed_plans: 4
+  total_phases: 3
+  completed_phases: 2
+  total_plans: 6
+  completed_plans: 6
 ---
 
 # Project State
 
 ## Current Status
 
-- **Phase**: 02-queue-management
-- **Current Plan**: 02-05 COMPLETE
-- **Focus**: Queue Management - Response shapes fixed, pricing endpoint created, all TCs addressed
+- **Phase**: 03-matching-engine
+- **Current Plan**: 03-01 COMPLETE
+- **Focus**: Matching Engine - MatchEngineService with SKIP LOCKED pair-matching and BookingService integration
 
 ## Progress
 
@@ -28,6 +28,7 @@ progress:
 - Phase 02 Plan 04: Fix Login for TestSprite Tests - COMPLETE (3/3 tasks)
 - Phase 02 Plan 05: Fix Matchmaking Response Shapes and Pricing Endpoint - COMPLETE (2/2 tasks)
 - Phase 02 UAT: ALL 6 TESTS PASSING ✅ — Phase 02 FULLY VERIFIED
+- Phase 03 Plan 01: Core Matching Service and Transaction Logic - COMPLETE (3/3 tasks)
 
 ## Decisions
 
@@ -40,6 +41,10 @@ progress:
 - _error helper returns JSONResponse directly, bypassing FastAPI HTTPException "detail" wrapping
 - Pricing endpoint is public (no auth) — pricing is informational data
 - sport_id gt=0 Pydantic constraint enables FastAPI auto-422 for TC010
+- SKIP LOCKED used for deadlock-free concurrent matching across workers
+- One transaction per matchable group ensures cross-group isolation
+- BookingService called before outer session.commit() so booking failures trigger full match rollback
+- cart_type resolved as first active global type (region-aware lookup deferred)
 
 ## Context
 
@@ -51,5 +56,5 @@ Project initialized via auto-mode from matchmaking plan document. The goal is to
 
 ## Last Session
 
-- **Completed:** 02-05-PLAN.md (Fix Matchmaking Response Shapes and Pricing Endpoint)
+- **Completed:** 03-01-PLAN.md (Core Matching Service and Transaction Logic)
 - **Timestamp:** 2026-03-30

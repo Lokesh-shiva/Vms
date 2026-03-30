@@ -36,6 +36,8 @@ Success criteria:
 **Phase 3: Matching Engine**
 Goal: Implement cron/service logic to group queues and create matches with bookings
 Requirements: MATCH-01, MATCH-02, MATCH-03, MATCH-04
+Plans:
+- [x] 03-01-PLAN.md — Core Matching Service and Transaction Logic
 Success criteria:
 1. Two compatible queued users are correctly grouped into a new Match.
 2. Ground booking is automatically created exactly when the match finalizes without race conditions.
