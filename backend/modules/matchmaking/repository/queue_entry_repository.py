@@ -1,4 +1,5 @@
 from datetime import datetime
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from core.database.db_connection import SessionLocal
 from modules.matchmaking.model.queue_entry_model import QueueEntry
@@ -93,6 +94,57 @@ class QueueEntryRepository:
         finally:
             if own_session:
                 session.close()
+
+    def get_matchable_groups(self, session: Session) -> list[tuple]:
+        """Return distinct (region_id, sport_id, skill_level) groups with >= 2 WAITING entries.
+
+        Used by MatchEngineService to decide which groups to attempt matching for.
+        Returns a list of (region_id, sport_id, skill_level) tuples.
+        """
+        rows = (
+            session.query(
+                QueueEntry.region_id,
+                QueueEntry.sport_id,
+                QueueEntry.skill_level,
+            )
+            .filter(QueueEntry.status == "WAITING")
+            .group_by(
+                QueueEntry.region_id,
+                QueueEntry.sport_id,
+                QueueEntry.skill_level,
+            )
+            .having(func.count(QueueEntry.id) >= 2)
+            .all()
+        )
+        return [(r.region_id, r.sport_id, r.skill_level) for r in rows]
+
+    def find_and_lock_compatible_pair(
+        self,
+        region_id: int,
+        sport_id: int,
+        skill_level: str,
+        session: Session,
+    ) -> list[QueueEntry]:
+        """Lock and return the 2 oldest WAITING entries matching all three dimensions.
+
+        Uses SELECT FOR UPDATE SKIP LOCKED to prevent concurrent matching from
+        grabbing the same rows, guaranteeing deadlock-free operation (MATCH-04).
+        FIFO order is enforced via ORDER BY created_at ASC (D-04).
+        Returns ORM instances so the caller can mutate status in the same session.
+        """
+        return (
+            session.query(QueueEntry)
+            .filter(
+                QueueEntry.status == "WAITING",
+                QueueEntry.region_id == region_id,
+                QueueEntry.sport_id == sport_id,
+                QueueEntry.skill_level == skill_level,
+            )
+            .order_by(QueueEntry.created_at.asc())
+            .with_for_update(skip_locked=True)
+            .limit(2)
+            .all()
+        )
 
     def count_waiting(self, region_id: int, sport_id: int, session=None) -> int:
         """Count WAITING entries for region+sport — used for pricing and wait estimate."""
