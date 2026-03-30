@@ -42,8 +42,7 @@ class MatchmakingService:
         existing = queue_entry_repository.find_waiting_by_user(user_id)
         if existing:
             raise ValueError(
-                f"User {user_id} is already in the queue (entry_id={existing['id']}). "
-                "Leave the current queue before joining again."
+                f"User {user_id} is already in the queue."
             )
 
         db = SessionLocal()
