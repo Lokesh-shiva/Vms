@@ -22,6 +22,13 @@ Success criteria:
 **Phase 2: Queue Management**
 Goal: Implement QueueEntry CRUD, status endpoints, and concurrency locking
 Requirements: QUEUE-01, QUEUE-02, QUEUE-03, QUEUE-04
+Plans: 5 plans
+Plans:
+- [x] 02-01-PLAN.md — Queue Repository and Service Layer
+- [x] 02-02-PLAN.md — Queue Controller and Route Registration
+- [x] 02-03-PLAN.md — Fix region_id on User model (gap closure)
+- [ ] 02-04-PLAN.md — Fix email login + seed test users (gap closure)
+- [ ] 02-05-PLAN.md — Fix API response shapes + pricing endpoint (gap closure)
 Success criteria:
 1. User can successfully join and leave the queue via `/matchmaking/play-now` and `/matchmaking/leave`.
 2. Wait times and queue counts are returned accurately.
