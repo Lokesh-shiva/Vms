@@ -354,6 +354,155 @@ class MatchService(BaseService):
         )
         return self._enrich_matches(matches)
 
+    # ── Arrive ────────────────────────────────────────────────────────
+
+    def arrive_match(self, user_id: int, match_id: int, user_lat: float, user_lng: float) -> dict:
+        """
+        Mark a player as arrived at the match ground.
+
+        Flow:
+        1. Lock match row, validate status (MATCHED or ARRIVED).
+        2. Verify user is a player in the match.
+        3. If cart has GPS coordinates, validate proximity (~500m radius).
+        4. Set MatchPlayer.has_arrived = True.
+        5. If all players arrived -> status = IN_PROGRESS, else -> ARRIVED.
+        """
+        session = self.match_repo._session_factory()
+        try:
+            from modules.match.model.match_model import Match as MatchORM, MatchPlayer
+            from modules.cart.model.cart_model import Cart
+
+            match_orm = (
+                session.query(MatchORM)
+                .filter(MatchORM.id == match_id)
+                .with_for_update()
+                .first()
+            )
+            if match_orm is None:
+                raise ValueError("Match not found.")
+
+            if match_orm.status not in ("MATCHED", "ARRIVED"):
+                raise ValueError(
+                    f"Cannot arrive at match in status '{match_orm.status}'. "
+                    "Match must be MATCHED or ARRIVED."
+                )
+
+            # Verify user is a player
+            player = (
+                session.query(MatchPlayer)
+                .filter(
+                    MatchPlayer.match_id == match_id,
+                    MatchPlayer.user_id == user_id,
+                )
+                .first()
+            )
+            if player is None:
+                raise ValueError("You are not a player in this match.")
+
+            if player.has_arrived:
+                raise ValueError("You have already marked your arrival.")
+
+            # GPS proximity check (if cart has coordinates)
+            if match_orm.cart_id:
+                cart = session.query(Cart).filter(Cart.id == match_orm.cart_id).first()
+                if cart and cart.latitude is not None and cart.longitude is not None:
+                    lat_diff = abs(user_lat - cart.latitude)
+                    lng_diff = abs(user_lng - cart.longitude)
+                    if lat_diff > 0.005 or lng_diff > 0.005:
+                        raise ValueError(
+                            "You are too far from the ground. "
+                            "Please move closer to mark your arrival."
+                        )
+
+            # Mark player as arrived
+            player.has_arrived = True
+            session.flush()
+
+            # Check if all players have arrived
+            all_players = (
+                session.query(MatchPlayer)
+                .filter(MatchPlayer.match_id == match_id)
+                .all()
+            )
+            all_arrived = all(p.has_arrived for p in all_players)
+
+            from datetime import datetime
+            if all_arrived and len(all_players) >= match_orm.max_players:
+                match_orm.status = "IN_PROGRESS"
+            else:
+                match_orm.status = "ARRIVED"
+            match_orm.updated_at = datetime.utcnow()
+
+            session.commit()
+            session.refresh(match_orm)
+            return match_orm.to_dict()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    # ── Finish ────────────────────────────────────────────────────────
+
+    def finish_match(self, user_id: int, match_id: int) -> dict:
+        """
+        Mark a match as completed by a player.
+
+        Flow:
+        1. Lock match row, verify user is a player.
+        2. Status must not be COMPLETED or CANCELLED.
+        3. Set match status to COMPLETED.
+        4. Free the assigned cart (set status back to AVAILABLE).
+        """
+        session = self.match_repo._session_factory()
+        try:
+            from modules.match.model.match_model import Match as MatchORM, MatchPlayer
+            from modules.cart.model.cart_model import Cart
+            from datetime import datetime
+
+            match_orm = (
+                session.query(MatchORM)
+                .filter(MatchORM.id == match_id)
+                .with_for_update()
+                .first()
+            )
+            if match_orm is None:
+                raise ValueError("Match not found.")
+
+            # Verify user is a player
+            player = (
+                session.query(MatchPlayer)
+                .filter(
+                    MatchPlayer.match_id == match_id,
+                    MatchPlayer.user_id == user_id,
+                )
+                .first()
+            )
+            if player is None:
+                raise ValueError("You are not a player in this match.")
+
+            if match_orm.status in ("COMPLETED", "CANCELLED"):
+                raise ValueError(f"Match is already {match_orm.status}.")
+
+            match_orm.status = "COMPLETED"
+            match_orm.updated_at = datetime.utcnow()
+
+            # Free the cart back to AVAILABLE
+            if match_orm.cart_id:
+                cart = session.query(Cart).filter(Cart.id == match_orm.cart_id).first()
+                if cart:
+                    cart.status = "AVAILABLE"
+                    cart.updated_at = datetime.utcnow()
+
+            session.commit()
+            session.refresh(match_orm)
+            return match_orm.to_dict()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
     # ── Enrichment ────────────────────────────────────────────────────
 
     def _enrich_matches(self, matches: list[dict]) -> list[dict]:
