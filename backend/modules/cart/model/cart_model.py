@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, Float, ForeignKey, DateTime
 
 from core.database.db_connection import Base
 
@@ -39,6 +39,8 @@ class Cart(Base):
     cart_type_id = Column(Integer, ForeignKey("cart_types.id"), nullable=False, index=True)
     status = Column(String, nullable=False, default="AVAILABLE")
     is_active = Column(Boolean, nullable=False, default=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -53,6 +55,8 @@ class Cart(Base):
             "cart_type_id": self.cart_type_id,
             "status": self.status,
             "is_active": self.is_active,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
