@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Milestone complete
-last_updated: "2026-03-31T14:00:10.115Z"
+status: Executing Phase 04
+last_updated: "2026-03-31T14:24:00.000Z"
 progress:
-  total_phases: 3
-  completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
+  total_phases: 5
+  completed_phases: 3
+  total_plans: 8
+  completed_plans: 8
 ---
 
 # Project State
 
 ## Current Status
 
-- **Phase**: 03-matching-engine
-- **Current Plan**: 03-02 COMPLETE
-- **Focus**: Matching Engine - stateless webhook trigger exposed, engine router registered
+- **Phase**: 04-match-lifecycle
+- **Current Plan**: 04-01 COMPLETE
+- **Focus**: Match Lifecycle - arrival detection, GPS proximity, status transitions, match completion
 
 ## Progress
 
@@ -30,6 +30,7 @@ progress:
 - Phase 02 UAT: ALL 6 TESTS PASSING - Phase 02 FULLY VERIFIED
 - Phase 03 Plan 01: Core Matching Service and Transaction Logic - COMPLETE (3/3 tasks)
 - Phase 03 Plan 02: Stateless Engine Webhook & Trigger - COMPLETE (2/2 tasks)
+- Phase 04 Plan 01: Match Lifecycle States & Operations - COMPLETE (4/4 tasks)
 
 ## Decisions
 
@@ -45,6 +46,10 @@ progress:
 - POST /engine/trigger uses JSONResponse directly for 403 (consistent with matchmaking_routes pattern)
 - CRON_SECRET falls back to "dev-secret" for local dev convenience
 - Engine trigger returns plain {"status","matches_created"} (cron consumers expect minimal payload)
+- GPS proximity uses simple coordinate diff (~500m) rather than Haversine for v1 simplicity
+- Cart without coordinates bypasses GPS check gracefully (v1 tolerance)
+- Any player in the match can trigger finish_match (not restricted to creator)
+- Used Pydantic BaseModel for MatchArriveSchema (consistent with matchmaking module pattern)
 
 ## Context
 
@@ -56,5 +61,5 @@ Project initialized via auto-mode from matchmaking plan document. The goal is to
 
 ## Last Session
 
-- **Completed:** 03-02-PLAN.md (Stateless Engine Webhook & Trigger)
-- **Timestamp:** 2026-03-30
+- **Completed:** 04-01-PLAN.md (Match Lifecycle States & Operations)
+- **Timestamp:** 2026-03-31

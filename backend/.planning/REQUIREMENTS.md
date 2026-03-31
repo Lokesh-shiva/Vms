@@ -15,9 +15,9 @@
 - [ ] **MATCH-04**: Concurrency control via DB row locking (`SELECT FOR UPDATE`) prevents duplicate matches.
 
 ### Match Lifecycle & Arrival
-- [ ] **LIFECYCLE-01**: User can mark themselves as ARRIVED at the ground.
-- [ ] **LIFECYCLE-02**: Once both players are ARRIVED, match transitions to IN_PROGRESS.
-- [ ] **LIFECYCLE-03**: Admin/System can mark match as COMPLETED, recording the duration.
+- [x] **LIFECYCLE-01**: User can mark themselves as ARRIVED at the ground.
+- [x] **LIFECYCLE-02**: Once both players are ARRIVED, match transitions to IN_PROGRESS.
+- [x] **LIFECYCLE-03**: Admin/System can mark match as COMPLETED, recording the duration.
 
 ### Dynamic Pricing
 - [ ] **PRICE-01**: Pricing service calculates dynamic price based on base price, time of day, and active queue count.
