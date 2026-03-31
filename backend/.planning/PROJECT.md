@@ -20,7 +20,7 @@ Frictionless, instant 2-player matchmaking based on sport, skill, and GPS region
 - ✓ Automated ground allocation *only* after match formation — BookingService integration with rollback (Validated in Phase 03: Matching Engine)
 
 ### Active
-- [ ] Arrival detection & match flow (WAITING -> MATCHED -> ARRIVED -> IN_PROGRESS -> COMPLETED)
+- ✓ Arrival detection & match flow (WAITING -> MATCHED -> ARRIVED -> IN_PROGRESS -> COMPLETED) — GPS proximity validation, lifecycle endpoints (Validated in Phase 04: Match Lifecycle)
 - [ ] Dynamic pricing engine based on demand and time
 - [ ] Automatic payment split post-match completion
 
@@ -36,7 +36,7 @@ Frictionless, instant 2-player matchmaking based on sport, skill, and GPS region
 | Ground lock strictly post-match | Maximizes ground utilization, avoids holding slots for unfulfilled queues | — Pending |
 
 ---
-*Last updated: 2026-03-31 after Phase 03 (Matching Engine) completion and verification*
+*Last updated: 2026-03-31 after Phase 04 (Match Lifecycle) completion and verification*
 
 ## Evolution
 This document evolves at phase transitions and milestone boundaries.
