@@ -1,4 +1,12 @@
+from pydantic import BaseModel, Field
+
 VALID_SKILL_LEVELS = {"BEGINNER", "INTERMEDIATE", "ADVANCED"}
+
+
+class MatchArriveSchema(BaseModel):
+    """Request body for POST /matches/{match_id}/arrive"""
+    latitude: float = Field(..., description="Player's current GPS latitude")
+    longitude: float = Field(..., description="Player's current GPS longitude")
 
 
 class CreateMatchSchema:

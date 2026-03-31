@@ -5,7 +5,7 @@ from modules.auth.dependencies.auth_dependencies import (
     require_user,
 )
 from modules.match.service.match_service import match_service
-from modules.match.schemas.match_schema import CreateMatchSchema
+from modules.match.schemas.match_schema import CreateMatchSchema, MatchArriveSchema
 
 
 router = APIRouter(prefix="/api/v1/matches", tags=["Matches"])
@@ -74,6 +74,38 @@ def complete_match(match_id: int):
     """Force-complete a match. Admin only. Frees the cart."""
     try:
         match = match_service.complete_match(match_id)
+        return _success(match, "Match completed successfully.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{match_id}/arrive")
+def arrive_match(
+    match_id: int,
+    body: MatchArriveSchema,
+    current_user: dict = Depends(require_user),
+):
+    """
+    Mark the current player as arrived at the match ground.
+    Requires GPS coordinates for proximity validation.
+    """
+    try:
+        match = match_service.arrive_match(
+            current_user["id"], match_id, body.latitude, body.longitude
+        )
+        return _success(match, "Arrival recorded successfully.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{match_id}/finish")
+def finish_match(match_id: int, current_user: dict = Depends(require_user)):
+    """
+    Mark the match as completed. Frees the assigned ground.
+    Any player in the match can trigger this.
+    """
+    try:
+        match = match_service.finish_match(current_user["id"], match_id)
         return _success(match, "Match completed successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
