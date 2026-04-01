@@ -299,6 +299,74 @@ class BookingService(BaseService):
         finally:
             tx_session.close()
 
+    def create_instant_match_booking(self, booking_data: dict) -> dict:
+        """
+        Create a CONFIRMED booking with a cart claimed atomically — for matchmaking engine use only.
+
+        Unlike create_booking(), this method:
+        - Skips the payment-approval gate (the match itself is the authorization).
+        - Immediately claims an AVAILABLE cart (same lock strategy as confirm_booking).
+        - Sets status = CONFIRMED and assigned_cart_id in one transaction.
+
+        Returns the confirmed booking dict including assigned_cart_id and cart_id fields.
+
+        Raises ValueError if:
+        - Any FK validation fails
+        - No active fee config exists
+        - No available cart can be found for the region/cart_type
+        """
+        # 1. Validate all foreign keys
+        self._validate_user(booking_data["user_id"])
+        self._validate_region(booking_data["region_id"])
+        self._validate_cart_type(booking_data["cart_type_id"])
+        timeslot = self._validate_timeslot(booking_data["timeslot_id"])
+
+        # 2. Fetch fee config
+        fee_config = self.fee_config_repository.find_by_region_and_cart_type(
+            booking_data["region_id"], booking_data["cart_type_id"]
+        )
+        if not fee_config or not fee_config.get("is_active", False):
+            raise ValueError(
+                "No active fee configuration found for this region and cart type."
+            )
+
+        booking_data["booking_fee"] = fee_config["booking_fee"]
+        booking_data["cancellation_fee_pct_snapshot"] = fee_config["cancellation_fee_pct"]
+        booking_data["platform_fee_pct_snapshot"] = fee_config["platform_fee_pct"]
+        booking_data["estimated_total"] = 0.0
+        booking_data["date"] = timeslot["date"]
+        booking_data["payment_status"] = "PENDING"
+        booking_data["refund_status"] = "NONE"
+        booking_data["refund_amount"] = 0.0
+        booking_data.pop("items", None)  # no items for instant match bookings
+
+        tx_session = self.booking_repository._session_factory()
+        try:
+            # 3. Atomically claim a cart (row-level lock)
+            cart = self.cart_repository.claim_available_cart(
+                booking_data["region_id"], booking_data["cart_type_id"], session=tx_session
+            )
+            if cart is None:
+                raise ValueError(
+                    "No available cart found for the selected region and cart type."
+                )
+
+            # 4. Create booking directly as CONFIRMED with the claimed cart
+            booking_data["assigned_cart_id"] = cart.id
+            booking_data["status"] = "CONFIRMED"
+
+            booking = self.booking_repository.create(booking_data, session=tx_session)
+            # Expose cart_id at top level for convenience (match engine reads this)
+            booking["cart_id"] = cart.id
+
+            tx_session.commit()
+            return booking
+        except Exception:
+            tx_session.rollback()
+            raise
+        finally:
+            tx_session.close()
+
     def confirm_booking(self, booking_id: int) -> dict:
         """
         Admin confirms a booking after payment approval.

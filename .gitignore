@@ -59,3 +59,18 @@ tool-results/
 # Antigravity AI IDE config
 mcp_config.json
 .mcp_config.local.json
+
+# Custom Debug & Temp files
+debug_*.json
+temp_*.json
+engine_debug.json
+testsprite_debug.log
+verify_*.txt
+verify_*.py
+phase*.json
+get_init.js
+init*.json
+state.json
+progress.txt
+roadmap.json
+testsprite_tests/tmp/

@@ -49,13 +49,13 @@ class QueueEntryRepository:
                 session.close()
 
     def find_waiting_by_user(self, user_id: int, session=None) -> dict | None:
-        """Find a WAITING entry for a user (at most one active queue per user)."""
+        """Find a WAITING or MATCHED entry for a user (at most one active queue per user)."""
         own_session = session is None
         session = session or self._session_factory()
         try:
             entry = (
                 session.query(QueueEntry)
-                .filter(QueueEntry.user_id == user_id, QueueEntry.status == "WAITING")
+                .filter(QueueEntry.user_id == user_id, QueueEntry.status.in_(["WAITING", "MATCHED"]))
                 .first()
             )
             return entry.to_dict() if entry else None

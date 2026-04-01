@@ -1,0 +1,32 @@
+[
+  {
+    "id": "TC001",
+    "title": "post match finish creates two pending split payments",
+    "description": "Verify that when a match is marked as completed via POST /api/v1/matches/{match_id}/finish, the system automatically creates two PENDING split payment records, one per participant, with amounts equally split and formatted to two decimals."
+  },
+  {
+    "id": "TC002",
+    "title": "post match finish with invalid match id returns error",
+    "description": "Verify that POST /api/v1/matches/{invalid_match_id}/finish returns a 400 error response when the match_id is invalid or the match is not found."
+  },
+  {
+    "id": "TC003",
+    "title": "post match finish payment creation failure does not rollback match completion",
+    "description": "Verify that if payment creation fails after marking a match as completed, the match status remains COMPLETED, no payments are created for the match, and the failure is logged without rolling back the match completion."
+  },
+  {
+    "id": "TC004",
+    "title": "get payments lists all payments with correct details",
+    "description": "Verify that GET /api/v1/payments returns a 200 response with a list of payment objects including id, booking_id, match_id, user_id, provider, status, amount formatted to two decimals, and reference_code following the VMS-{booking_id}-P{user_id}-{rand} pattern."
+  },
+  {
+    "id": "TC005",
+    "title": "get payments without authorization returns unauthorized error",
+    "description": "Verify that GET /api/v1/payments without an Authorization header returns a 401 Unauthorized error."
+  },
+  {
+    "id": "TC006",
+    "title": "get payments handles database query failure gracefully",
+    "description": "Verify that GET /api/v1/payments returns a 500 Internal Server Error response when the database query to fetch payments fails."
+  }
+]

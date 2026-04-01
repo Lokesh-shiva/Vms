@@ -61,10 +61,10 @@ def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
 
 
 def require_user(current_user: dict = Depends(get_current_user)) -> dict:
-    """Restrict access to regular users only."""
-    if current_user.get("role") != "user":
+    """Restrict access to authenticated users (admin or regular user)."""
+    if current_user.get("role") not in ["user", "admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="User role required.",
+            detail="Valid user role required.",
         )
     return current_user

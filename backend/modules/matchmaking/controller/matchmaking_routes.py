@@ -105,4 +105,7 @@ def queue_status(current_user: dict = Depends(require_user)):
         "pricing": result["pricing"],
         "created_at": entry["created_at"],
     }
+    if result.get("match_id"):
+        data["match_id"] = result["match_id"]
+
     return _success(data, "Queue status retrieved.")

@@ -89,14 +89,10 @@ class MatchmakingService:
         """
         Return the user's current queue position and updated wait time.
 
-        Raises:
-            ValueError: if user has no active WAITING entry.
+        If status is MATCHED, we find the corresponding match_id from MatchPlayer.
 
-        Returns dict with:
-            entry: QueueEntry dict
-            players_searching: int
-            estimated_wait_seconds: int
-            pricing: pricing breakdown dict
+        Raises:
+            ValueError: if user has no active WAITING or MATCHED entry.
         """
         entry = queue_entry_repository.find_waiting_by_user(user_id)
         if not entry:
@@ -107,18 +103,34 @@ class MatchmakingService:
             pricing = PricingService(db).calculate_price(
                 entry["region_id"], entry["sport_id"]
             )
+            
+            players_searching = pricing["queue_count"]
+            match_id = None
+            if entry["status"] == "MATCHED":
+                # Find the match_id where this user is a player
+                from modules.match.model.match_model import Match, MatchPlayer
+                match_p = (
+                    db.query(MatchPlayer)
+                    .join(Match, MatchPlayer.match_id == Match.id)
+                    .filter(
+                        MatchPlayer.user_id == user_id,
+                        Match.status.in_(["MATCHED", "ARRIVED", "IN_PROGRESS"])
+                    )
+                    .order_by(Match.created_at.desc())
+                    .first()
+                )
+                if match_p:
+                    match_id = match_p.match_id
+
+            return {
+                "entry": entry,
+                "players_searching": players_searching,
+                "estimated_wait_seconds": 0 if match_id else (pricing["queue_count"] * _WAIT_PER_PLAYER_SECONDS),
+                "pricing": pricing,
+                "match_id": match_id,
+            }
         finally:
             db.close()
-
-        players_searching = pricing["queue_count"]
-        estimated_wait = players_searching * _WAIT_PER_PLAYER_SECONDS
-
-        return {
-            "entry": entry,
-            "players_searching": players_searching,
-            "estimated_wait_seconds": estimated_wait,
-            "pricing": pricing,
-        }
 
 
 matchmaking_service = MatchmakingService()

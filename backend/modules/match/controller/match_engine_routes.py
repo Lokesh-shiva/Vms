@@ -54,4 +54,5 @@ async def trigger_matching_cycle(
     return {
         "status": "ok",
         "matches_created": matches_created,
+        "outcomes": outcomes,
     }
