@@ -21,8 +21,8 @@ Frictionless, instant 2-player matchmaking based on sport, skill, and GPS region
 
 ### Active
 - ✓ Arrival detection & match flow (WAITING -> MATCHED -> ARRIVED -> IN_PROGRESS -> COMPLETED) — GPS proximity validation, lifecycle endpoints (Validated in Phase 04: Match Lifecycle)
+- ✓ Automatic payment split post-match completion — two PENDING MANUAL_UPI records per match, equal split of booking total (Validated in Phase 05: Post-Match Payments)
 - [ ] Dynamic pricing engine based on demand and time
-- [ ] Automatic payment split post-match completion
 
 ### Out of Scope
 - Matches with >2 players (deferred for v1 MVP)
@@ -36,7 +36,7 @@ Frictionless, instant 2-player matchmaking based on sport, skill, and GPS region
 | Ground lock strictly post-match | Maximizes ground utilization, avoids holding slots for unfulfilled queues | — Pending |
 
 ---
-*Last updated: 2026-03-31 after Phase 04 (Match Lifecycle) completion and verification*
+*Last updated: 2026-04-01 after Phase 05 (Post-Match Payments) completion — all MVP match flow phases complete*
 
 ## Evolution
 This document evolves at phase transitions and milestone boundaries.
