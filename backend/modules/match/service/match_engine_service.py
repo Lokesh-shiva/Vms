@@ -216,18 +216,18 @@ class MatchEngineService:
         self, match: Match, creator_id: int, session
     ) -> None:
         """
-        Attempt to create a booking for the newly formed match.
+        Atomically create a CONFIRMED booking (with a claimed cart) for the match.
 
-        Constructs the minimum required booking payload and delegates to
-        BookingService.create_booking().
+        Uses BookingService.create_instant_match_booking() which:
+        - Claims an AVAILABLE cart immediately (no manual payment-approval step)
+        - Sets booking status to CONFIRMED in one atomic transaction
 
-        On ValueError (e.g., no capacity, daily limit, no active fee config):
+        The returned booking's cart_id is written back to match.cart_id so that
+        MatchService.finish_match() can release the ground when the game ends.
+
+        On ValueError (no ground, no fee config, etc.):
         the caller's except block catches the exception and rolls back the
         outer transaction so QueueEntry rows remain WAITING (D-03).
-
-        Note: BookingService opens its OWN internal transaction.  We call it
-        here before committing the outer session so that a booking failure
-        triggers a rollback of the entire match formation in the caller.
         """
         timeslot_id = self._find_earliest_timeslot_id(match.region_id)
 
@@ -238,14 +238,17 @@ class MatchEngineService:
             "timeslot_id": timeslot_id,
         }
 
-        booking = self._booking_service.create_booking(payload)
+        booking = self._booking_service.create_instant_match_booking(payload)
 
-        # Attach the cart_type reference to the match (booking is PENDING_PAYMENT until admin confirms)
+        # Write the assigned cart and booking back into the Match record
+        match.cart_id = booking.get("cart_id")
         match.cart_type_id = booking.get("cart_type_id", match.cart_type_id)
+        match.booking_id = booking.get("id")
         logger.info(
-            "Match %d: booking %d created (PENDING_PAYMENT) for creator user %d",
-            match.id, booking["id"], creator_id,
+            "Match %d: instant booking %d (cart %s) CONFIRMED for creator user %d",
+            match.id, booking["id"], match.cart_id, creator_id,
         )
+
 
 
 # ── Shared singleton ──────────────────────────────────────────────────

@@ -37,6 +37,82 @@ class PaymentService(BaseService):
         self.booking_repository = booking_repository or _default_booking_repo
         self.config_repository = system_config_repository or _default_config_repo
 
+    # ── Split Payments ─────────────────────────────────────────────────
+
+    def create_split_payments(self, match_id: int) -> list[dict]:
+        """
+        Create two PENDING payment records — one per player — upon match completion.
+
+        Flow:
+        1. Fetch Match by ID with participants (MatchPlayer).
+        2. Fetch Booking associated with the match via match.booking_id.
+        3. Calculate amount = (booking.estimated_total + booking.booking_fee) / len(players).
+        4. Create one Payment per participant with:
+           - status: PENDING
+           - provider: MANUAL_UPI
+           - amount: split amount
+           - reference_code: VMS-{booking_id}-P{user_id}-{rand}
+           - user_id: participant user_id
+           - match_id: match ID
+
+        Returns list of created payment dicts.
+        Raises ValueError if match or booking is not found.
+        """
+        from modules.match.model.match_model import Match as MatchORM, MatchPlayer
+        from core.database.db_connection import SessionLocal
+
+        session = SessionLocal()
+        try:
+            match = session.query(MatchORM).filter(MatchORM.id == match_id).first()
+            if not match:
+                raise ValueError(f"Match {match_id} not found.")
+
+            if not match.booking_id:
+                raise ValueError(
+                    f"Match {match_id} has no associated booking. "
+                    "Cannot create split payments."
+                )
+
+            booking = self.booking_repository.find_by_id(match.booking_id)
+            if not booking:
+                raise ValueError(
+                    f"Booking {match.booking_id} not found for match {match_id}."
+                )
+
+            players = (
+                session.query(MatchPlayer)
+                .filter(MatchPlayer.match_id == match_id)
+                .all()
+            )
+            if not players:
+                raise ValueError(f"No players found for match {match_id}.")
+
+            total = (
+                float(booking.get("estimated_total", 0))
+                + float(booking.get("booking_fee", 0))
+            )
+            split_amount = round(total / len(players), 2)
+
+            created_payments = []
+            for player in players:
+                reference_code = self._generate_split_reference_code(
+                    booking["id"], player.user_id
+                )
+                payment = self.payment_repository.create({
+                    "booking_id": booking["id"],
+                    "user_id": player.user_id,
+                    "match_id": match_id,
+                    "provider": "MANUAL_UPI",
+                    "amount": split_amount,
+                    "reference_code": reference_code,
+                    "status": "PENDING",
+                })
+                created_payments.append(payment)
+
+            return created_payments
+        finally:
+            session.close()
+
     # ── Listing ─────────────────────────────────────────────────────────
 
     def get_all_payments(self, status: str = None) -> list[dict]:
@@ -49,6 +125,11 @@ class PaymentService(BaseService):
         """Generate VMS-{booking_id}-{4 random digits}."""
         suffix = f"{random.randint(0, 9999):04d}"
         return f"VMS-{booking_id}-{suffix}"
+
+    def _generate_split_reference_code(self, booking_id: int, user_id: int) -> str:
+        """Generate VMS-{booking_id}-P{user_id}-{4 random digits} for split payments."""
+        suffix = f"{random.randint(0, 9999):04d}"
+        return f"VMS-{booking_id}-P{user_id}-{suffix}"
 
     def _get_active_upi_id(self) -> str:
         """Return UPI ID from DB config, falling back to env var."""

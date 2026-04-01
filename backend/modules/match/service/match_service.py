@@ -453,6 +453,7 @@ class MatchService(BaseService):
         2. Status must not be COMPLETED or CANCELLED.
         3. Set match status to COMPLETED.
         4. Free the assigned cart (set status back to AVAILABLE).
+        5. Trigger split payment creation (one payment per player).
         """
         session = self.match_repo._session_factory()
         try:
@@ -496,12 +497,29 @@ class MatchService(BaseService):
 
             session.commit()
             session.refresh(match_orm)
-            return match_orm.to_dict()
+            result = match_orm.to_dict()
         except Exception:
             session.rollback()
             raise
         finally:
             session.close()
+
+        # Trigger split payment creation after the match transaction commits.
+        # Lazy import avoids circular dependency: MatchService -> PaymentService.
+        try:
+            from modules.payment.service.payment_service import PaymentService
+            payment_service = PaymentService()
+            payment_service.create_split_payments(match_id)
+        except Exception:
+            # Payment creation failure must not roll back match completion.
+            # The match is already COMPLETED; payments can be retried separately.
+            import logging
+            logging.getLogger(__name__).exception(
+                "finish_match: split payment creation failed for match %d (non-fatal)",
+                match_id,
+            )
+
+        return result
 
     # ── Enrichment ────────────────────────────────────────────────────
 
