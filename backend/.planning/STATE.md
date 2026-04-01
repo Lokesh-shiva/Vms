@@ -2,22 +2,22 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Milestone complete
-last_updated: "2026-03-31T14:28:36.661Z"
+status: Phase 05 COMPLETE
+last_updated: "2026-04-01T13:30:00.000Z"
 progress:
-  total_phases: 4
-  completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  total_phases: 5
+  completed_phases: 5
+  total_plans: 9
+  completed_plans: 9
 ---
 
 # Project State
 
 ## Current Status
 
-- **Phase**: 04-match-lifecycle
-- **Current Plan**: 04-01 COMPLETE
-- **Focus**: Match Lifecycle - arrival detection, GPS proximity, status transitions, match completion
+- **Phase**: 05-post-match-payments
+- **Current Plan**: 05 COMPLETE
+- **Focus**: Post-match automated split payments — DONE
 
 ## Progress
 
@@ -31,6 +31,8 @@ progress:
 - Phase 03 Plan 01: Core Matching Service and Transaction Logic - COMPLETE (3/3 tasks)
 - Phase 03 Plan 02: Stateless Engine Webhook & Trigger - COMPLETE (2/2 tasks)
 - Phase 04 Plan 01: Match Lifecycle States & Operations - COMPLETE (4/4 tasks)
+- Phase 05 Plan 01: Payment Model & Repo Update - COMPLETE (2/2 tasks)
+- Phase 05 Plan 02: Split Payment Logic & Integration - COMPLETE (4/4 tasks)
 
 ## Decisions
 
@@ -50,10 +52,14 @@ progress:
 - Cart without coordinates bypasses GPS check gracefully (v1 tolerance)
 - Any player in the match can trigger finish_match (not restricted to creator)
 - Used Pydantic BaseModel for MatchArriveSchema (consistent with matchmaking module pattern)
+- Added booking_id FK to Match model to enable PaymentService to find booking without cart-based join
+- Split payment creation is non-fatal in finish_match — payment failure must not roll back match completion
+- Used lazy import in finish_match for PaymentService to avoid circular dependency
+- Kept find_by_booking_id() returning single latest payment for backward compat; added find_by_booking_id_all()
 
 ## Context
 
-Project initialized via auto-mode from matchmaking plan document. The goal is to refactor the backend into an Uber-like instant matchmaking platform.
+Project initialized via auto-mode from matchmaking plan document. The goal is to refactor the backend into an Uber-like instant matchmaking platform. All 5 phases COMPLETE.
 
 ## Dependencies
 
@@ -61,5 +67,5 @@ Project initialized via auto-mode from matchmaking plan document. The goal is to
 
 ## Last Session
 
-- **Completed:** 04-01-PLAN.md (Match Lifecycle States & Operations)
-- **Timestamp:** 2026-03-31
+- **Completed:** 05-PLAN.md (Post-Match Payments — Plans 01 and 02)
+- **Timestamp:** 2026-04-01

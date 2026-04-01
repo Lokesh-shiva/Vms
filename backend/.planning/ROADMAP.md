@@ -52,9 +52,12 @@ Success criteria:
 1. Both users trigger `/match/arrive` resulting in `IN_PROGRESS` state.
 2. Match accurately transitioned to `COMPLETED` when done.
 
-**Phase 5: Post-Match Payments**
+**Phase 5: Post-Match Payments** COMPLETE
 Goal: Trigger split payments at match completion
 Requirements: PAY-01, PAY-02
+Plans:
+- [x] 05-01-PLAN.md — Payment Model & Repo Update (commits bab04c9)
+- [x] 05-02-PLAN.md — Split Payment Logic & Integration (commits bcb47df, 7d0c15b)
 Success criteria:
-1. Match completion fires payment creation.
-2. Payment splits equally per player and appears in Payment module.
+1. Match completion fires payment creation. ✓
+2. Payment splits equally per player and appears in Payment module. ✓
