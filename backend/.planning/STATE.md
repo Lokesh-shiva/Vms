@@ -1,9 +1,9 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: milestone
-status: Milestone complete
-last_updated: "2026-04-02T04:22:06.734Z"
+milestone_name: System Health & Player Retention
+status: archived — planning next milestone
+last_updated: "2026-04-02"
 progress:
   total_phases: 3
   completed_phases: 3
@@ -15,32 +15,19 @@ progress:
 
 ## Current Status
 
-- **Phase**: 07-match-teardown-re-queue
-- **Current Plan**: 1 of 1 (Complete)
-- **Focus**: Match teardown with 2-strike forgiveness and arrived player re-queue
-- **Status**: Phase 07 complete — match teardown, 2-strike rule, and priority re-queue implemented
+- **Milestone:** v1.1 — System Health & Player Retention — ✅ ARCHIVED
+- **Status:** Milestone complete. Preparing for v1.2.
+- **Next Step:** `/gsd:new-milestone` — define v1.2 requirements and roadmap
 
-## Context
+## Project Reference
 
-Phase 07 delivered the match teardown & re-queue system: ghost_strikes on User, strike management in UserRepository, rewritten cleanup_stale_matches() with booking cancellation, 2-strike forgiveness rule, and priority re-queue for arrived players. QueueEntry gained a reason column for frontend toast notifications.
+See: `.planning/PROJECT.md` (updated 2026-04-02)
 
-## Dependencies
+**Core value:** Frictionless, instant 2-player matchmaking based on sport, skill, and GPS region with dynamic pricing.
+**Current focus:** Planning next milestone (v1.2)
 
-- v1.0 system is running.
-- Phase 06: MatchPenalty model, penalty gate in join_queue().
+## Archived
 
-## Decisions
-
-- MatchPenalty issued with reason="Ghosting" and 4-hour expiry
-- cleanup_stale_matches() runs as Phase 0 in process_matching_cycle() before group discovery
-- Penalty check in join_queue() opens isolated DB session separate from pricing session
-- 2-strike forgiveness: players excused for first 2 ghosts, MatchPenalty only on 3rd
-- Strikes reset to 0 when penalty issued (clean slate after ban)
-- Priority re-queue uses created_at = now - 2 hours (FIFO front-of-line)
-- reason field on QueueEntry carries RE_QUEUE_OPPONENT_NO_SHOW for frontend toast
-- cancel_booking() called on every stale match to release ground cart to AVAILABLE
-
-## Last Session
-
-- **Completed:** Phase 07 Plan 07 — Match Teardown & Re-Queue (Strike System)
-- **Timestamp:** 2026-04-02
+- v1.1 roadmap: `.planning/milestones/v1.1-ROADMAP.md`
+- v1.1 requirements: `.planning/milestones/v1.1-REQUIREMENTS.md`
+- v1.0 artifacts: `.planning/milestones/v1.0-*`

@@ -1,42 +1,46 @@
-# Milestone Execution Roadmap
-*Milestone: v1.1 System Health & Player Retention*
+# Roadmap: Matchmaking Platform
 
-## Roadmap Summary
-**3 phases** | **6 requirements mapped** | All covered ✓
+## Milestones
 
-| Phase | Title | Goal | Requirements | Criteria | Status |
-|-------|-------|------|--------------|----------|--------|
-| [06] | Arrival Deadlines & Penalties | Build a background task to enforce check-in timers | EDGE-01, EDGE-02 | 3 | COMPLETE |
-| [07] | Match Teardown & Re-Queue | Correctly handle inventory release and innocent player re-queueing | EDGE-03, EDGE-04 | 3 | COMPLETE |
-| [08] | Pricing & Queue UX Perception | Inject human-readable reasons and queue estimates into REST APIs | UX-01, UX-02 | 2 | PLANNED |
+- ✅ **v1.0 MVP** — Phases 01-05 (shipped 2026-04-01) — [archive](milestones/v1.0-ROADMAP.md)
+- ✅ **v1.1 System Health & Player Retention** — Phases 06-08 (shipped 2026-04-02) — [archive](milestones/v1.1-ROADMAP.md)
+- 📋 **v1.2** — Not yet planned. Run `/gsd:new-milestone` to define.
 
----
+## Phases
 
-## Phase Details
+<details>
+<summary>✅ v1.0 MVP (Phases 01-05) — SHIPPED 2026-04-01</summary>
 
-### Phase 06: Arrival Deadlines & Penalties
-**Goal:** Build a background task or trigger to check `MATCHED` states against an `arrival_deadline` threshold (e.g., 15 mins) and issue penalties for ghosting.
-**Requirements:** EDGE-01, EDGE-02
-**Success Criteria:**
-1. A cron or active trigger detects matches where `status == 'MATCHED'` and `now() > arrival_deadline`.
-2. The match state is updated to `CANCELLED_NO_SHOW`.
-3. A penalty flag/record is created for the `MatchPlayer` id who failed to arrive.
+- [x] Phase 01: DB Models & Pricing Engine (1/1 plans) — completed 2026-04-01
+- [x] Phase 02: Queue Management (5/5 plans) — completed 2026-04-01
+- [x] Phase 03: Matching Engine (2/2 plans) — completed 2026-04-01
+- [x] Phase 04: Match Lifecycle (1/1 plan) — completed 2026-04-01
+- [x] Phase 05: Post-Match Payments (1/1 plan) — completed 2026-04-01
 
-### Phase 07: Match Teardown & Re-Queue
-**Goal:** Recover locked ground inventory upon cancellation and prioritize non-ghosting players immediately back into the queue.
-**Requirements:** EDGE-03, EDGE-04
-**Success Criteria:**
-1. If a match cancels due to no-show, the backend immediately calls `BookingService.release_booking(booking_id)`.
-2. The player who actively `has_arrived = true` is placed back in `QueueEntry` with a priority timestamp and existing parameters.
-3. The re-queued player isn't charged a second booking hold.
+</details>
 
-### Phase 08: Pricing & Queue UX Perception
-**Goal:** Enhance existing API payloads with localized, intelligent natural-language descriptions for wait estimates and dynamic pricing spikes.
-**Requirements:** UX-01, UX-02
-**Plans:** 1/1 plans complete
-**Success Criteria:**
-1. `matchmaking/status` endpoint includes a `"wait_estimation_msg"` field (e.g., "Match likely in 1 min", "Searching...").
-2. `PricingService` response appends a `"reason"` string describing why demand pricing is active.
+<details>
+<summary>✅ v1.1 System Health & Player Retention (Phases 06-08) — SHIPPED 2026-04-02</summary>
 
-Plans:
-- [ ] 08-01-PLAN.md — Add `reason` to PricingService.calculate_price() and `wait_estimation_msg` to MatchmakingService.get_queue_status()
+- [x] Phase 06: Arrival Deadlines & Penalties (1/1 plan) — completed 2026-04-02
+- [x] Phase 07: Match Teardown & Re-Queue (1/1 plan) — completed 2026-04-02
+- [x] Phase 08: Pricing & Queue UX Perception (1/1 plan) — completed 2026-04-02
+
+</details>
+
+### 📋 v1.2 (Planned)
+
+*No phases yet. Run `/gsd:new-milestone` to kick off requirements and roadmap.*
+
+## Progress
+
+| Phase | Milestone | Plans Complete | Status   | Completed  |
+|-------|-----------|----------------|----------|------------|
+| 01. DB Models & Pricing | v1.0 | 1/1 | Complete | 2026-04-01 |
+| 02. Queue Management | v1.0 | 5/5 | Complete | 2026-04-01 |
+| 03. Matching Engine | v1.0 | 2/2 | Complete | 2026-04-01 |
+| 04. Match Lifecycle | v1.0 | 1/1 | Complete | 2026-04-01 |
+| 05. Post-Match Payments | v1.0 | 1/1 | Complete | 2026-04-01 |
+| 06. Arrival Deadlines & Penalties | v1.1 | 1/1 | Complete | 2026-04-02 |
+| 07. Match Teardown & Re-Queue | v1.1 | 1/1 | Complete | 2026-04-02 |
+| 08. Pricing & Queue UX Perception | v1.1 | 1/1 | Complete | 2026-04-02 |
