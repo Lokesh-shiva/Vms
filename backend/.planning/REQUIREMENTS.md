@@ -7,8 +7,8 @@
 - [x] **EDGE-04**: System must safely re-queue the user who *did* arrive (re-match) without charging them again.
 
 ### UX & Retention Strings
-- [ ] **UX-01**: Matchmaking endpoints (`play-now` and `status`) must return dynamic, human-readable strings explaining the estimated wait time (e.g., "match likely in 1 min", "2 players nearby").
-- [ ] **UX-02**: Pricing API endpoints must calculate a human-readable `reason` for the dynamically generated demand prices (e.g., "High demand in your area") and attach it to the JSON response.
+- [x] **UX-01**: Matchmaking endpoints (`play-now` and `status`) must return dynamic, human-readable strings explaining the estimated wait time (e.g., "match likely in 1 min", "2 players nearby").
+- [x] **UX-02**: Pricing API endpoints must calculate a human-readable `reason` for the dynamically generated demand prices (e.g., "High demand in your area") and attach it to the JSON response.
 
 ## Future Requirements (Deferred)
 - Websocket implementation for real-time tracking (to replace polling)

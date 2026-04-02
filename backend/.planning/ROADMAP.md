@@ -33,7 +33,7 @@
 ### Phase 08: Pricing & Queue UX Perception
 **Goal:** Enhance existing API payloads with localized, intelligent natural-language descriptions for wait estimates and dynamic pricing spikes.
 **Requirements:** UX-01, UX-02
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 **Success Criteria:**
 1. `matchmaking/status` endpoint includes a `"wait_estimation_msg"` field (e.g., "Match likely in 1 min", "Searching...").
 2. `PricingService` response appends a `"reason"` string describing why demand pricing is active.
