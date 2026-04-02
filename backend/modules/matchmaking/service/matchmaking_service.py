@@ -144,12 +144,21 @@ class MatchmakingService:
                 if match_p:
                     match_id = match_p.match_id
 
+            if entry["status"] == "MATCHED":
+                wait_estimation_msg = "You're matched — arrive in 20 mins or lose your spot"
+            elif players_searching == 0:
+                wait_estimation_msg = "No players nearby yet — hang tight"
+            else:
+                wait_mins = max(1, round((players_searching * _WAIT_PER_PLAYER_SECONDS) / 60))
+                wait_estimation_msg = f"{players_searching} players nearby — match likely in {wait_mins} mins"
+
             return {
                 "entry": entry,
                 "players_searching": players_searching,
                 "estimated_wait_seconds": 0 if match_id else (pricing["queue_count"] * _WAIT_PER_PLAYER_SECONDS),
                 "pricing": pricing,
                 "match_id": match_id,
+                "wait_estimation_msg": wait_estimation_msg,
             }
         finally:
             db.close()
