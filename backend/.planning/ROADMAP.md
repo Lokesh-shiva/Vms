@@ -8,7 +8,7 @@
 |-------|-------|------|--------------|----------|--------|
 | [06] | Arrival Deadlines & Penalties | Build a background task to enforce check-in timers | EDGE-01, EDGE-02 | 3 | COMPLETE |
 | [07] | Match Teardown & Re-Queue | Correctly handle inventory release and innocent player re-queueing | EDGE-03, EDGE-04 | 3 | COMPLETE |
-| [08] | Pricing & Queue UX Perception | Inject human-readable reasons and queue estimates into REST APIs | UX-01, UX-02 | 2 | PENDING |
+| [08] | Pricing & Queue UX Perception | Inject human-readable reasons and queue estimates into REST APIs | UX-01, UX-02 | 2 | PLANNED |
 
 ---
 
@@ -33,6 +33,10 @@
 ### Phase 08: Pricing & Queue UX Perception
 **Goal:** Enhance existing API payloads with localized, intelligent natural-language descriptions for wait estimates and dynamic pricing spikes.
 **Requirements:** UX-01, UX-02
+**Plans:** 1 plan
 **Success Criteria:**
 1. `matchmaking/status` endpoint includes a `"wait_estimation_msg"` field (e.g., "Match likely in 1 min", "Searching...").
 2. `PricingService` response appends a `"reason"` string describing why demand pricing is active.
+
+Plans:
+- [ ] 08-01-PLAN.md — Add `reason` to PricingService.calculate_price() and `wait_estimation_msg` to MatchmakingService.get_queue_status()
