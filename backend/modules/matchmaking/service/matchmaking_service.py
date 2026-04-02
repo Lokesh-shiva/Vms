@@ -1,5 +1,8 @@
+from datetime import datetime
+
 from core.database.db_connection import SessionLocal
 from modules.matchmaking.repository.queue_entry_repository import queue_entry_repository
+from modules.match.model.match_model import MatchPenalty
 from modules.pricing.service.pricing_service import PricingService
 
 # Estimated wait time per player already in queue (seconds)
@@ -37,6 +40,25 @@ class MatchmakingService:
             raise ValueError(
                 "Invalid skill_level. Must be one of BEGINNER|INTERMEDIATE|ADVANCED."
             )
+
+        # Penalty guard: block users with an active no-show penalty
+        db = SessionLocal()
+        try:
+            active_penalty = (
+                db.query(MatchPenalty)
+                .filter(
+                    MatchPenalty.user_id == user_id,
+                    MatchPenalty.expires_at > datetime.utcnow(),
+                )
+                .first()
+            )
+            if active_penalty:
+                raise ValueError(
+                    f"You are temporarily restricted from matchmaking until "
+                    f"{active_penalty.expires_at} due to a previous no-show."
+                )
+        finally:
+            db.close()
 
         # Duplicate guard: one active WAITING entry per user
         existing = queue_entry_repository.find_waiting_by_user(user_id)
