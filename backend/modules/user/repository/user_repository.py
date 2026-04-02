@@ -128,6 +128,64 @@ class UserRepository:
         finally:
             session.close()
 
+    def increment_ghost_strikes(self, user_id: int, session=None) -> dict | None:
+        """Increment ghost_strikes by 1 for the given user.
+
+        Accepts an optional caller-managed session for transaction safety.
+        Returns the updated user dict, or None if user not found.
+        """
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            user = session.query(User).filter(User.id == user_id).first()
+            if not user:
+                return None
+            user.ghost_strikes = (user.ghost_strikes or 0) + 1
+            user.updated_at = datetime.utcnow()
+            if own_session:
+                session.commit()
+                session.refresh(user)
+            else:
+                session.flush()
+                session.refresh(user)
+            return user.to_dict()
+        except Exception:
+            if own_session:
+                session.rollback()
+            raise
+        finally:
+            if own_session:
+                session.close()
+
+    def reset_ghost_strikes(self, user_id: int, session=None) -> dict | None:
+        """Reset ghost_strikes to 0 for the given user.
+
+        Accepts an optional caller-managed session for transaction safety.
+        Returns the updated user dict, or None if user not found.
+        """
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            user = session.query(User).filter(User.id == user_id).first()
+            if not user:
+                return None
+            user.ghost_strikes = 0
+            user.updated_at = datetime.utcnow()
+            if own_session:
+                session.commit()
+                session.refresh(user)
+            else:
+                session.flush()
+                session.refresh(user)
+            return user.to_dict()
+        except Exception:
+            if own_session:
+                session.rollback()
+            raise
+        finally:
+            if own_session:
+                session.close()
+
 
 # ── Shared module-level instance ──────────────────────────────────────
 # All services must import and use this singleton so they share the same
