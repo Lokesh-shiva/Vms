@@ -10,14 +10,14 @@ Responsibilities:
 """
 
 import logging
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from core.database.db_connection import SessionLocal
 from modules.matchmaking.repository.queue_entry_repository import (
     QueueEntryRepository,
     queue_entry_repository as _default_queue_repo,
 )
-from modules.match.model.match_model import Match, MatchPlayer
+from modules.match.model.match_model import Match, MatchPenalty, MatchPlayer
 from modules.booking.service.booking_service import BookingService
 from modules.cart_type.repository.cart_type_repository import (
     cart_type_repository as _default_cart_type_repo,
@@ -69,6 +69,17 @@ class MatchEngineService:
         """
         outcomes = []
 
+        # Phase 0: cancel stale MATCHED matches and issue no-show penalties
+        cleanup_session = self._session_factory()
+        try:
+            self.cleanup_stale_matches(cleanup_session)
+            cleanup_session.commit()
+        except Exception as exc:
+            cleanup_session.rollback()
+            logger.exception("MatchEngineService: cleanup_stale_matches failed — %s", exc)
+        finally:
+            cleanup_session.close()
+
         # Phase 1: discover matchable groups (no transaction needed for read)
         discovery_session = self._session_factory()
         try:
@@ -94,6 +105,58 @@ class MatchEngineService:
         return outcomes
 
     # ── Internal helpers ──────────────────────────────────────────────
+
+    def cleanup_stale_matches(self, session) -> None:
+        """
+        Cancel MATCHED matches where players failed to arrive within 20 minutes.
+
+        For every Match that is still in MATCHED status and whose created_at is
+        older than (now - 20 minutes):
+        - Issue a MatchPenalty (reason="Ghosting", expires_at=now+4h) for every
+          MatchPlayer where has_arrived is False.
+        - Set the Match status to CANCELLED_NO_SHOW.
+
+        The caller is responsible for committing or rolling back the session.
+        """
+        deadline = datetime.utcnow() - timedelta(minutes=20)
+        stale_matches = (
+            session.query(Match)
+            .filter(Match.status == "MATCHED", Match.created_at < deadline)
+            .all()
+        )
+
+        if not stale_matches:
+            return
+
+        penalty_expiry = datetime.utcnow() + timedelta(hours=4)
+        for match in stale_matches:
+            no_show_players = (
+                session.query(MatchPlayer)
+                .filter(
+                    MatchPlayer.match_id == match.id,
+                    MatchPlayer.has_arrived == False,  # noqa: E712
+                )
+                .all()
+            )
+
+            for player in no_show_players:
+                penalty = MatchPenalty(
+                    user_id=player.user_id,
+                    match_id=match.id,
+                    reason="Ghosting",
+                    expires_at=penalty_expiry,
+                )
+                session.add(penalty)
+                logger.info(
+                    "MatchPenalty issued: user_id=%d match_id=%d expires_at=%s",
+                    player.user_id, match.id, penalty_expiry.isoformat(),
+                )
+
+            match.status = "CANCELLED_NO_SHOW"
+            logger.info(
+                "Match %d marked CANCELLED_NO_SHOW (%d no-show penalties issued)",
+                match.id, len(no_show_players),
+            )
 
     def _attempt_match_for_group(
         self, region_id: int, sport_id: int, skill_level: str
