@@ -4,11 +4,11 @@
 ## Roadmap Summary
 **3 phases** | **6 requirements mapped** | All covered ✓
 
-| Phase | Title | Goal | Requirements | Criteria |
-|-------|-------|------|--------------|----------|
-| [06] | Arrival Deadlines & Penalties | Build a background task to enforce check-in timers | EDGE-01, EDGE-02 | 3 |
-| [07] | Match Teardown & Re-Queue | Correctly handle inventory release and innocent player re-queueing | EDGE-03, EDGE-04 | 3 |
-| [08] | Pricing & Queue UX Perception | Inject human-readable reasons and queue estimates into REST APIs | UX-01, UX-02 | 2 |
+| Phase | Title | Goal | Requirements | Criteria | Status |
+|-------|-------|------|--------------|----------|--------|
+| [06] | Arrival Deadlines & Penalties | Build a background task to enforce check-in timers | EDGE-01, EDGE-02 | 3 | COMPLETE |
+| [07] | Match Teardown & Re-Queue | Correctly handle inventory release and innocent player re-queueing | EDGE-03, EDGE-04 | 3 | COMPLETE |
+| [08] | Pricing & Queue UX Perception | Inject human-readable reasons and queue estimates into REST APIs | UX-01, UX-02 | 2 | PENDING |
 
 ---
 
