@@ -3,8 +3,8 @@
 ### Edge Cases & Inventory
 - [x] **EDGE-01**: System must automatically identify matches where the arrival deadline (e.g., 15 mins) has passed and at least one player has not arrived.
 - [x] **EDGE-02**: System must cancel matches triggered by the arrival deadline and apply a default penalty profile to the ghosting user.
-- [ ] **EDGE-03**: System must automatically execute ground booking release logic (call BookingService) when a match is cancelled.
-- [ ] **EDGE-04**: System must safely re-queue the user who *did* arrive (re-match) without charging them again.
+- [x] **EDGE-03**: System must automatically execute ground booking release logic (call BookingService) when a match is cancelled.
+- [x] **EDGE-04**: System must safely re-queue the user who *did* arrive (re-match) without charging them again.
 
 ### UX & Retention Strings
 - [ ] **UX-01**: Matchmaking endpoints (`play-now` and `status`) must return dynamic, human-readable strings explaining the estimated wait time (e.g., "match likely in 1 min", "2 players nearby").
