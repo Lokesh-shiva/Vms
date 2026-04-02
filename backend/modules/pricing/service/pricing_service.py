@@ -98,10 +98,18 @@ class PricingService:
         demand_f = self.get_demand_factor(region_id, sport_id)
         queue_count = self.get_active_queue_count(region_id, sport_id)
 
+        if demand_f > 1.0:
+            reason = "High demand in your area"
+        elif time_f > 1.0:
+            reason = "Peak hours (5–9 PM)"
+        else:
+            reason = "Standard pricing"
+
         return {
             "base_price": base,
             "time_factor": time_f,
             "demand_factor": demand_f,
             "queue_count": queue_count,
             "final_price": round(base * time_f * demand_f, 2),
+            "reason": reason,
         }
