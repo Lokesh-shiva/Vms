@@ -1,4 +1,14 @@
-# Matchmaking Platform MVP
+# Matchmaking Platform
+
+## Current Milestone: v1.1 System Health & Player Retention
+**Goal:** Handle matchmaking edge cases gracefully (no-shows, cancellations) and improve queue/pricing UX to heavily optimize player retention.
+
+**Target features:**
+- No-show logic (Arrival deadline, cancellation, penalty)
+- Empty ground auto-release (Booking integration)
+- Pricing perception (Return human-readable 'reasons' for dynamic pricing)
+- Queue drop-off prevention (Dynamic wait-time UX strings)
+- Re-match Logic (Requeue non-ghosting players gracefully)
 
 ## What This Is
 Transforming the existing sports matchmaking backend into an **instant matchmaking platform (Uber-style)**.

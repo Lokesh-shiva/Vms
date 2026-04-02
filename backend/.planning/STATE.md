@@ -5,7 +5,7 @@ milestone_name: multi-player-matchmaking
 status: Planning next milestone
 last_updated: "2026-04-01T15:35:00Z"
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -15,9 +15,10 @@ progress:
 
 ## Current Status
 
-- **Phase**: tbd
-- **Current Plan**: tbd
-- **Focus**: Planning v1.1 features
+- **Phase**: 06-arrival-deadlines-penalties
+- **Current Plan**: Not started
+- **Focus**: Building background check-in timer enforcement
+- **Status**: Ready to build `v1.1` Phase 06
 
 ## Context
 
