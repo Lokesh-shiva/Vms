@@ -36,6 +36,7 @@ class User(Base):
     role = Column(String, nullable=False, default=UserRole.USER.value)
     is_active = Column(Boolean, nullable=False, default=True)
     region_id = Column(Integer, nullable=True)
+    ghost_strikes = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -50,6 +51,7 @@ class User(Base):
             "role": self.role,
             "is_active": self.is_active,
             "region_id": self.region_id,
+            "ghost_strikes": self.ghost_strikes,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
