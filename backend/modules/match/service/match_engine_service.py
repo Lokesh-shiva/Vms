@@ -25,6 +25,8 @@ from modules.cart_type.repository.cart_type_repository import (
 from modules.timeslot.repository.timeslot_repository import (
     timeslot_repository as _default_timeslot_repo,
 )
+from modules.user.model.user_model import User
+from modules.user.repository.user_repository import user_repository as _default_user_repo
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +50,14 @@ class MatchEngineService:
         cart_type_repo=None,
         timeslot_repo=None,
         session_factory=None,
+        user_repository=None,
     ):
         self._queue_repo = queue_repo or _default_queue_repo
         self._booking_service = booking_service or BookingService()
         self._cart_type_repo = cart_type_repo or _default_cart_type_repo
         self._timeslot_repo = timeslot_repo or _default_timeslot_repo
         self._session_factory = session_factory or SessionLocal
+        self._user_repository = user_repository or _default_user_repo
 
     # ── Public API ────────────────────────────────────────────────────
 
@@ -112,9 +116,16 @@ class MatchEngineService:
 
         For every Match that is still in MATCHED status and whose created_at is
         older than (now - 20 minutes):
-        - Issue a MatchPenalty (reason="Ghosting", expires_at=now+4h) for every
-          MatchPlayer where has_arrived is False.
-        - Set the Match status to CANCELLED_NO_SHOW.
+
+        1. Cancel the associated booking via BookingService (D-01).
+        2. For ghost_players (has_arrived=False):
+           - Fetch user and check ghost_strikes.
+           - If strikes < 2: increment strikes (excuse — no penalty).
+           - If strikes >= 2: reset strikes to 0 and issue a MatchPenalty (4h block).
+        3. For arrived_players (has_arrived=True):
+           - Re-queue with created_at = now - 2h for FIFO priority (D-02).
+           - Flag entry with reason=RE_QUEUE_OPPONENT_NO_SHOW for frontend toast (D-03).
+        4. Set Match status to CANCELLED_NO_SHOW.
 
         The caller is responsible for committing or rolling back the session.
         """
@@ -129,33 +140,97 @@ class MatchEngineService:
             return
 
         penalty_expiry = datetime.utcnow() + timedelta(hours=4)
+        priority_timestamp = datetime.utcnow() - timedelta(hours=2)
+
         for match in stale_matches:
-            no_show_players = (
+            # D-01: cancel the booking to release ground inventory
+            if match.booking_id:
+                try:
+                    self._booking_service.cancel_booking(match.booking_id)
+                    logger.info(
+                        "Match %d: booking %d cancelled (ground released)",
+                        match.id, match.booking_id,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "Match %d: failed to cancel booking %d — %s",
+                        match.id, match.booking_id, exc,
+                    )
+
+            all_players = (
                 session.query(MatchPlayer)
-                .filter(
-                    MatchPlayer.match_id == match.id,
-                    MatchPlayer.has_arrived == False,  # noqa: E712
-                )
+                .filter(MatchPlayer.match_id == match.id)
                 .all()
             )
 
-            for player in no_show_players:
-                penalty = MatchPenalty(
-                    user_id=player.user_id,
-                    match_id=match.id,
-                    reason="Ghosting",
-                    expires_at=penalty_expiry,
+            arrived_players = [p for p in all_players if p.has_arrived]
+            ghost_players = [p for p in all_players if not p.has_arrived]
+
+            # Process ghost players — 2-strike rule
+            for player in ghost_players:
+                user = session.query(User).filter(User.id == player.user_id).first()
+                if user is None:
+                    logger.warning(
+                        "Match %d: ghost player user_id=%d not found — skipping",
+                        match.id, player.user_id,
+                    )
+                    continue
+
+                current_strikes = user.ghost_strikes or 0
+                if current_strikes < 2:
+                    # Excuse: increment strikes, no penalty
+                    self._user_repository.increment_ghost_strikes(player.user_id, session=session)
+                    logger.info(
+                        "Match %d: user_id=%d excused (strike %d/2)",
+                        match.id, player.user_id, current_strikes + 1,
+                    )
+                else:
+                    # 3rd offence: reset strikes and issue MatchPenalty
+                    self._user_repository.reset_ghost_strikes(player.user_id, session=session)
+                    penalty = MatchPenalty(
+                        user_id=player.user_id,
+                        match_id=match.id,
+                        reason="Ghosting",
+                        expires_at=penalty_expiry,
+                    )
+                    session.add(penalty)
+                    logger.info(
+                        "Match %d: MatchPenalty issued for user_id=%d (strikes reset, 4h block)",
+                        match.id, player.user_id,
+                    )
+
+            # Process arrived players — re-queue with priority
+            for player in arrived_players:
+                # Look up match player's original queue entry to get sport/skill context
+                original_entry = (
+                    session.query(MatchPlayer)
+                    .filter(
+                        MatchPlayer.match_id == match.id,
+                        MatchPlayer.user_id == player.user_id,
+                    )
+                    .first()
                 )
-                session.add(penalty)
+                self._queue_repo.create(
+                    {
+                        "user_id": player.user_id,
+                        "region_id": match.region_id,
+                        "sport_id": match.sport_id,
+                        "skill_level": match.skill_level or "BEGINNER",
+                        "status": "WAITING",
+                        "reason": "RE_QUEUE_OPPONENT_NO_SHOW",
+                        "created_at": priority_timestamp,
+                    },
+                    session=session,
+                )
                 logger.info(
-                    "MatchPenalty issued: user_id=%d match_id=%d expires_at=%s",
-                    player.user_id, match.id, penalty_expiry.isoformat(),
+                    "Match %d: user_id=%d re-queued with priority (created_at=%s, reason=RE_QUEUE_OPPONENT_NO_SHOW)",
+                    match.id, player.user_id, priority_timestamp.isoformat(),
                 )
 
             match.status = "CANCELLED_NO_SHOW"
             logger.info(
-                "Match %d marked CANCELLED_NO_SHOW (%d no-show penalties issued)",
-                match.id, len(no_show_players),
+                "Match %d marked CANCELLED_NO_SHOW (%d ghost(s), %d re-queued)",
+                match.id, len(ghost_players), len(arrived_players),
             )
 
     def _attempt_match_for_group(

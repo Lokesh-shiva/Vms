@@ -10,17 +10,26 @@ class QueueEntryRepository:
         self._session_factory = session_factory or SessionLocal
 
     def create(self, entry_data: dict, session=None) -> dict:
-        """Insert a new QueueEntry. Returns created entry as dict."""
+        """Insert a new QueueEntry. Returns created entry as dict.
+
+        Optional keys in entry_data:
+            created_at (datetime): Override the creation timestamp (used for priority re-queue).
+            reason (str): Label for why this entry was created (e.g. RE_QUEUE_OPPONENT_NO_SHOW).
+        """
         own_session = session is None
         session = session or self._session_factory()
         try:
-            entry = QueueEntry(
-                user_id=entry_data["user_id"],
-                region_id=entry_data["region_id"],
-                sport_id=entry_data["sport_id"],
-                skill_level=entry_data["skill_level"],
-                status=entry_data.get("status", "WAITING"),
-            )
+            init_kwargs = {
+                "user_id": entry_data["user_id"],
+                "region_id": entry_data["region_id"],
+                "sport_id": entry_data["sport_id"],
+                "skill_level": entry_data["skill_level"],
+                "status": entry_data.get("status", "WAITING"),
+                "reason": entry_data.get("reason"),
+            }
+            if "created_at" in entry_data and entry_data["created_at"] is not None:
+                init_kwargs["created_at"] = entry_data["created_at"]
+            entry = QueueEntry(**init_kwargs)
             session.add(entry)
             if own_session:
                 session.commit()

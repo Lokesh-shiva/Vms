@@ -26,6 +26,7 @@ class QueueEntry(Base):
     sport_id = Column(Integer, ForeignKey("sports.id"), nullable=False, index=True)
     skill_level = Column(String, nullable=False)
     status = Column(String, nullable=False, default="WAITING")
+    reason = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     def to_dict(self) -> dict:
@@ -36,6 +37,7 @@ class QueueEntry(Base):
             "sport_id": self.sport_id,
             "skill_level": self.skill_level,
             "status": self.status,
+            "reason": self.reason,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
