@@ -13,17 +13,18 @@ class Match(Base):
     or system-created via the matchmaking queue.
 
     Status lifecycle (matchmaking):
-        WAITING     → queued players grouped, awaiting ground
-        MATCHED     → ground secured, players notified
-        ARRIVED     → at least one player arrived
-        IN_PROGRESS → both players arrived, game underway
-        COMPLETED   → game finished
-        CANCELLED   → match cancelled before completion
+        WAITING            → queued players grouped, awaiting ground
+        MATCHED            → ground secured, players notified
+        ARRIVED            → at least one player arrived
+        IN_PROGRESS        → both players arrived, game underway
+        COMPLETED          → game finished
+        CANCELLED          → match cancelled before completion
+        CANCELLED_NO_SHOW  → match cancelled because players failed to arrive
     """
 
     __tablename__ = "matches"
 
-    VALID_STATUSES = {"WAITING", "MATCHED", "ARRIVED", "IN_PROGRESS", "COMPLETED", "CANCELLED"}
+    VALID_STATUSES = {"WAITING", "MATCHED", "ARRIVED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "CANCELLED_NO_SHOW"}
     VALID_SKILL_LEVELS = {"BEGINNER", "INTERMEDIATE", "ADVANCED"}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -94,3 +95,37 @@ class MatchPlayer(Base):
 
     def __repr__(self):
         return f"<MatchPlayer match_id={self.match_id} user_id={self.user_id}>"
+
+
+class MatchPenalty(Base):
+    """
+    Records a temporary matchmaking ban issued to a player who no-showed.
+
+    A penalty is considered active while expires_at > now(). The matchmaking
+    service checks for active penalties before allowing a user to join the queue.
+
+    Reason values:
+        "Ghosting" — player was in a MATCHED match but never arrived within 20 min.
+    """
+
+    __tablename__ = "match_penalties"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    match_id = Column(Integer, ForeignKey("matches.id"), nullable=False, index=True)
+    reason = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "match_id": self.match_id,
+            "reason": self.reason,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+    def __repr__(self):
+        return f"<MatchPenalty user_id={self.user_id} match_id={self.match_id} expires_at={self.expires_at}>"
