@@ -1,8 +1,8 @@
 ## Milestone v1.1 Requirements
 
 ### Edge Cases & Inventory
-- [ ] **EDGE-01**: System must automatically identify matches where the arrival deadline (e.g., 15 mins) has passed and at least one player has not arrived.
-- [ ] **EDGE-02**: System must cancel matches triggered by the arrival deadline and apply a default penalty profile to the ghosting user.
+- [x] **EDGE-01**: System must automatically identify matches where the arrival deadline (e.g., 15 mins) has passed and at least one player has not arrived.
+- [x] **EDGE-02**: System must cancel matches triggered by the arrival deadline and apply a default penalty profile to the ghosting user.
 - [ ] **EDGE-03**: System must automatically execute ground booking release logic (call BookingService) when a match is cancelled.
 - [ ] **EDGE-04**: System must safely re-queue the user who *did* arrive (re-match) without charging them again.
 
