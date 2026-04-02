@@ -36,6 +36,7 @@ Frictionless, instant 2-player matchmaking based on sport, skill, and GPS region
 - [ ] Multi-player (>2) matchmaking logic
 - ✓ Penalty system for players who abandon matching queue post-locking — Validated in Phase 06: Arrival Deadlines & Penalties
 - ✓ Match teardown with 2-strike no-show forgiveness + booking release + priority re-queue — Validated in Phase 07: Match Teardown & Re-Queue
+- ✓ Human-readable wait estimation and pricing reason strings in API responses — Validated in Phase 08: Pricing & Queue UX Perception
 
 ### Out of Scope
 - Real-time websocket tracking (GPS polling via REST for now)
@@ -48,7 +49,7 @@ Frictionless, instant 2-player matchmaking based on sport, skill, and GPS region
 | Ground lock strictly post-match | Maximizes ground utilization, avoids holding slots for unfulfilled queues | ✓ Good |
 
 ---
-*Last updated: 2026-04-02 after Phase 07 completion — match teardown with 2-strike system, booking release, and priority re-queue live*
+*Last updated: 2026-04-02 after Phase 08 completion — wait estimation strings and pricing reason strings live. Milestone v1.1 complete.*
 
 ## Evolution
 This document evolves at phase transitions and milestone boundaries.
