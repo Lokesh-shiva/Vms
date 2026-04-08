@@ -58,8 +58,8 @@ def get_dashboard_stats(
         )).label("active_services"),
         func.count(case(
             (
-                (Booking.status == "COMPLETED") & 
-                (cast(func.timezone("Asia/Kolkata", Booking.updated_at), Date) == func.current_date()),
+                (Booking.status == "COMPLETED") &
+                (cast(Booking.updated_at.op('AT TIME ZONE')('Asia/Kolkata'), Date) == func.current_date()),
                 1,
             ),
         )).label("completed_today"),
