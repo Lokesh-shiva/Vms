@@ -25,8 +25,14 @@ import com.example.vmsadmin.models.UpdateTimeslotRequest
 import com.example.vmsadmin.models.CreateItemRequest
 import com.example.vmsadmin.models.Item
 import com.example.vmsadmin.models.UpdateItemRequest
+import com.example.vmsadmin.models.Ground
+import com.example.vmsadmin.models.UpdateGroundRequest
 import com.example.vmsadmin.models.Match
 import com.example.vmsadmin.models.CreateMatchRequest
+import com.example.vmsadmin.models.SystemConfigListResponse
+import com.example.vmsadmin.models.SystemConfigResponse
+import com.example.vmsadmin.models.UpdateConfigRequest
+import com.example.vmsadmin.models.QueueStatsResponse
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -185,6 +191,16 @@ interface ApiService {
     @DELETE("/api/v1/items/{item_id}")
     suspend fun deleteItem(@Path("item_id") itemId: Int): ApiResponse<JsonElement>
 
+    // ── Ground endpoints ─────────────────────────────────────────────
+    @GET("/api/v1/grounds")
+    suspend fun getGrounds(): ApiResponse<List<Ground>>
+
+    @PUT("/api/v1/grounds/{id}")
+    suspend fun updateGround(
+        @Path("id") id: Int,
+        @Body request: UpdateGroundRequest
+    ): ApiResponse<Ground>
+
     // ── Match endpoints ───────────────────────────────────────────────
     @GET("/api/v1/matches")
     suspend fun getMatches(): ApiResponse<List<Match>>
@@ -194,4 +210,18 @@ interface ApiService {
 
     @POST("/api/v1/matches/{match_id}/complete")
     suspend fun completeMatch(@Path("match_id") matchId: Int): ApiResponse<Match>
+
+    // ── System Configuration endpoints ──────────────────────────────
+    @GET("/api/v1/admin/config")
+    suspend fun getSystemConfigs(): SystemConfigListResponse
+
+    @PUT("/api/v1/admin/config/{key}")
+    suspend fun updateSystemConfig(
+        @Path("key") key: String,
+        @Body request: UpdateConfigRequest
+    ): SystemConfigResponse
+
+    // ── Queue Overview endpoints ────────────────────────────────────
+    @GET("/api/v1/admin/queue-stats")
+    suspend fun getQueueStats(): QueueStatsResponse
 }

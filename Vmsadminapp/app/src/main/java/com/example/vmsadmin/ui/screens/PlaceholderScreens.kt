@@ -28,7 +28,8 @@ fun ManageScreen(
     onNavigateToCarts: () -> Unit = {},
     onNavigateToFeeConfig: () -> Unit = {},
     onNavigateToItems: () -> Unit = {},
-    onNavigateToMatches: () -> Unit = {}
+    onNavigateToMatches: () -> Unit = {},
+    onNavigateToGrounds: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -106,6 +107,15 @@ fun ManageScreen(
                     icon = Icons.Outlined.List,
                     enabled = true,
                     onClick = onNavigateToItems
+                )
+            }
+            item {
+                ManageCard(
+                    title = "Grounds",
+                    subtitle = "View and manage sports grounds",
+                    icon = Icons.Outlined.LocationOn,
+                    enabled = true,
+                    onClick = onNavigateToGrounds
                 )
             }
             item {

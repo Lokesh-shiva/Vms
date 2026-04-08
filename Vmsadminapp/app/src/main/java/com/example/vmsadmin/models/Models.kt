@@ -157,6 +157,25 @@ data class UpdateCartRequest(
 )
 
 @Serializable
+data class Ground(
+    val id: Int,
+    val name: String,
+    val sport_id: Int,
+    val location_id: Int,
+    val status: String,
+    val is_active: Boolean = true,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class UpdateGroundRequest(
+    val is_active: Boolean? = null
+)
+
+@Serializable
 data class FeeConfig(
     val id: Int,
     val region_id: Int,
@@ -256,4 +275,49 @@ data class CreateMatchRequest(
     val region_id: Int,
     val max_players: Int,
     val skill_level: String? = null
+)
+
+// --- System Configuration Models ---
+
+@Serializable
+data class SystemConfig(
+    val id: Int,
+    val key: String,
+    val value: String,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class UpdateConfigRequest(
+    val value: String
+)
+
+@Serializable
+data class SystemConfigResponse(
+    val success: Boolean,
+    val data: SystemConfig? = null,
+    val message: String? = null
+)
+
+@Serializable
+data class SystemConfigListResponse(
+    val success: Boolean,
+    val data: List<SystemConfig>? = null,
+    val message: String? = null
+)
+
+// --- Queue Stats Models ---
+
+@Serializable
+data class QueueStat(
+    val sport_id: Int,
+    val region_id: Int,
+    val count: Int
+)
+
+@Serializable
+data class QueueStatsResponse(
+    val success: Boolean,
+    val data: List<QueueStat>? = null,
+    val message: String? = null
 )

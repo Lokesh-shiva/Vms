@@ -15,6 +15,7 @@ import com.example.vmsadmin.viewmodel.CartViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.FeeConfigViewModel
 import com.example.vmsadmin.viewmodel.ItemViewModel
+import com.example.vmsadmin.viewmodel.GroundViewModel
 import com.example.vmsadmin.viewmodel.MatchViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
@@ -33,6 +34,7 @@ fun AppNavigation(
     feeConfigViewModel: FeeConfigViewModel,
     itemViewModel: ItemViewModel,
     matchViewModel: MatchViewModel,
+    groundViewModel: GroundViewModel,
     startDestination: String
 ) {
     val navController = rememberNavController()
@@ -68,7 +70,8 @@ fun AppNavigation(
                 cartViewModel = cartViewModel,
                 feeConfigViewModel = feeConfigViewModel,
                 itemViewModel = itemViewModel,
-                matchViewModel = matchViewModel
+                matchViewModel = matchViewModel,
+                groundViewModel = groundViewModel
             )
         }
     }

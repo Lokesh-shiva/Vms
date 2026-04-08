@@ -31,6 +31,7 @@ import com.example.vmsadmin.viewmodel.CartTypeViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModel
 import com.example.vmsadmin.viewmodel.FeeConfigViewModel
 import com.example.vmsadmin.viewmodel.ItemViewModel
+import com.example.vmsadmin.viewmodel.GroundViewModel
 import com.example.vmsadmin.viewmodel.MatchViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
@@ -54,7 +55,8 @@ fun MainScreen(
     cartViewModel: CartViewModel,
     feeConfigViewModel: FeeConfigViewModel,
     itemViewModel: ItemViewModel,
-    matchViewModel: MatchViewModel
+    matchViewModel: MatchViewModel,
+    groundViewModel: GroundViewModel
 ) {
     val navController = rememberNavController()
 
@@ -154,6 +156,9 @@ fun MainScreen(
                     },
                     onNavigateToMatches = {
                         navController.navigate("manage/matches")
+                    },
+                    onNavigateToGrounds = {
+                        navController.navigate("manage/grounds")
                     }
                 )
             }
@@ -191,6 +196,12 @@ fun MainScreen(
             composable("manage/matches") {
                 MatchesScreen(
                     viewModel = matchViewModel,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable("manage/grounds") {
+                GroundsScreen(
+                    viewModel = groundViewModel,
                     onBack = { navController.popBackStack() }
                 )
             }
