@@ -28,6 +28,15 @@ class SystemConfigRepository:
         finally:
             session.close()
 
+    def get_all(self):
+        """Retrieve all configuration values."""
+        session = self._session_factory()
+        try:
+            configs = session.query(SystemConfig).all()
+            return [config.to_dict() for config in configs]
+        finally:
+            session.close()
+
     def set(self, key: str, value: str) -> dict:
         """Set a config value. Creates if not exists, updates if it does."""
         session = self._session_factory()

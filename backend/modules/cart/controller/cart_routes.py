@@ -4,7 +4,10 @@ from modules.cart.service.cart_service import CartService
 from modules.cart.schemas.cart_schema import CreateCartSchema, UpdateCartSchema
 
 
-router = APIRouter(prefix="/api/v1/carts", tags=["Carts"])
+router = APIRouter(
+    prefix="/api/v1/carts",
+    tags=["Carts (deprecated — use /api/v1/grounds)"],
+)
 
 cart_service = CartService()
 
@@ -17,9 +20,9 @@ def _success(data, message: str = "Success") -> dict:
 
 # ── Endpoints ─────────────────────────────────────────────────────────
 
-@router.post("", status_code=201, dependencies=[Depends(require_admin)])
+@router.post("", status_code=201, dependencies=[Depends(require_admin)], deprecated=True)
 def create_cart(request_data: dict):
-    """Create a new cart."""
+    """**Deprecated** — use `POST /api/v1/grounds` instead."""
     schema = CreateCartSchema(request_data)
     if not schema.is_valid():
         raise HTTPException(status_code=400, detail=schema.errors)
@@ -31,25 +34,25 @@ def create_cart(request_data: dict):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("")
+@router.get("", deprecated=True)
 def list_carts():
-    """Retrieve all carts."""
+    """**Deprecated** — use `GET /api/v1/grounds` instead."""
     carts = cart_service.list_carts()
     return _success(carts)
 
 
-@router.get("/{cart_id}")
+@router.get("/{cart_id}", deprecated=True)
 def get_cart(cart_id: int):
-    """Retrieve a cart by ID."""
+    """**Deprecated** — use `GET /api/v1/grounds/{ground_id}` instead."""
     cart = cart_service.get_cart(cart_id)
     if not cart:
         raise HTTPException(status_code=404, detail="Cart not found.")
     return _success(cart)
 
 
-@router.put("/{cart_id}", dependencies=[Depends(require_admin)])
+@router.put("/{cart_id}", dependencies=[Depends(require_admin)], deprecated=True)
 def update_cart(cart_id: int, request_data: dict):
-    """Update an existing cart."""
+    """**Deprecated** — use `PUT /api/v1/grounds/{ground_id}` instead."""
     schema = UpdateCartSchema(request_data)
     if not schema.is_valid():
         raise HTTPException(status_code=400, detail=schema.errors)
@@ -63,9 +66,9 @@ def update_cart(cart_id: int, request_data: dict):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.delete("/{cart_id}", dependencies=[Depends(require_admin)])
+@router.delete("/{cart_id}", dependencies=[Depends(require_admin)], deprecated=True)
 def delete_cart(cart_id: int):
-    """Delete a cart by ID."""
+    """**Deprecated** — use `DELETE /api/v1/grounds/{ground_id}` instead."""
     try:
         deleted = cart_service.delete_cart(cart_id)
     except ValueError as e:

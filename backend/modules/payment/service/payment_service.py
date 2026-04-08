@@ -59,6 +59,7 @@ class PaymentService(BaseService):
         Raises ValueError if match or booking is not found.
         """
         from modules.match.model.match_model import Match as MatchORM, MatchPlayer
+        from modules.payment.model.payment_model import Payment as PaymentORM
         from core.database.db_connection import SessionLocal
 
         session = SessionLocal()
@@ -72,6 +73,18 @@ class PaymentService(BaseService):
                     f"Match {match_id} has no associated booking. "
                     "Cannot create split payments."
                 )
+
+            # ── Idempotency guard ────────────────────────────────────────
+            # If payments were already created for this match (e.g. duplicate
+            # finish call or retry after a partial failure), return them as-is.
+            existing_payments = (
+                session.query(PaymentORM)
+                .filter(PaymentORM.match_id == match_id)
+                .all()
+            )
+            if existing_payments:
+                return [p.to_dict() for p in existing_payments]
+            # ─────────────────────────────────────────────────────────────
 
             booking = self.booking_repository.find_by_id(match.booking_id)
             if not booking:

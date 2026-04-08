@@ -5,6 +5,7 @@ from modules.auth.dependencies.auth_dependencies import (
     require_user,
 )
 from modules.match.service.match_service import match_service
+from modules.match.repository.match_event_repository import match_event_repository
 from modules.match.schemas.match_schema import CreateMatchSchema, MatchArriveSchema
 
 
@@ -123,3 +124,10 @@ def list_matches(
     """
     matches = match_service.list_matches(cart_type_id=sport_id, region_id=region_id)
     return _success(matches)
+
+
+@router.get("/{match_id}/events", dependencies=[Depends(require_admin)])
+def get_match_events(match_id: int):
+    """Return the full audit log for a match. Admin only."""
+    events = match_event_repository.find_by_match_id(match_id)
+    return _success(events)

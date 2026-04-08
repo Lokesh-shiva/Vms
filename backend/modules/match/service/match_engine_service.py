@@ -129,17 +129,19 @@ class MatchEngineService:
 
         The caller is responsible for committing or rolling back the session.
         """
-        deadline = datetime.utcnow() - timedelta(minutes=20)
+        from core.config.app_config import get_int
+        arrival_timeout_min = get_int("MATCH_ARRIVAL_TIMEOUT_MINUTES")
+        penalty_hours = get_int("GHOST_PENALTY_HOURS")
+        strikes_before_penalty = get_int("GHOST_STRIKES_BEFORE_PENALTY")
+
+        deadline = datetime.utcnow() - timedelta(minutes=arrival_timeout_min)
         stale_matches = (
             session.query(Match)
             .filter(Match.status == "MATCHED", Match.created_at < deadline)
             .all()
         )
 
-        if not stale_matches:
-            return
-
-        penalty_expiry = datetime.utcnow() + timedelta(hours=4)
+        penalty_expiry = datetime.utcnow() + timedelta(hours=penalty_hours)
         priority_timestamp = datetime.utcnow() - timedelta(hours=2)
 
         for match in stale_matches:
@@ -177,15 +179,15 @@ class MatchEngineService:
                     continue
 
                 current_strikes = user.ghost_strikes or 0
-                if current_strikes < 2:
+                if current_strikes < strikes_before_penalty:
                     # Excuse: increment strikes, no penalty
                     self._user_repository.increment_ghost_strikes(player.user_id, session=session)
                     logger.info(
-                        "Match %d: user_id=%d excused (strike %d/2)",
-                        match.id, player.user_id, current_strikes + 1,
+                        "Match %d: user_id=%d excused (strike %d/%d)",
+                        match.id, player.user_id, current_strikes + 1, strikes_before_penalty,
                     )
                 else:
-                    # 3rd offence: reset strikes and issue MatchPenalty
+                    # Exceeded threshold: reset strikes and issue MatchPenalty
                     self._user_repository.reset_ghost_strikes(player.user_id, session=session)
                     penalty = MatchPenalty(
                         user_id=player.user_id,
@@ -231,6 +233,22 @@ class MatchEngineService:
             logger.info(
                 "Match %d marked CANCELLED_NO_SHOW (%d ghost(s), %d re-queued)",
                 match.id, len(ghost_players), len(arrived_players),
+            )
+
+        # ── Safety net: cancel IN_PROGRESS matches that never finished ──
+        from core.config.app_config import get_int as _get_int
+        in_progress_timeout_h = _get_int("MATCH_IN_PROGRESS_TIMEOUT_HOURS")
+        stuck_deadline = datetime.utcnow() - timedelta(hours=in_progress_timeout_h)
+        stuck_matches = (
+            session.query(Match)
+            .filter(Match.status == "IN_PROGRESS", Match.updated_at < stuck_deadline)
+            .all()
+        )
+        for match in stuck_matches:
+            match.status = "CANCELLED"
+            logger.warning(
+                "Match %d force-cancelled: stuck IN_PROGRESS for >%dh",
+                match.id, in_progress_timeout_h,
             )
 
     def _attempt_match_for_group(

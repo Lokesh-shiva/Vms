@@ -25,7 +25,9 @@ from modules.user.controller.user_routes import router as user_router
 from modules.location.controller.location_routes import router as location_router
 from modules.timeslot.controller.timeslot_routes import router as timeslot_router
 from modules.cart_type.controller.cart_type_routes import router as cart_type_router
+from modules.cart_type.controller.sport_routes import router as sport_router
 from modules.cart.controller.cart_routes import router as cart_router
+from modules.cart.controller.ground_routes import router as ground_router
 from modules.item.controller.item_routes import router as item_router
 from modules.booking.controller.booking_routes import router as booking_router
 from modules.payment.controller.payment_routes import router as payment_router
@@ -37,6 +39,7 @@ from modules.matchmaking.controller.matchmaking_routes import router as matchmak
 from modules.pricing.controller.pricing_routes import router as pricing_router
 from modules.match.controller.match_engine_routes import router as engine_router
 from modules.match.model.match_model import Match, MatchPlayer  # noqa: F401 — registers models
+from modules.match.model.match_event_model import MatchEvent  # noqa: F401 — registers model
 from modules.payment.model.payment_model import Payment  # noqa: F401 — registers model
 from modules.payment.model.system_config_model import SystemConfig  # noqa: F401 — registers model
 from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401 — registers model
@@ -98,8 +101,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(user_router)
 app.include_router(location_router)
 app.include_router(timeslot_router)
-app.include_router(cart_type_router)
-app.include_router(cart_router)
+app.include_router(sport_router)       # /api/v1/sports  (domain name)
+app.include_router(ground_router)      # /api/v1/grounds (domain name)
+app.include_router(cart_type_router)   # /api/v1/cart-types (deprecated)
+app.include_router(cart_router)        # /api/v1/carts      (deprecated)
 app.include_router(item_router)
 app.include_router(booking_router)
 app.include_router(payment_router)

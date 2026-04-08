@@ -1,5 +1,6 @@
 from core.base.base_service import BaseService
 from modules.match.repository.match_repository import match_repository as _default_match_repo
+from modules.match.repository.match_event_repository import match_event_repository as _default_event_repo
 from modules.cart.repository.cart_repository import cart_repository as _default_cart_repo
 from modules.timeslot.repository.timeslot_repository import timeslot_repository as _default_timeslot_repo
 from modules.cart_type.repository.cart_type_repository import cart_type_repository as _default_cart_type_repo
@@ -25,6 +26,7 @@ class MatchService(BaseService):
         timeslot_repository=None,
         cart_type_repository=None,
         location_repository=None,
+        event_repository=None,
     ):
         super().__init__()
         self.match_repo = match_repository or _default_match_repo
@@ -32,6 +34,7 @@ class MatchService(BaseService):
         self.timeslot_repo = timeslot_repository or _default_timeslot_repo
         self.cart_type_repo = cart_type_repository or _default_cart_type_repo
         self.location_repo = location_repository or _default_location_repo
+        self.event_repo = event_repository or _default_event_repo
 
     # ── Helpers ───────────────────────────────────────────────────────
 
@@ -117,6 +120,10 @@ class MatchService(BaseService):
             self.match_repo.add_player_standalone(match["id"], user_id)
 
             session.commit()
+
+            self.event_repo.log(match["id"], "MATCH_CREATED", user_id=user_id,
+                                meta={"max_players": data["max_players"]})
+            self.event_repo.log(match["id"], "PLAYER_JOINED", user_id=user_id)
             return match
         except Exception:
             session.rollback()
@@ -190,12 +197,15 @@ class MatchService(BaseService):
             # 8. Commit
             session.commit()
             session.refresh(match_orm)
-            return match_orm.to_dict()
+            result = match_orm.to_dict()
         except Exception:
             session.rollback()
             raise
         finally:
             session.close()
+
+        self.event_repo.log(match_id, "PLAYER_JOINED", user_id=user_id)
+        return result
 
     # ── Leave ─────────────────────────────────────────────────────────
 
@@ -245,17 +255,25 @@ class MatchService(BaseService):
                 self.match_repo.remove_player(match_id, user_id, session)
                 self.match_repo.decrement_player_count(match_id, session)
 
+            is_creator_leaving = match_orm.created_by == user_id
             from datetime import datetime
             match_orm.updated_at = datetime.utcnow()
             session.flush()
             session.commit()
             session.refresh(match_orm)
-            return match_orm.to_dict()
+            result = match_orm.to_dict()
         except Exception:
             session.rollback()
             raise
         finally:
             session.close()
+
+        if is_creator_leaving:
+            self.event_repo.log(match_id, "MATCH_CANCELLED", user_id=user_id,
+                                meta={"reason": "creator_left"})
+        else:
+            self.event_repo.log(match_id, "PLAYER_LEFT", user_id=user_id)
+        return result
 
     # ── Cancel ────────────────────────────────────────────────────────
 
@@ -296,12 +314,16 @@ class MatchService(BaseService):
             match_orm.updated_at = datetime.utcnow()
             session.commit()
             session.refresh(match_orm)
-            return match_orm.to_dict()
+            result = match_orm.to_dict()
         except Exception:
             session.rollback()
             raise
         finally:
             session.close()
+
+        self.event_repo.log(match_id, "MATCH_CANCELLED", user_id=user_id,
+                            meta={"by_admin": is_admin})
+        return result
 
     # ── Complete (Admin) ──────────────────────────────────────────────
 
@@ -406,9 +428,11 @@ class MatchService(BaseService):
             if match_orm.cart_id:
                 cart = session.query(Cart).filter(Cart.id == match_orm.cart_id).first()
                 if cart and cart.latitude is not None and cart.longitude is not None:
+                    from core.config.app_config import get_float
+                    proximity = get_float("MATCH_PROXIMITY_DEGREES")
                     lat_diff = abs(user_lat - cart.latitude)
                     lng_diff = abs(user_lng - cart.longitude)
-                    if lat_diff > 0.005 or lng_diff > 0.005:
+                    if lat_diff > proximity or lng_diff > proximity:
                         raise ValueError(
                             "You are too far from the ground. "
                             "Please move closer to mark your arrival."
@@ -427,20 +451,28 @@ class MatchService(BaseService):
             all_arrived = all(p.has_arrived for p in all_players)
 
             from datetime import datetime
+            now = datetime.utcnow()
             if all_arrived and len(all_players) >= match_orm.max_players:
                 match_orm.status = "IN_PROGRESS"
+                match_orm.started_at = now
             else:
                 match_orm.status = "ARRIVED"
-            match_orm.updated_at = datetime.utcnow()
+            match_orm.updated_at = now
 
             session.commit()
             session.refresh(match_orm)
-            return match_orm.to_dict()
+            new_status = match_orm.status
+            result = match_orm.to_dict()
         except Exception:
             session.rollback()
             raise
         finally:
             session.close()
+
+        self.event_repo.log(match_id, "PLAYER_ARRIVED", user_id=user_id)
+        if new_status == "IN_PROGRESS":
+            self.event_repo.log(match_id, "MATCH_STARTED")
+        return result
 
     # ── Finish ────────────────────────────────────────────────────────
 
@@ -485,15 +517,17 @@ class MatchService(BaseService):
             if match_orm.status in ("COMPLETED", "CANCELLED"):
                 raise ValueError(f"Match is already {match_orm.status}.")
 
+            now = datetime.utcnow()
             match_orm.status = "COMPLETED"
-            match_orm.updated_at = datetime.utcnow()
+            match_orm.completed_at = now
+            match_orm.updated_at = now
 
             # Free the cart back to AVAILABLE
             if match_orm.cart_id:
                 cart = session.query(Cart).filter(Cart.id == match_orm.cart_id).first()
                 if cart:
                     cart.status = "AVAILABLE"
-                    cart.updated_at = datetime.utcnow()
+                    cart.updated_at = now
 
             session.commit()
             session.refresh(match_orm)
@@ -504,12 +538,15 @@ class MatchService(BaseService):
         finally:
             session.close()
 
+        self.event_repo.log(match_id, "MATCH_COMPLETED", user_id=user_id)
+
         # Trigger split payment creation after the match transaction commits.
         # Lazy import avoids circular dependency: MatchService -> PaymentService.
         try:
             from modules.payment.service.payment_service import PaymentService
             payment_service = PaymentService()
             payment_service.create_split_payments(match_id)
+            self.event_repo.log(match_id, "PAYMENT_CREATED")
         except Exception:
             # Payment creation failure must not roll back match completion.
             # The match is already COMPLETED; payments can be retried separately.
