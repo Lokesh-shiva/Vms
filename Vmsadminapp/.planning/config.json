@@ -1,0 +1,16 @@
+{
+  "project": "VMS Admin App",
+  "milestone": "v1.2 Operational Features",
+  "phase_numbering_scheme": "1.x",
+  "research_required": false,
+  "research_reason": "Backend APIs stable, requirements clear from existing system",
+  "frontend_technology": "Android XML",
+  "backend_technology": "Python (FastAPI)",
+  "planning_location": "Vmsadminapp/.planning",
+  "phases_location": "Vmsadminapp/.planning/phases",
+  "architecture_decision": "No refactoring — reuse existing components",
+  "ui_design_complexity": "Simple (tables + forms)",
+  "timeline": "End of month (2026-04-30)",
+  "team_size": "1",
+  "target_audience": "Ops staff (mix of technical and non-technical)"
+}
