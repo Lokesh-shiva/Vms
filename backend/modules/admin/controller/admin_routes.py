@@ -8,7 +8,7 @@ replacing multiple client-side API calls with efficient server-side queries.
 import logging
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, case, cast, Date
+from sqlalchemy import func, case, cast, Date, literal_column
 from sqlalchemy.orm import Session
 
 from pydantic import BaseModel
@@ -59,7 +59,7 @@ def get_dashboard_stats(
         func.count(case(
             (
                 (Booking.status == "COMPLETED") &
-                (cast(Booking.updated_at.op('AT TIME ZONE')('Asia/Kolkata'), Date) == func.current_date()),
+                (cast(literal_column("updated_at AT TIME ZONE 'Asia/Kolkata'"), Date) == func.current_date()),
                 1,
             ),
         )).label("completed_today"),
