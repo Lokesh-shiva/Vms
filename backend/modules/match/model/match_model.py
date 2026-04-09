@@ -33,6 +33,7 @@ class Match(Base):
     region_id = Column(Integer, ForeignKey("locations.id"), nullable=False, index=True)
     cart_type_id = Column(Integer, ForeignKey("cart_types.id"), nullable=False, index=True)
     cart_id = Column(Integer, ForeignKey("carts.id"), nullable=True, index=True)
+    timeslot_id = Column(Integer, ForeignKey("timeslots.id"), nullable=True, index=True)
     booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=True, index=True)
     skill_level = Column(String, nullable=True)
     max_players = Column(Integer, nullable=False, default=2)
@@ -53,6 +54,7 @@ class Match(Base):
             "region_id": self.region_id,
             "cart_type_id": self.cart_type_id,
             "cart_id": self.cart_id,
+            "timeslot_id": self.timeslot_id,
             "booking_id": self.booking_id,
             "skill_level": self.skill_level,
             "max_players": self.max_players,
