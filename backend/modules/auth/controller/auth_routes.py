@@ -51,11 +51,10 @@ def login(request_data: dict):
 
     try:
         token_data = auth_service.login_user(schema.validated_data)
-        return {
+        return _success({
             "access_token": token_data["access_token"],
             "token_type": token_data["token_type"],
             "role": token_data["role"],
-            "message": "Login successful.",
-        }
+        }, "Login successful.")
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
