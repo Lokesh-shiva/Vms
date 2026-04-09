@@ -17,6 +17,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from core.middleware.error_handler import ErrorHandlerMiddleware
@@ -84,6 +85,15 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "message": exc.detail if isinstance(exc.detail, str) else str(exc.detail),
             "detail": exc.detail,
         },
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return FastAPI 422 validation errors in the standard {success, data, message} envelope."""
+    return JSONResponse(
+        status_code=422,
+        content={"success": False, "data": None, "message": "Validation error.", "detail": exc.errors()},
     )
 
 
