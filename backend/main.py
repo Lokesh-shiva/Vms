@@ -119,6 +119,13 @@ app.include_router(engine_router)
 
 # ── Health Check ──────────────────────────────────────────────────────
 
+@app.get("/", tags=["System"])
+@app.head("/", tags=["System"])
+def root():
+    """Root health check — required by Render's deploy probe."""
+    return {"success": True, "data": None, "message": "VMS API is running."}
+
+
 @app.get("/health", tags=["System"])
 def health_check():
     return {"success": True, "data": None, "message": "Server is running."}
@@ -128,4 +135,5 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
