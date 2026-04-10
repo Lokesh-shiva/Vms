@@ -4,12 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.List
-import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,9 +22,8 @@ import com.example.vmsadmin.ui.components.AppCard
 @Composable
 fun ManageScreen(
     onNavigateToRegions: () -> Unit = {},
-    onNavigateToCartTypes: () -> Unit = {},
+    onNavigateToSports: () -> Unit = {},
     onNavigateToTimeslots: () -> Unit = {},
-    onNavigateToCarts: () -> Unit = {},
     onNavigateToFeeConfig: () -> Unit = {},
     onNavigateToItems: () -> Unit = {},
     onNavigateToMatches: () -> Unit = {},
@@ -66,11 +64,11 @@ fun ManageScreen(
             }
             item {
                 ManageCard(
-                    title = "Cart Types",
-                    subtitle = "Configure cart categories and pricing",
-                    icon = Icons.Outlined.ShoppingCart,
+                    title = "Sports",
+                    subtitle = "Configure sport categories",
+                    icon = Icons.Outlined.Star,
                     enabled = true,
-                    onClick = onNavigateToCartTypes
+                    onClick = onNavigateToSports
                 )
             }
             item {
@@ -84,17 +82,8 @@ fun ManageScreen(
             }
             item {
                 ManageCard(
-                    title = "Carts",
-                    subtitle = "Manage cart inventory and assignments",
-                    icon = Icons.Outlined.Build,
-                    enabled = true,
-                    onClick = onNavigateToCarts
-                )
-            }
-            item {
-                ManageCard(
                     title = "Fee Configuration",
-                    subtitle = "Set fees per region and cart type",
+                    subtitle = "Set fees per region and sport",
                     icon = Icons.Outlined.Info,
                     enabled = true,
                     onClick = onNavigateToFeeConfig
@@ -103,7 +92,7 @@ fun ManageScreen(
             item {
                 ManageCard(
                     title = "Items",
-                    subtitle = "Manage menu items by cart type",
+                    subtitle = "Manage menu items by sport",
                     icon = Icons.Outlined.List,
                     enabled = true,
                     onClick = onNavigateToItems

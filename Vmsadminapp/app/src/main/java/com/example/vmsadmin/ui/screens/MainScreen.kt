@@ -139,14 +139,11 @@ fun MainScreen(
                     onNavigateToRegions = {
                         navController.navigate("manage/regions")
                     },
-                    onNavigateToCartTypes = {
-                        navController.navigate("manage/cart-types")
+                    onNavigateToSports = {
+                        navController.navigate("manage/sports")
                     },
                     onNavigateToTimeslots = {
                         navController.navigate("manage/timeslots")
-                    },
-                    onNavigateToCarts = {
-                        navController.navigate("manage/carts")
                     },
                     onNavigateToFeeConfig = {
                         navController.navigate("manage/fee-config")
@@ -165,19 +162,11 @@ fun MainScreen(
             composable("manage/regions") {
                 RegionsScreen(viewModel = regionViewModel, onBack = { navController.popBackStack() })
             }
-            composable("manage/cart-types") {
+            composable("manage/sports") {
                 CartTypesScreen(viewModel = cartTypeViewModel, onBack = { navController.popBackStack() })
             }
             composable("manage/timeslots") {
                 TimeslotsScreen(viewModel = timeslotViewModel, onBack = { navController.popBackStack() })
-            }
-            composable("manage/carts") {
-                CartsScreen(
-                    viewModel = cartViewModel,
-                    regionViewModel = regionViewModel,
-                    cartTypeViewModel = cartTypeViewModel,
-                    onBack = { navController.popBackStack() }
-                )
             }
             composable("manage/fee-config") {
                 FeeConfigScreen(

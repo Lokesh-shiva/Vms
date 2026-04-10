@@ -59,7 +59,7 @@ fun CartTypesScreen(viewModel: CartTypeViewModel, onBack: () -> Unit = {}) {
     // ── Add Cart Type Dialog ─────────────────────────────────────────
     if (uiState.showAddDialog) {
         CartTypeNameDialog(
-            title = "Add Cart Type",
+            title = "Add Sport",
             initialName = "",
             isSubmitting = uiState.isSubmitting,
             onConfirm = { name -> viewModel.addCartType(name) },
@@ -70,7 +70,7 @@ fun CartTypesScreen(viewModel: CartTypeViewModel, onBack: () -> Unit = {}) {
     // ── Edit Cart Type Dialog ────────────────────────────────────────
     if (uiState.showEditDialog && uiState.editingCartType != null) {
         CartTypeNameDialog(
-            title = "Edit Cart Type",
+            title = "Edit Sport",
             initialName = uiState.editingCartType!!.name,
             isSubmitting = uiState.isSubmitting,
             onConfirm = { name -> viewModel.updateCartType(uiState.editingCartType!!.id, name) },
@@ -83,7 +83,7 @@ fun CartTypesScreen(viewModel: CartTypeViewModel, onBack: () -> Unit = {}) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissDeleteConfirm() },
             title = {
-                Text("Delete Cart Type", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("Delete Sport", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             },
             text = {
                 Text("Are you sure you want to delete \"${uiState.deletingCartType!!.name}\"? This action cannot be undone.")
@@ -122,7 +122,7 @@ fun CartTypesScreen(viewModel: CartTypeViewModel, onBack: () -> Unit = {}) {
                 },
                 title = {
                     Text(
-                        "Cart Types",
+                        "Sports",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -139,7 +139,7 @@ fun CartTypesScreen(viewModel: CartTypeViewModel, onBack: () -> Unit = {}) {
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Cart Type")
+                Icon(Icons.Default.Add, contentDescription = "Add Sport")
             }
         }
     ) { innerPadding ->
@@ -192,13 +192,13 @@ fun CartTypesScreen(viewModel: CartTypeViewModel, onBack: () -> Unit = {}) {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "No cart types configured",
+                            text = "No sports configured",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Tap + to add your first cart type",
+                            text = "Tap + to add your first sport",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
@@ -366,11 +366,11 @@ private fun CartTypeNameDialog(
                     name = it
                     isError = it.isBlank()
                 },
-                label = { Text("Cart Type Name") },
+                label = { Text("Sport Name") },
                 singleLine = true,
                 isError = isError,
                 supportingText = if (isError) {
-                    { Text("Cart type name cannot be empty") }
+                    { Text("Sport name cannot be empty") }
                 } else null,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),

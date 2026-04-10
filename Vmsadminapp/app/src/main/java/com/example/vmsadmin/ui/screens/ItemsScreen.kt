@@ -580,7 +580,7 @@ private fun ItemDialog(
                         value = selectedCartType?.name ?: "",
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Cart Type") },
+                        label = { Text("Sport") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
                         isError = cartTypeError,
                         supportingText = if (cartTypeError) {

@@ -640,7 +640,7 @@ private fun FeeConfigFormDialog(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
-                                text = selectedCartTypeName ?: "Select Cart Type",
+                                text = selectedCartTypeName ?: "Select Sport",
                                 modifier = Modifier.weight(1f),
                                 color = if (cartTypeError)
                                     MaterialTheme.colorScheme.error
@@ -703,7 +703,7 @@ private fun FeeConfigFormDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "Cart Type: ${selectedCartTypeName ?: "Type $initialCartTypeId"}",
+                        text = "Sport: ${selectedCartTypeName ?: "Type $initialCartTypeId"}",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
