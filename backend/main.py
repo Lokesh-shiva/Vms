@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
 
 from core.middleware.error_handler import ErrorHandlerMiddleware
 from core.database.db_connection import engine, Base
@@ -65,6 +66,15 @@ app = FastAPI(
 def startup():
     """Create all ORM tables on startup (no-op if they already exist)."""
     Base.metadata.create_all(bind=engine)
+    # Add columns that may be missing from pre-existing tables (no Alembic)
+    with engine.connect() as conn:
+        conn.execute(text(
+            "ALTER TABLE matches ADD COLUMN IF NOT EXISTS started_at TIMESTAMP"
+        ))
+        conn.execute(text(
+            "ALTER TABLE matches ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP"
+        ))
+        conn.commit()
 
 
 # ── Middleware ────────────────────────────────────────────────────────
