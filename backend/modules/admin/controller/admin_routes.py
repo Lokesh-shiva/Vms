@@ -170,6 +170,20 @@ def get_queue_stats(
     ])
 
 
+@router.get("/matches")
+def list_all_matches(
+    current_user: dict = Depends(require_admin),
+):
+    """
+    Return all matches across all statuses, newest first. Admin only.
+
+    This differs from GET /api/v1/matches which only returns OPEN future matches
+    for end-users. Results are enriched with sport_name, region_name, etc.
+    """
+    from modules.match.service.match_service import match_service
+    return _success(match_service.list_all_matches())
+
+
 class UpdateConfigRequest(BaseModel):
     value: str
 

@@ -202,7 +202,7 @@ interface ApiService {
     ): ApiResponse<Ground>
 
     // ── Match endpoints ───────────────────────────────────────────────
-    @GET("/api/v1/matches")
+    @GET("/api/v1/admin/matches")
     suspend fun getMatches(): ApiResponse<List<Match>>
 
     @POST("/api/v1/matches/{match_id}/cancel")

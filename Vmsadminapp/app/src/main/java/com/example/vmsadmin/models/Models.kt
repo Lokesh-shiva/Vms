@@ -251,11 +251,11 @@ data class UpdateItemRequest(
 @Serializable
 data class Match(
     val id: Int,
-    val created_by: Int,
+    val created_by: Int? = null,
     val region_id: Int,
     val cart_type_id: Int,
     val cart_id: Int? = null,
-    val timeslot_id: Int,
+    val timeslot_id: Int? = null,
     val skill_level: String? = null,
     val max_players: Int,
     val joined_players: Int,

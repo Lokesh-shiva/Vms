@@ -85,6 +85,14 @@ class MatchRepository:
         finally:
             session.close()
 
+    def find_all_matches(self) -> list[dict]:
+        """Return all matches across all statuses, newest first."""
+        session = self._session_factory()
+        try:
+            return [m.to_dict() for m in session.query(Match).order_by(Match.created_at.desc()).all()]
+        finally:
+            session.close()
+
     def update(self, match_id: int, data: dict, session=None) -> dict | None:
         """Update match fields."""
         own = session is None

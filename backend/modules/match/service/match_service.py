@@ -376,6 +376,11 @@ class MatchService(BaseService):
         )
         return self._enrich_matches(matches)
 
+    def list_all_matches(self) -> list[dict]:
+        """Return all matches across all statuses (admin use). Enriched with names."""
+        matches = self.match_repo.find_all_matches()
+        return self._enrich_matches(matches)
+
     # ── Arrive ────────────────────────────────────────────────────────
 
     def arrive_match(self, user_id: int, match_id: int, user_lat: float, user_lng: float) -> dict:
