@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from modules.user.service.user_service import UserService
 from modules.user.schemas.user_schema import CreateUserSchema, UpdateUserSchema
+from modules.user.model.user_model import UserRole
 from modules.auth.dependencies.auth_dependencies import (
     _ADMIN_ROLES,
     get_current_user,
@@ -82,14 +83,14 @@ def update_user(
 
     # Guard 2: Role-change — only SUPER_ADMIN may assign/change roles.
     # TODO(phase01-audit): emit audit event here — role change
-    if "role" in request_data and caller_role != "super_admin":
+    if "role" in request_data and caller_role != UserRole.SUPER_ADMIN.value:
         raise HTTPException(
             status_code=403, detail="Only super admins can change user roles."
         )
 
     # Guard 3: Deactivation — only SUPER_ADMIN may set is_active=False.
     # TODO(phase01-audit): emit audit event here — deactivation
-    if request_data.get("is_active") is False and caller_role != "super_admin":
+    if request_data.get("is_active") is False and caller_role != UserRole.SUPER_ADMIN.value:
         raise HTTPException(
             status_code=403, detail="Only super admins can deactivate users."
         )
