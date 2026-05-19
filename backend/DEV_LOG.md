@@ -1,5 +1,59 @@
 # Development Log
 
+## 2026-05-20 — Phase 01: SUPER_ADMIN User Management
+
+### Summary
+Implemented full user management feature for SUPER_ADMIN role. Backend RBAC hardened: only `super_admin` can change roles or deactivate users; self-lockout enforced. Admin app wired end-to-end with four-layer RBAC enforcement.
+
+### Backend — Modified Files
+
+| File | Change |
+|------|--------|
+| `backend/modules/user/controller/user_routes.py` | Replaced loose `_ADMIN_ROLES` guard on role-change with `SUPER_ADMIN`-only check; added self-lockout (caller cannot change own role or deactivate self); added `is_active=False` deactivation guard; added `# TODO(phase01-audit)` hooks on both privileged paths; imported `UserRole` enum for consistency |
+| `backend/modules/user/service/user_service.py` | Mirrored same guards at service layer (defense-in-depth): `SUPER_ADMIN`-only for role-change and deactivation, self-lockout raised as `ValueError`; imported `UserRole` |
+| `backend/modules/auth/tests/test_user_rbac_routes.py` | Added `OPS_MANAGER_USER` fixture + 7 new RBAC tests: super_admin can change role, ops_manager blocked, self role-change blocked, self-deactivation blocked, super_admin can deactivate/reactivate others, invalid role value → 400 |
+| `backend/modules/user/tests/test_user_service.py` | Added 2 service-layer tests: non-super-admin role change raises ValueError, super_admin self role-change raises ValueError |
+
+### Admin App — New Files
+
+| File | Description |
+|------|-------------|
+| `data/UserManagementRepository.kt` | `getUsers()`, `updateRole(id, role)`, `setActive(id, active)` — mirrors RegionRepository pattern with `parseErrorDetail()` |
+| `viewmodel/UserManagementViewModel.kt` | `UserManagementState` sealed class, `loadUsers()`, `changeRole()`, `toggleActive()`, per-row `pendingIds` StateFlow, ViewModel-layer self-mutation guard, `UserManagementViewModelFactory` |
+| `ui/screens/UsersScreen.kt` | Full users screen: shimmer skeleton, pull-to-refresh, per-row overflow menu, role change AlertDialog (8 roles), active/inactive badges, self-row "(you)" with hidden menu (fourth RBAC layer) |
+
+### Admin App — Modified Files
+
+| File | Change |
+|------|--------|
+| `models/Models.kt` | Added `AppUser`, `UpdateUserRequest(role?, is_active?)` (single merged DTO); added `user_id: Int? = null` to `LoginResponse` |
+| `network/ApiService.kt` | Added `getUsers()` and single `updateUser(id, UpdateUserRequest)` endpoints |
+| `data/TokenManager.kt` | Added `USER_ID_KEY`, `userIdFlow: Flow<Int?>`, `saveUserId(id)`, removed USER_ID_KEY in `clearSession()` |
+| `viewmodel/AuthViewModel.kt` | Exposed `currentUserId: StateFlow<Int?>` (SharingStarted.Lazily); saves `user_id` from login response |
+| `ui/screens/PlaceholderScreens.kt` | `ManageScreen` adds `role` and `onNavigateToUsers` params; Users tile rendered only when `role == "super_admin"` (UI-hide layer) |
+| `ui/screens/MainScreen.kt` | Added `USERS_ROLES = setOf("super_admin")`; `manage/users` composable route with role guard → `ForbiddenScreen`; passes `userManagementViewModel` and `currentUserId` to `UsersScreen` |
+| `navigation/AppNavigation.kt` | Added `userManagementViewModel` param; collects `currentUserId` from `authViewModel.currentUserId`; passes both to `MainScreen` |
+| `MainActivity.kt` | Instantiates `UserManagementRepository` + `UserManagementViewModel`; passes to `AppNavigation` |
+
+### Backend Changes
+- `PUT /api/v1/users/{id}`: role-change guard tightened from any `_ADMIN_ROLES` to `SUPER_ADMIN` only
+- New guard: deactivation (`is_active=False`) restricted to `SUPER_ADMIN`
+- New guard: self-lockout — any caller blocked from changing own role or deactivating self
+- Service layer mirrors all three guards (defense-in-depth)
+- Audit TODO hooks left at both privileged paths for phase01-audit integration
+
+### Architectural Decisions
+- **Single `UpdateUserRequest(role?, is_active?)` DTO** instead of two separate DTOs — avoids Retrofit interface duplication for the same URL; keeps the model layer clean
+- **`AppUser` naming** (not `User`) avoids future naming collision with `User` imports in Compose
+- **Four-layer RBAC enforcement** for user management: backend endpoint → service (defense-in-depth) → ViewModel (refuses to call backend) → navigation guard → UI-hide (tile + self-row menu)
+- **`user_id` persisted in DataStore** via `TokenManager` so `UserManagementViewModel` can block self-mutation without a round-trip
+
+### Test Results
+- Backend: 46/46 pass (all new RBAC tests green)
+- Android: `./gradlew assembleDebug` BUILD SUCCESSFUL (0 errors, 1 pre-existing deprecation warning in PlaceholderScreens.kt unrelated to this change)
+
+---
+
 ## 19 Mar 2026 — Day 29: Cart Screen + Checkout + Booking Creation
 
 ### Summary
