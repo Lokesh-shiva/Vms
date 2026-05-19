@@ -19,7 +19,27 @@ data class LoginRequest(
 data class LoginResponse(
     val access_token: String,
     val token_type: String,
-    val role: String? = null
+    val role: String? = null,
+    val user_id: Int? = null
+)
+
+@Serializable
+data class AppUser(
+    val id: Int,
+    val name: String,
+    val phone: String,
+    val role: String,
+    val is_active: Boolean,
+    val region_id: Int? = null,
+    val ghost_strikes: Int = 0,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class UpdateUserRequest(
+    val role: String? = null,
+    val is_active: Boolean? = null
 )
 
 @Serializable
