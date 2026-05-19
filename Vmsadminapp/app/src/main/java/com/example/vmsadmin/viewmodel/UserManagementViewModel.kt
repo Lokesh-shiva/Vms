@@ -24,6 +24,9 @@ class UserManagementViewModel(
     private val _state = MutableStateFlow<UserManagementState>(UserManagementState.Loading)
     val state: StateFlow<UserManagementState> = _state.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     // Set of user IDs currently being mutated — used to disable rows in UI
     private val _pendingIds = MutableStateFlow<Set<Int>>(emptySet())
     val pendingIds: StateFlow<Set<Int>> = _pendingIds.asStateFlow()
@@ -40,6 +43,20 @@ class UserManagementViewModel(
                 _state.value = UserManagementState.Success(users)
             } catch (e: Exception) {
                 _state.value = UserManagementState.Error(e.message ?: "Failed to load users")
+            }
+        }
+    }
+
+    fun refreshUsers() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                val users = repository.getUsers()
+                _state.value = UserManagementState.Success(users)
+            } catch (e: Exception) {
+                _state.value = UserManagementState.Error(e.message ?: "Failed to load users")
+            } finally {
+                _isRefreshing.value = false
             }
         }
     }

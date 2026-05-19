@@ -31,12 +31,12 @@ fun UsersScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val pendingIds by viewModel.pendingIds.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(state) {
-        if (state is UserManagementState.Error) {
-            snackbarHostState.showSnackbar((state as UserManagementState.Error).message)
-        }
+    val errorMessage = (state as? UserManagementState.Error)?.message
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { snackbarHostState.showSnackbar(it) }
     }
 
     Scaffold(
@@ -61,8 +61,9 @@ fun UsersScreen(
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            val currentState = state
             when {
-                state is UserManagementState.Loading -> {
+                currentState is UserManagementState.Loading -> {
                     // Shimmer skeleton
                     LazyColumn(
                         contentPadding = PaddingValues(16.dp),
@@ -92,13 +93,13 @@ fun UsersScreen(
                     }
                 }
 
-                state is UserManagementState.Error -> {
+                currentState is UserManagementState.Error -> {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = (state as UserManagementState.Error).message,
+                            text = currentState.message,
                             color = MaterialTheme.colorScheme.error
                         )
                         Spacer(Modifier.height(12.dp))
@@ -106,8 +107,8 @@ fun UsersScreen(
                     }
                 }
 
-                state is UserManagementState.Success &&
-                        (state as UserManagementState.Success).users.isEmpty() -> {
+                currentState is UserManagementState.Success &&
+                        currentState.users.isEmpty() -> {
                     Text(
                         "No users found.",
                         modifier = Modifier.align(Alignment.Center),
@@ -115,11 +116,11 @@ fun UsersScreen(
                     )
                 }
 
-                state is UserManagementState.Success -> {
-                    val users = (state as UserManagementState.Success).users
+                currentState is UserManagementState.Success -> {
+                    val users = currentState.users
                     PullToRefreshBox(
-                        isRefreshing = false,
-                        onRefresh = { viewModel.loadUsers() },
+                        isRefreshing = isRefreshing,
+                        onRefresh = { viewModel.refreshUsers() },
                         modifier = Modifier.fillMaxSize()
                     ) {
                         LazyColumn(
@@ -186,10 +187,17 @@ private fun UserRow(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.padding(top = 6.dp)
                 ) {
-                    SuggestionChip(
-                        onClick = {},
-                        label = { Text(user.role) }
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                    ) {
+                        Text(
+                            text = user.role,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
                     Surface(
                         shape = RoundedCornerShape(4.dp),
                         color = if (user.is_active)
