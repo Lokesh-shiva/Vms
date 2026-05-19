@@ -1,6 +1,4 @@
 import unittest
-import re
-from unittest.mock import patch
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -25,7 +23,9 @@ from modules.location.repository.location_repository import LocationRepository
 from modules.cart_type.repository.cart_type_repository import CartTypeRepository
 from modules.timeslot.repository.timeslot_repository import TimeslotRepository
 from modules.cart.repository.cart_repository import CartRepository
-from modules.booking_item.repository.booking_item_repository import BookingItemRepository
+from modules.booking_item.repository.booking_item_repository import (
+    BookingItemRepository,
+)
 from modules.booking_item.service.booking_item_service import BookingItemService
 from modules.item.repository.item_repository import ItemRepository
 from modules.payment.repository.payment_repository import PaymentRepository
@@ -57,15 +57,24 @@ class TestPaymentService(unittest.TestCase):
         self.cart_type_repo.create({"name": "Standard"})
 
         self.timeslot_repo = TimeslotRepository(session_factory=test_session_factory)
-        self.timeslot_repo.create({
-            "location_id": 1, "date": "2026-03-01",
-            "start_time": "09:00", "end_time": "10:00", "capacity": 5,
-        })
+        self.timeslot_repo.create(
+            {
+                "location_id": 1,
+                "date": "2026-03-01",
+                "start_time": "09:00",
+                "end_time": "10:00",
+                "capacity": 5,
+            }
+        )
 
         self.cart_repo = CartRepository(session_factory=test_session_factory)
-        self.cart_repo.create({
-            "region_id": 1, "cart_type_id": 1, "status": "AVAILABLE",
-        })
+        self.cart_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "status": "AVAILABLE",
+            }
+        )
 
         self.item_repo = ItemRepository(session_factory=test_session_factory)
         booking_item_repo = BookingItemRepository(session_factory=test_session_factory)
@@ -76,14 +85,16 @@ class TestPaymentService(unittest.TestCase):
 
         # Fee config — 10% cancellation + 5% platform = 15% total deduction
         self.fee_config_repo = FeeConfigRepository(session_factory=test_session_factory)
-        self.fee_config_repo.create({
-            "region_id": 1,
-            "cart_type_id": 1,
-            "booking_fee": 50.0,
-            "cancellation_fee_pct": 10.0,
-            "platform_fee_pct": 5.0,
-            "is_active": True,
-        })
+        self.fee_config_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "booking_fee": 50.0,
+                "cancellation_fee_pct": 10.0,
+                "platform_fee_pct": 5.0,
+                "is_active": True,
+            }
+        )
 
         self.booking_repo = BookingRepository(session_factory=test_session_factory)
         self.payment_repo = PaymentRepository(session_factory=test_session_factory)
@@ -110,8 +121,11 @@ class TestPaymentService(unittest.TestCase):
 
     def _create_booking(self, **overrides) -> dict:
         base = {
-            "user_id": 1, "region_id": 1, "cart_type_id": 1,
-            "timeslot_id": 1, "address": "123 Main St",
+            "user_id": 1,
+            "region_id": 1,
+            "cart_type_id": 1,
+            "timeslot_id": 1,
+            "address": "123 Main St",
         }
         base.update(overrides)
         return self.booking_service.create_booking(base)
@@ -410,10 +424,13 @@ class TestPaymentService(unittest.TestCase):
 
         # Change config to extreme values after booking creation
         config = self.fee_config_repo.find_by_region_and_cart_type(1, 1)
-        self.fee_config_repo.update(config["id"], {
-            "cancellation_fee_pct": 90.0,
-            "platform_fee_pct": 10.0,
-        })
+        self.fee_config_repo.update(
+            config["id"],
+            {
+                "cancellation_fee_pct": 90.0,
+                "platform_fee_pct": 10.0,
+            },
+        )
 
         # Refund uses booking snapshot (10% + 5% = 15%), NOT live config (90% + 10%)
         self.payment_service.process_refund(payment["id"], booking)
@@ -498,9 +515,7 @@ class TestPaymentService(unittest.TestCase):
         self.assertIn("reference_code", pay_result)
 
         # 3. User submits UPI transaction ID
-        self.payment_service.submit_manual_confirmation(
-            booking["id"], "UPI-TXN-HAPPY"
-        )
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI-TXN-HAPPY")
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.assertEqual(payment["status"], "UNDER_REVIEW")
 
@@ -521,7 +536,6 @@ class TestPaymentService(unittest.TestCase):
         cart = self.cart_repo.find_by_id(confirmed["assigned_cart_id"])
         self.assertEqual(cart["status"], "BUSY")
 
-
     def test_admin_payment_config_default(self):
         """Test the system returns default ENV vars initially."""
         config = self.payment_service.get_admin_payment_config()
@@ -539,7 +553,7 @@ class TestPaymentService(unittest.TestCase):
         # Now initiate payment and ensure deep link uses the NEW config
         booking = self._create_booking()
         pmt = self.payment_service.initiate_payment(booking_id=booking["id"])
-        
+
         link = pmt["upi_link"]
         self.assertIn("pa=new@upi", link)
         self.assertIn("pn=NEW%20MERCHANT", link.replace(" ", "%20"))

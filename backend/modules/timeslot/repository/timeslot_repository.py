@@ -45,7 +45,9 @@ class TimeslotRepository:
         """Retrieve a timeslot by ID."""
         session = self._session_factory()
         try:
-            timeslot = session.query(Timeslot).filter(Timeslot.id == timeslot_id).first()
+            timeslot = (
+                session.query(Timeslot).filter(Timeslot.id == timeslot_id).first()
+            )
             return timeslot.to_dict() if timeslot else None
         finally:
             session.close()
@@ -59,8 +61,9 @@ class TimeslotRepository:
         finally:
             session.close()
 
-    def find_by_location_date_start(self, location_id: int, date: str,
-                                     start_time: str) -> dict | None:
+    def find_by_location_date_start(
+        self, location_id: int, date: str, start_time: str
+    ) -> dict | None:
         """Find a timeslot matching the unique constraint (location, date, start_time)."""
         session = self._session_factory()
         try:
@@ -81,12 +84,16 @@ class TimeslotRepository:
         """Update an existing timeslot record. Automatically refreshes updated_at."""
         session = self._session_factory()
         try:
-            timeslot = session.query(Timeslot).filter(Timeslot.id == timeslot_id).first()
+            timeslot = (
+                session.query(Timeslot).filter(Timeslot.id == timeslot_id).first()
+            )
             if not timeslot:
                 return None
 
             for key, value in update_data.items():
-                if key not in ("id", "created_at", "updated_at") and hasattr(timeslot, key):
+                if key not in ("id", "created_at", "updated_at") and hasattr(
+                    timeslot, key
+                ):
                     setattr(timeslot, key, value)
 
             timeslot.updated_at = datetime.utcnow()
@@ -103,7 +110,9 @@ class TimeslotRepository:
         """Delete a timeslot record by ID."""
         session = self._session_factory()
         try:
-            timeslot = session.query(Timeslot).filter(Timeslot.id == timeslot_id).first()
+            timeslot = (
+                session.query(Timeslot).filter(Timeslot.id == timeslot_id).first()
+            )
             if not timeslot:
                 return False
             session.delete(timeslot)

@@ -26,8 +26,8 @@ class TestItemService(unittest.TestCase):
         session_factory = _make_test_session_factory()
 
         self.cart_type_repo = CartTypeRepository(session_factory=session_factory)
-        self.cart_type_repo.create({"name": "Standard"})   # id=1
-        self.cart_type_repo.create({"name": "Premium"})     # id=2
+        self.cart_type_repo.create({"name": "Standard"})  # id=1
+        self.cart_type_repo.create({"name": "Premium"})  # id=2
 
         self.service = ItemService(
             item_repository=ItemRepository(session_factory=session_factory),
@@ -70,6 +70,7 @@ class TestItemService(unittest.TestCase):
         """Price validation is handled at schema level; service trusts validated data.
         This test verifies the schema rejects negative prices."""
         from modules.item.schemas.item_schema import CreateItemSchema
+
         schema = CreateItemSchema(self._valid_data(price=-5.0))
         self.assertFalse(schema.is_valid())
         self.assertTrue(any("price" in e for e in schema.errors))
@@ -77,6 +78,7 @@ class TestItemService(unittest.TestCase):
     def test_create_item_invalid_image_urls(self):
         """Schema rejects image_urls containing non-URL strings."""
         from modules.item.schemas.item_schema import CreateItemSchema
+
         schema = CreateItemSchema(self._valid_data(image_urls=["not-a-url"]))
         self.assertFalse(schema.is_valid())
         self.assertTrue(any("image_urls" in e for e in schema.errors))
@@ -125,7 +127,9 @@ class TestItemService(unittest.TestCase):
         """Filtering items by cart_type_id returns only matching records."""
         self.service.create_item(self._valid_data())
         self.service.create_item(self._valid_data(name="Chai", cart_type_id=2))
-        self.service.create_item(self._valid_data(name="Coffee", cart_type_id=1, price=30.0))
+        self.service.create_item(
+            self._valid_data(name="Coffee", cart_type_id=1, price=30.0)
+        )
 
         type1_items = self.service.list_items_by_cart_type(1)
         type2_items = self.service.list_items_by_cart_type(2)

@@ -44,7 +44,7 @@ class CreateGroundSchema:
     def __init__(self, data: dict):
         self._data = data
         self.errors = []
-        self.validated_data = {}   # translated to internal names
+        self.validated_data = {}  # translated to internal names
 
     def is_valid(self) -> bool:
         self.errors = []
@@ -61,7 +61,9 @@ class CreateGroundSchema:
         # location_id → region_id (required)
         location_id = self._data.get("location_id")
         if location_id is None or not isinstance(location_id, int) or location_id <= 0:
-            self.errors.append("'location_id' is required and must be a positive integer.")
+            self.errors.append(
+                "'location_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["region_id"] = location_id
 

@@ -22,13 +22,14 @@ class BookingItemService(BaseService):
 
     def __init__(self, booking_item_repository=None, item_repository=None):
         super().__init__()
-        self.booking_item_repository = booking_item_repository or _default_booking_item_repo
+        self.booking_item_repository = (
+            booking_item_repository or _default_booking_item_repo
+        )
         self.item_repository = item_repository or _default_item_repo
 
     # ── Validation (no persistence) ──────────────────────────────────
 
-    def validate_items(self, cart_type_id: int,
-                       items_input: list[dict]) -> list[dict]:
+    def validate_items(self, cart_type_id: int, items_input: list[dict]) -> list[dict]:
         """
         Validate each item entry and return sanitized snapshots.
 
@@ -64,9 +65,7 @@ class BookingItemService(BaseService):
             # 2. Validate item exists
             item = self.item_repository.find_by_id(item_id)
             if not item:
-                raise ValueError(
-                    f"Item with id {item_id} does not exist."
-                )
+                raise ValueError(f"Item with id {item_id} does not exist.")
 
             # 3. Validate item belongs to the booking's cart_type
             if item["cart_type_id"] != cart_type_id:
@@ -76,16 +75,16 @@ class BookingItemService(BaseService):
 
             # 4. Validate item is available (authoritative state from repo)
             if not item.get("is_available", False):
-                raise ValueError(
-                    f"Item {item_id} is not currently available."
-                )
+                raise ValueError(f"Item {item_id} is not currently available.")
 
             # Snapshot the authoritative price
-            snapshots.append({
-                "item_id": item_id,
-                "quantity": quantity,
-                "unit_price": Decimal(str(item["price"])),
-            })
+            snapshots.append(
+                {
+                    "item_id": item_id,
+                    "quantity": quantity,
+                    "unit_price": Decimal(str(item["price"])),
+                }
+            )
 
         return snapshots
 
@@ -103,8 +102,7 @@ class BookingItemService(BaseService):
             Sum of (quantity * unit_price) across all snapshots.
         """
         return sum(
-            Decimal(str(s["quantity"])) * s["unit_price"]
-            for s in validated_snapshots
+            Decimal(str(s["quantity"])) * s["unit_price"] for s in validated_snapshots
         )
 
     # ── Persistence (after booking exists) ───────────────────────────
@@ -124,11 +122,14 @@ class BookingItemService(BaseService):
         """
         created = []
         for snapshot in validated_snapshots:
-            record = self.booking_item_repository.create({
-                "booking_id": booking_id,
-                "item_id": snapshot["item_id"],
-                "quantity": snapshot["quantity"],
-                "unit_price": snapshot["unit_price"],
-            }, session=session)
+            record = self.booking_item_repository.create(
+                {
+                    "booking_id": booking_id,
+                    "item_id": snapshot["item_id"],
+                    "quantity": snapshot["quantity"],
+                    "unit_price": snapshot["unit_price"],
+                },
+                session=session,
+            )
             created.append(record)
         return created

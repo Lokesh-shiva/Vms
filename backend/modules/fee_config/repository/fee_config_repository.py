@@ -54,7 +54,9 @@ class FeeConfigRepository:
         finally:
             session.close()
 
-    def find_by_region_and_cart_type(self, region_id: int, cart_type_id: int) -> dict | None:
+    def find_by_region_and_cart_type(
+        self, region_id: int, cart_type_id: int
+    ) -> dict | None:
         """Retrieve the active config for a region + cart type combination."""
         session = self._session_factory()
         try:
@@ -92,7 +94,9 @@ class FeeConfigRepository:
                 return None
 
             for key, value in update_data.items():
-                if key not in ("id", "created_at", "updated_at") and hasattr(config, key):
+                if key not in ("id", "created_at", "updated_at") and hasattr(
+                    config, key
+                ):
                     setattr(config, key, value)
 
             config.updated_at = datetime.utcnow()

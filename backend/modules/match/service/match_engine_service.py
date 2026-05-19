@@ -26,7 +26,9 @@ from modules.timeslot.repository.timeslot_repository import (
     timeslot_repository as _default_timeslot_repo,
 )
 from modules.user.model.user_model import User
-from modules.user.repository.user_repository import user_repository as _default_user_repo
+from modules.user.repository.user_repository import (
+    user_repository as _default_user_repo,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +82,9 @@ class MatchEngineService:
             cleanup_session.commit()
         except Exception as exc:
             cleanup_session.rollback()
-            logger.exception("MatchEngineService: cleanup_stale_matches failed — %s", exc)
+            logger.exception(
+                "MatchEngineService: cleanup_stale_matches failed — %s", exc
+            )
         finally:
             cleanup_session.close()
 
@@ -103,7 +107,10 @@ class MatchEngineService:
             outcomes.append(outcome)
             logger.info(
                 "Group (%s, %s, %s) → %s",
-                region_id, sport_id, skill_level, outcome["result"],
+                region_id,
+                sport_id,
+                skill_level,
+                outcome["result"],
             )
 
         return outcomes
@@ -130,6 +137,7 @@ class MatchEngineService:
         The caller is responsible for committing or rolling back the session.
         """
         from core.config.app_config import get_int
+
         arrival_timeout_min = get_int("MATCH_ARRIVAL_TIMEOUT_MINUTES")
         penalty_hours = get_int("GHOST_PENALTY_HOURS")
         strikes_before_penalty = get_int("GHOST_STRIKES_BEFORE_PENALTY")
@@ -151,12 +159,15 @@ class MatchEngineService:
                     self._booking_service.cancel_booking(match.booking_id)
                     logger.info(
                         "Match %d: booking %d cancelled (ground released)",
-                        match.id, match.booking_id,
+                        match.id,
+                        match.booking_id,
                     )
                 except Exception as exc:
                     logger.warning(
                         "Match %d: failed to cancel booking %d — %s",
-                        match.id, match.booking_id, exc,
+                        match.id,
+                        match.booking_id,
+                        exc,
                     )
 
             all_players = (
@@ -174,21 +185,29 @@ class MatchEngineService:
                 if user is None:
                     logger.warning(
                         "Match %d: ghost player user_id=%d not found — skipping",
-                        match.id, player.user_id,
+                        match.id,
+                        player.user_id,
                     )
                     continue
 
                 current_strikes = user.ghost_strikes or 0
                 if current_strikes < strikes_before_penalty:
                     # Excuse: increment strikes, no penalty
-                    self._user_repository.increment_ghost_strikes(player.user_id, session=session)
+                    self._user_repository.increment_ghost_strikes(
+                        player.user_id, session=session
+                    )
                     logger.info(
                         "Match %d: user_id=%d excused (strike %d/%d)",
-                        match.id, player.user_id, current_strikes + 1, strikes_before_penalty,
+                        match.id,
+                        player.user_id,
+                        current_strikes + 1,
+                        strikes_before_penalty,
                     )
                 else:
                     # Exceeded threshold: reset strikes and issue MatchPenalty
-                    self._user_repository.reset_ghost_strikes(player.user_id, session=session)
+                    self._user_repository.reset_ghost_strikes(
+                        player.user_id, session=session
+                    )
                     penalty = MatchPenalty(
                         user_id=player.user_id,
                         match_id=match.id,
@@ -198,7 +217,8 @@ class MatchEngineService:
                     session.add(penalty)
                     logger.info(
                         "Match %d: MatchPenalty issued for user_id=%d (strikes reset, 4h block)",
-                        match.id, player.user_id,
+                        match.id,
+                        player.user_id,
                     )
 
             # Process arrived players — re-queue with priority
@@ -226,17 +246,22 @@ class MatchEngineService:
                 )
                 logger.info(
                     "Match %d: user_id=%d re-queued with priority (created_at=%s, reason=RE_QUEUE_OPPONENT_NO_SHOW)",
-                    match.id, player.user_id, priority_timestamp.isoformat(),
+                    match.id,
+                    player.user_id,
+                    priority_timestamp.isoformat(),
                 )
 
             match.status = "CANCELLED_NO_SHOW"
             logger.info(
                 "Match %d marked CANCELLED_NO_SHOW (%d ghost(s), %d re-queued)",
-                match.id, len(ghost_players), len(arrived_players),
+                match.id,
+                len(ghost_players),
+                len(arrived_players),
             )
 
         # ── Safety net: cancel IN_PROGRESS matches that never finished ──
         from core.config.app_config import get_int as _get_int
+
         in_progress_timeout_h = _get_int("MATCH_IN_PROGRESS_TIMEOUT_HOURS")
         stuck_deadline = datetime.utcnow() - timedelta(hours=in_progress_timeout_h)
         stuck_matches = (
@@ -248,7 +273,8 @@ class MatchEngineService:
             match.status = "CANCELLED"
             logger.warning(
                 "Match %d force-cancelled: stuck IN_PROGRESS for >%dh",
-                match.id, in_progress_timeout_h,
+                match.id,
+                in_progress_timeout_h,
             )
 
     def _attempt_match_for_group(
@@ -276,7 +302,11 @@ class MatchEngineService:
             if len(entries) < 2:
                 # Another worker may have just grabbed these rows — skip silently
                 session.rollback()
-                return {"group": group_key, "result": "skipped", "reason": "insufficient_locked_rows"}
+                return {
+                    "group": group_key,
+                    "result": "skipped",
+                    "reason": "insufficient_locked_rows",
+                }
 
             entry_a, entry_b = entries[0], entries[1]  # FIFO: a is older
             creator_id = entry_a.user_id
@@ -321,13 +351,16 @@ class MatchEngineService:
             session.rollback()
             logger.warning(
                 "Group %s: booking failed, users returned to WAITING — %s",
-                group_key, exc,
+                group_key,
+                exc,
             )
             return {"group": group_key, "result": "no_ground", "reason": str(exc)}
 
         except Exception as exc:
             session.rollback()
-            logger.exception("Group %s: unexpected error during matching — %s", group_key, exc)
+            logger.exception(
+                "Group %s: unexpected error during matching — %s", group_key, exc
+            )
             return {"group": group_key, "result": "error", "reason": str(exc)}
 
         finally:
@@ -357,20 +390,17 @@ class MatchEngineService:
         # Filter to today's timeslots for this region, sort by start_time
         todays_slots = sorted(
             [
-                ts for ts in all_timeslots
+                ts
+                for ts in all_timeslots
                 if ts.get("location_id") == region_id and ts.get("date") == today
             ],
             key=lambda ts: ts.get("start_time", ""),
         )
         if not todays_slots:
-            raise ValueError(
-                f"No timeslots found for region {region_id} on {today}."
-            )
+            raise ValueError(f"No timeslots found for region {region_id} on {today}.")
         return todays_slots[0]["id"]
 
-    def _secure_booking_for_match(
-        self, match: Match, creator_id: int, session
-    ) -> None:
+    def _secure_booking_for_match(self, match: Match, creator_id: int, session) -> None:
         """
         Atomically create a CONFIRMED booking (with a claimed cart) for the match.
 
@@ -402,9 +432,11 @@ class MatchEngineService:
         match.booking_id = booking.get("id")
         logger.info(
             "Match %d: instant booking %d (cart %s) CONFIRMED for creator user %d",
-            match.id, booking["id"], match.cart_id, creator_id,
+            match.id,
+            booking["id"],
+            match.cart_id,
+            creator_id,
         )
-
 
 
 # ── Shared singleton ──────────────────────────────────────────────────

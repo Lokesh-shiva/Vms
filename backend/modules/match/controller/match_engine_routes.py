@@ -9,7 +9,7 @@ Security: protected by a pre-shared secret header (X-Cron-Secret).
 
 import os
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 
 from modules.match.service.match_engine_service import match_engine_service
@@ -19,6 +19,7 @@ router = APIRouter(prefix="/engine", tags=["Match Engine"])
 
 
 # ── Endpoint ──────────────────────────────────────────────────────────
+
 
 @router.post("/trigger")
 async def trigger_matching_cycle(

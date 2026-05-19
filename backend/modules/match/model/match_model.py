@@ -1,6 +1,14 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, UniqueConstraint
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Boolean,
+    ForeignKey,
+    DateTime,
+    UniqueConstraint,
+)
 
 from core.database.db_connection import Base
 
@@ -24,14 +32,24 @@ class Match(Base):
 
     __tablename__ = "matches"
 
-    VALID_STATUSES = {"WAITING", "MATCHED", "ARRIVED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "CANCELLED_NO_SHOW"}
+    VALID_STATUSES = {
+        "WAITING",
+        "MATCHED",
+        "ARRIVED",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "CANCELLED",
+        "CANCELLED_NO_SHOW",
+    }
     VALID_SKILL_LEVELS = {"BEGINNER", "INTERMEDIATE", "ADVANCED"}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     sport_id = Column(Integer, ForeignKey("sports.id"), nullable=True, index=True)
     region_id = Column(Integer, ForeignKey("locations.id"), nullable=False, index=True)
-    cart_type_id = Column(Integer, ForeignKey("cart_types.id"), nullable=False, index=True)
+    cart_type_id = Column(
+        Integer, ForeignKey("cart_types.id"), nullable=False, index=True
+    )
     cart_id = Column(Integer, ForeignKey("carts.id"), nullable=True, index=True)
     timeslot_id = Column(Integer, ForeignKey("timeslots.id"), nullable=True, index=True)
     booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=True, index=True)
@@ -39,7 +57,7 @@ class Match(Base):
     max_players = Column(Integer, nullable=False, default=2)
     joined_players = Column(Integer, nullable=False, default=0)
     status = Column(String, nullable=False, default="WAITING")
-    started_at = Column(DateTime, nullable=True)    # set when IN_PROGRESS
+    started_at = Column(DateTime, nullable=True)  # set when IN_PROGRESS
     completed_at = Column(DateTime, nullable=True)  # set when COMPLETED
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
@@ -61,7 +79,9 @@ class Match(Base):
             "joined_players": self.joined_players,
             "status": self.status,
             "started_at": self.started_at.isoformat() if self.started_at else None,
-            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "completed_at": self.completed_at.isoformat()
+            if self.completed_at
+            else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -80,9 +100,7 @@ class MatchPlayer(Base):
 
     __tablename__ = "match_players"
 
-    __table_args__ = (
-        UniqueConstraint("match_id", "user_id", name="uq_match_player"),
-    )
+    __table_args__ = (UniqueConstraint("match_id", "user_id", name="uq_match_player"),)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     match_id = Column(Integer, ForeignKey("matches.id"), nullable=False, index=True)

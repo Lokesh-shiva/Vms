@@ -7,6 +7,7 @@ Test users (login via phone):
   3. +10000000003 / TestPassword123! — region_id=1 (TC008)
   4. +10000000004 / StrongPassw0rd! — region_id=1 (TC006)
 """
+
 import sys
 import os
 
@@ -71,7 +72,7 @@ def run():
                 session.add(user)
                 session.commit()
                 print(f"CREATED: {u['phone']} (region_id={u['region_id']})")
-    except Exception as e:
+    except Exception:
         session.rollback()
         raise
     finally:

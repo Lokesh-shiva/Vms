@@ -19,11 +19,7 @@ class SystemConfigRepository:
         """Retrieve a config value by key. Returns None if not found."""
         session = self._session_factory()
         try:
-            config = (
-                session.query(SystemConfig)
-                .filter(SystemConfig.key == key)
-                .first()
-            )
+            config = session.query(SystemConfig).filter(SystemConfig.key == key).first()
             return config.value if config else None
         finally:
             session.close()
@@ -41,11 +37,7 @@ class SystemConfigRepository:
         """Set a config value. Creates if not exists, updates if it does."""
         session = self._session_factory()
         try:
-            config = (
-                session.query(SystemConfig)
-                .filter(SystemConfig.key == key)
-                .first()
-            )
+            config = session.query(SystemConfig).filter(SystemConfig.key == key).first()
             if config:
                 config.value = value
                 config.updated_at = datetime.utcnow()

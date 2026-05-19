@@ -35,6 +35,7 @@ Base = declarative_base()
 
 # ── FastAPI Dependency ───────────────────────────────────────────────
 
+
 def get_db():
     """
     Yield a database session for the duration of a request.

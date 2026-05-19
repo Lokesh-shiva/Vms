@@ -11,14 +11,14 @@ _DEFAULT_BASE_PRICE = 200.0
 
 # Peak-hour window (24h format)
 _PEAK_START = 17  # 5 PM
-_PEAK_END = 21    # 9 PM
+_PEAK_END = 21  # 9 PM
 _PEAK_MULTIPLIER = 1.5
 
 # Demand thresholds → multipliers
 _DEMAND_TIERS = [
-    (10, 1.5),   # 10+ queued → 1.5x
-    (5, 1.25),   # 5-9 queued → 1.25x
-    (0, 1.0),    # 0-4 queued → 1.0x (no surge)
+    (10, 1.5),  # 10+ queued → 1.5x
+    (5, 1.25),  # 5-9 queued → 1.25x
+    (0, 1.0),  # 0-4 queued → 1.0x (no surge)
 ]
 
 

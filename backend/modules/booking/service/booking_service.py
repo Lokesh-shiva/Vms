@@ -2,16 +2,34 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 
 from core.base.base_service import BaseService
-from modules.booking.repository.booking_repository import booking_repository as _default_booking_repo
-from modules.user.repository.user_repository import user_repository as _default_user_repo
-from modules.location.repository.location_repository import location_repository as _default_location_repo
-from modules.cart_type.repository.cart_type_repository import cart_type_repository as _default_cart_type_repo
-from modules.timeslot.repository.timeslot_repository import timeslot_repository as _default_timeslot_repo
-from modules.cart.repository.cart_repository import cart_repository as _default_cart_repo
+from modules.booking.repository.booking_repository import (
+    booking_repository as _default_booking_repo,
+)
+from modules.user.repository.user_repository import (
+    user_repository as _default_user_repo,
+)
+from modules.location.repository.location_repository import (
+    location_repository as _default_location_repo,
+)
+from modules.cart_type.repository.cart_type_repository import (
+    cart_type_repository as _default_cart_type_repo,
+)
+from modules.timeslot.repository.timeslot_repository import (
+    timeslot_repository as _default_timeslot_repo,
+)
+from modules.cart.repository.cart_repository import (
+    cart_repository as _default_cart_repo,
+)
 from modules.booking_item.service.booking_item_service import BookingItemService
-from modules.payment.repository.payment_repository import payment_repository as _default_payment_repo
-from modules.payment.service.payment_service import PaymentService as _DefaultPaymentService
-from modules.fee_config.repository.fee_config_repository import fee_config_repository as _default_fee_config_repo
+from modules.payment.repository.payment_repository import (
+    payment_repository as _default_payment_repo,
+)
+from modules.payment.service.payment_service import (
+    PaymentService as _DefaultPaymentService,
+)
+from modules.fee_config.repository.fee_config_repository import (
+    fee_config_repository as _default_fee_config_repo,
+)
 
 
 # ── Constants ─────────────────────────────────────────────────────────
@@ -36,11 +54,19 @@ class BookingService(BaseService):
     That field is owned exclusively by PaymentService.
     """
 
-    def __init__(self, booking_repository=None, user_repository=None,
-                 location_repository=None, cart_type_repository=None,
-                 timeslot_repository=None, cart_repository=None,
-                 booking_item_service=None, payment_repository=None,
-                 payment_service=None, fee_config_repository=None):
+    def __init__(
+        self,
+        booking_repository=None,
+        user_repository=None,
+        location_repository=None,
+        cart_type_repository=None,
+        timeslot_repository=None,
+        cart_repository=None,
+        booking_item_service=None,
+        payment_repository=None,
+        payment_service=None,
+        fee_config_repository=None,
+    ):
         super().__init__()
         self.booking_repository = booking_repository or _default_booking_repo
         self.user_repository = user_repository or _default_user_repo
@@ -82,7 +108,9 @@ class BookingService(BaseService):
 
     # ── Business Rule Helpers ─────────────────────────────────────────
 
-    def _enforce_slot_capacity(self, timeslot_id: int, capacity: int, session=None) -> None:
+    def _enforce_slot_capacity(
+        self, timeslot_id: int, capacity: int, session=None
+    ) -> None:
         """Ensure the timeslot has not reached its booking capacity.
 
         Only CONFIRMED and IN_PROGRESS bookings count toward capacity.
@@ -113,8 +141,7 @@ class BookingService(BaseService):
             user_id, date, session=session
         )
         active_bookings = [
-            b for b in user_bookings
-            if b["status"] in ("CONFIRMED", "IN_PROGRESS")
+            b for b in user_bookings if b["status"] in ("CONFIRMED", "IN_PROGRESS")
         ]
         if len(active_bookings) >= MAX_BOOKINGS_PER_USER_PER_DAY:
             raise ValueError(
@@ -122,19 +149,25 @@ class BookingService(BaseService):
                 f"bookings per day."
             )
 
-    def _find_available_cart(self, region_id: int, cart_type_id: int, session=None) -> dict:
+    def _find_available_cart(
+        self, region_id: int, cart_type_id: int, session=None
+    ) -> dict:
         """Find an available cart matching the region and cart type.
 
         Raises ValueError if no cart is available.
         """
         all_carts = self.cart_repository.find_all(session=session)
         for cart in all_carts:
-            if (cart["region_id"] == region_id
-                    and cart["cart_type_id"] == cart_type_id
-                    and cart["status"] == "AVAILABLE"
-                    and cart.get("is_active", True)):
+            if (
+                cart["region_id"] == region_id
+                and cart["cart_type_id"] == cart_type_id
+                and cart["status"] == "AVAILABLE"
+                and cart.get("is_active", True)
+            ):
                 return cart
-        raise ValueError("No available cart found for the selected region and cart type.")
+        raise ValueError(
+            "No available cart found for the selected region and cart type."
+        )
 
     def _check_and_expire(self, booking: dict) -> dict:
         """Check if a PENDING_PAYMENT booking should be expired.
@@ -149,9 +182,12 @@ class BookingService(BaseService):
             created_at = datetime.fromisoformat(created_at)
 
         if datetime.utcnow() - created_at > timedelta(minutes=BOOKING_EXPIRY_MINUTES):
-            return self.booking_repository.update(booking["id"], {
-                "status": "EXPIRED",
-            })
+            return self.booking_repository.update(
+                booking["id"],
+                {
+                    "status": "EXPIRED",
+                },
+            )
 
         return booking
 
@@ -248,14 +284,17 @@ class BookingService(BaseService):
 
         # Apply server-side values (ignore any client-sent booking_fee)
         booking_data["booking_fee"] = fee_config["booking_fee"]
-        booking_data["cancellation_fee_pct_snapshot"] = fee_config["cancellation_fee_pct"]
+        booking_data["cancellation_fee_pct_snapshot"] = fee_config[
+            "cancellation_fee_pct"
+        ]
         booking_data["platform_fee_pct_snapshot"] = fee_config["platform_fee_pct"]
 
         # 3. Validate items and compute estimated_total (before side effects)
         items_input = booking_data.pop("items", None) or []
         if items_input:
             validated_snapshots = self.booking_item_service.validate_items(
-                booking_data["cart_type_id"], items_input,
+                booking_data["cart_type_id"],
+                items_input,
             )
             estimated_total = self.booking_item_service.calculate_estimated_total(
                 validated_snapshots,
@@ -331,7 +370,9 @@ class BookingService(BaseService):
             )
 
         booking_data["booking_fee"] = fee_config["booking_fee"]
-        booking_data["cancellation_fee_pct_snapshot"] = fee_config["cancellation_fee_pct"]
+        booking_data["cancellation_fee_pct_snapshot"] = fee_config[
+            "cancellation_fee_pct"
+        ]
         booking_data["platform_fee_pct_snapshot"] = fee_config["platform_fee_pct"]
         booking_data["estimated_total"] = 0.0
         booking_data["date"] = timeslot["date"]
@@ -344,7 +385,9 @@ class BookingService(BaseService):
         try:
             # 3. Atomically claim a cart (row-level lock)
             cart = self.cart_repository.claim_available_cart(
-                booking_data["region_id"], booking_data["cart_type_id"], session=tx_session
+                booking_data["region_id"],
+                booking_data["cart_type_id"],
+                session=tx_session,
             )
             if cart is None:
                 raise ValueError(
@@ -420,10 +463,14 @@ class BookingService(BaseService):
                 raise ValueError("No cart available at confirmation time.")
 
             # 5. Assign cart and confirm booking in the same transaction
-            confirmed = self.booking_repository.update(booking_id, {
-                "assigned_cart_id": cart.id,
-                "status": "CONFIRMED",
-            }, session=tx_session)
+            confirmed = self.booking_repository.update(
+                booking_id,
+                {
+                    "assigned_cart_id": cart.id,
+                    "status": "CONFIRMED",
+                },
+                session=tx_session,
+            )
 
             tx_session.commit()
             return confirmed
@@ -485,9 +532,12 @@ class BookingService(BaseService):
             if payment and payment["status"] == "SUCCESS":
                 self.payment_service.process_refund(payment["id"], booking)
 
-        return self.booking_repository.update(booking_id, {
-            "status": "CANCELLED",
-        })
+        return self.booking_repository.update(
+            booking_id,
+            {
+                "status": "CANCELLED",
+            },
+        )
 
     def expire_booking(self, booking_id: int) -> dict:
         """
@@ -510,9 +560,12 @@ class BookingService(BaseService):
         if datetime.utcnow() - created_at <= timedelta(minutes=BOOKING_EXPIRY_MINUTES):
             raise ValueError("Booking has not yet exceeded the expiry window.")
 
-        return self.booking_repository.update(booking_id, {
-            "status": "EXPIRED",
-        })
+        return self.booking_repository.update(
+            booking_id,
+            {
+                "status": "EXPIRED",
+            },
+        )
 
     def start_booking(self, booking_id: int) -> dict:
         """
@@ -532,9 +585,12 @@ class BookingService(BaseService):
                 f"Only CONFIRMED bookings can be started."
             )
 
-        updated = self.booking_repository.update(booking_id, {
-            "status": "IN_PROGRESS",
-        })
+        updated = self.booking_repository.update(
+            booking_id,
+            {
+                "status": "IN_PROGRESS",
+            },
+        )
         # TODO: send notification to user that service has started
         return updated
 
@@ -563,6 +619,9 @@ class BookingService(BaseService):
                 booking["assigned_cart_id"], {"status": "AVAILABLE"}
             )
 
-        return self.booking_repository.update(booking_id, {
-            "status": "COMPLETED",
-        })
+        return self.booking_repository.update(
+            booking_id,
+            {
+                "status": "COMPLETED",
+            },
+        )

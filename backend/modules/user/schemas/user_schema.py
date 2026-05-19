@@ -87,7 +87,9 @@ class UpdateUserSchema:
             if not isinstance(phone, str):
                 self.errors.append("'phone' must be a string.")
             elif not re.match(r"^\+?[\d\s\-]{7,15}$", phone.strip()):
-                self.errors.append("'phone' must be a valid phone number (7-15 digits).")
+                self.errors.append(
+                    "'phone' must be a valid phone number (7-15 digits)."
+                )
             else:
                 self.validated_data["phone"] = phone.strip()
 

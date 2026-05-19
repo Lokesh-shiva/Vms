@@ -1,7 +1,13 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, ForeignKey, Integer, Numeric, UniqueConstraint,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    UniqueConstraint,
 )
 
 from core.database.db_connection import Base
@@ -37,7 +43,9 @@ class RegionCartTypeConfig(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     region_id = Column(Integer, ForeignKey("locations.id"), nullable=False, index=True)
-    cart_type_id = Column(Integer, ForeignKey("cart_types.id"), nullable=False, index=True)
+    cart_type_id = Column(
+        Integer, ForeignKey("cart_types.id"), nullable=False, index=True
+    )
     booking_fee = Column(Numeric(10, 2), nullable=False)
     cancellation_fee_pct = Column(Numeric(5, 2), nullable=False, default=0)
     platform_fee_pct = Column(Numeric(5, 2), nullable=False, default=0)
@@ -53,14 +61,18 @@ class RegionCartTypeConfig(Base):
             "id": self.id,
             "region_id": self.region_id,
             "cart_type_id": self.cart_type_id,
-            "booking_fee": float(self.booking_fee) if self.booking_fee is not None else 0.0,
+            "booking_fee": float(self.booking_fee)
+            if self.booking_fee is not None
+            else 0.0,
             "cancellation_fee_pct": (
                 float(self.cancellation_fee_pct)
-                if self.cancellation_fee_pct is not None else 0.0
+                if self.cancellation_fee_pct is not None
+                else 0.0
             ),
             "platform_fee_pct": (
                 float(self.platform_fee_pct)
-                if self.platform_fee_pct is not None else 0.0
+                if self.platform_fee_pct is not None
+                else 0.0
             ),
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,

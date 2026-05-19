@@ -4,6 +4,7 @@ Tests for Match Lifecycle: arrive_match and finish_match.
 Verifies the full lifecycle flow:
   MATCHED -> ARRIVED (first player) -> IN_PROGRESS (all players) -> COMPLETED
 """
+
 import unittest
 
 from sqlalchemy import create_engine
@@ -202,17 +203,26 @@ class TestMatchLifecycle(unittest.TestCase):
         # Create a cart without coordinates
         session = self.session_factory()
         cart = Cart(
-            label="Court B", region_id=1, cart_type_id=1,
-            status="BUSY", is_active=True,
-            latitude=None, longitude=None,
+            label="Court B",
+            region_id=1,
+            cart_type_id=1,
+            status="BUSY",
+            is_active=True,
+            latitude=None,
+            longitude=None,
         )
         session.add(cart)
         session.flush()
 
         # Create a match pointing to this cart
         match = Match(
-            created_by=1, region_id=1, cart_type_id=1, cart_id=cart.id,
-            max_players=2, joined_players=2, status="MATCHED",
+            created_by=1,
+            region_id=1,
+            cart_type_id=1,
+            cart_id=cart.id,
+            max_players=2,
+            joined_players=2,
+            status="MATCHED",
         )
         session.add(match)
         session.flush()

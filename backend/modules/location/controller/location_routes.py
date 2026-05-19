@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
 from modules.auth.dependencies.auth_dependencies import require_admin
 from modules.location.service.location_service import LocationService
-from modules.location.schemas.location_schema import CreateLocationSchema, UpdateLocationSchema
+from modules.location.schemas.location_schema import (
+    CreateLocationSchema,
+    UpdateLocationSchema,
+)
 
 
 router = APIRouter(prefix="/api/v1/locations", tags=["Locations"])
@@ -11,11 +14,13 @@ location_service = LocationService()
 
 # ── Response helper ───────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
 
 @router.post("", status_code=201, dependencies=[Depends(require_admin)])
 def create_location(request_data: dict):

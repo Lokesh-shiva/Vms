@@ -17,8 +17,14 @@ class CreateItemSchema:
 
         # cart_type_id — required, positive int
         cart_type_id = self._data.get("cart_type_id")
-        if cart_type_id is None or not isinstance(cart_type_id, int) or cart_type_id <= 0:
-            self.errors.append("'cart_type_id' is required and must be a positive integer.")
+        if (
+            cart_type_id is None
+            or not isinstance(cart_type_id, int)
+            or cart_type_id <= 0
+        ):
+            self.errors.append(
+                "'cart_type_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["cart_type_id"] = cart_type_id
 
@@ -67,9 +73,16 @@ class CreateItemSchema:
             else:
                 for i, url in enumerate(image_urls):
                     if not isinstance(url, str) or not url.strip():
-                        self.errors.append(f"'image_urls[{i}]' must be a non-empty string.")
-                    elif not (url.strip().startswith("http://") or url.strip().startswith("https://")):
-                        self.errors.append(f"'image_urls[{i}]' must be a valid URL starting with http:// or https://.")
+                        self.errors.append(
+                            f"'image_urls[{i}]' must be a non-empty string."
+                        )
+                    elif not (
+                        url.strip().startswith("http://")
+                        or url.strip().startswith("https://")
+                    ):
+                        self.errors.append(
+                            f"'image_urls[{i}]' must be a valid URL starting with http:// or https://."
+                        )
                 if not self.errors or all("image_urls" not in e for e in self.errors):
                     self.validated_data["image_urls"] = [u.strip() for u in image_urls]
                 else:
@@ -153,9 +166,16 @@ class UpdateItemSchema:
             else:
                 for i, url in enumerate(image_urls):
                     if not isinstance(url, str) or not url.strip():
-                        self.errors.append(f"'image_urls[{i}]' must be a non-empty string.")
-                    elif not (url.strip().startswith("http://") or url.strip().startswith("https://")):
-                        self.errors.append(f"'image_urls[{i}]' must be a valid URL starting with http:// or https://.")
+                        self.errors.append(
+                            f"'image_urls[{i}]' must be a non-empty string."
+                        )
+                    elif not (
+                        url.strip().startswith("http://")
+                        or url.strip().startswith("https://")
+                    ):
+                        self.errors.append(
+                            f"'image_urls[{i}]' must be a valid URL starting with http:// or https://."
+                        )
                 if not any("image_urls" in e for e in self.errors):
                     self.validated_data["image_urls"] = [u.strip() for u in image_urls]
 

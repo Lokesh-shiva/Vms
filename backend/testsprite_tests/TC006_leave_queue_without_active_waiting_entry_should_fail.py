@@ -30,20 +30,30 @@ def leave_queue_without_active_waiting_entry_should_fail():
         status_resp = requests.get(STATUS_URL, headers=headers, timeout=30)
         if status_resp.status_code == 200:
             # If user has an active entry, leave it first to comply with test scenario
-            leave_resp_cleanup = requests.delete(LEAVE_QUEUE_URL, headers=headers, timeout=30)
-            assert leave_resp_cleanup.status_code == 200, f"Cleanup leave failed: {leave_resp_cleanup.text}"
+            leave_resp_cleanup = requests.delete(
+                LEAVE_QUEUE_URL, headers=headers, timeout=30
+            )
+            assert leave_resp_cleanup.status_code == 200, (
+                f"Cleanup leave failed: {leave_resp_cleanup.text}"
+            )
         elif status_resp.status_code != 400:
             # If any other unexpected status code, fail test
-            assert False, f"Unexpected status response: {status_resp.status_code} {status_resp.text}"
+            assert False, (
+                f"Unexpected status response: {status_resp.status_code} {status_resp.text}"
+            )
 
         # Step 3: Attempt to leave queue with no active WAITING entry
         leave_resp = requests.delete(LEAVE_QUEUE_URL, headers=headers, timeout=30)
-        assert leave_resp.status_code == 400, f"Expected 400 but got {leave_resp.status_code}: {leave_resp.text}"
+        assert leave_resp.status_code == 400, (
+            f"Expected 400 but got {leave_resp.status_code}: {leave_resp.text}"
+        )
 
         resp_json = leave_resp.json()
         message = resp_json.get("message", "")
 
-        assert "no active queue entry to leave" in message.lower(), f"Unexpected error message: {message}"
+        assert "no active queue entry to leave" in message.lower(), (
+            f"Unexpected error message: {message}"
+        )
 
     except requests.RequestException as e:
         assert False, f"Request failed: {e}"

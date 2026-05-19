@@ -10,6 +10,7 @@ router = APIRouter(prefix="/api/v1/matchmaking", tags=["Matchmaking"])
 
 # -- Response helpers ────────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
@@ -17,11 +18,12 @@ def _success(data, message: str = "Success") -> dict:
 def _error(message: str, status_code: int = 400):
     return JSONResponse(
         status_code=status_code,
-        content={"success": False, "data": None, "message": message}
+        content={"success": False, "data": None, "message": message},
     )
 
 
 # -- Endpoints ──────────────────────────────────────────────────────────
+
 
 @router.post("/play-now", status_code=201)
 def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_user)):

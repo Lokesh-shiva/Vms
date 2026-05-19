@@ -100,7 +100,9 @@ class PaymentRepository:
             if own_session:
                 session.close()
 
-    def find_by_user_and_booking(self, user_id: int, booking_id: int, session=None) -> dict | None:
+    def find_by_user_and_booking(
+        self, user_id: int, booking_id: int, session=None
+    ) -> dict | None:
         """Retrieve the payment record for a specific user and booking combination."""
         own_session = session is None
         session = session or self._session_factory()
@@ -143,7 +145,9 @@ class PaymentRepository:
                 return None
 
             for key, value in update_data.items():
-                if key not in ("id", "created_at", "updated_at") and hasattr(payment, key):
+                if key not in ("id", "created_at", "updated_at") and hasattr(
+                    payment, key
+                ):
                     setattr(payment, key, value)
 
             payment.updated_at = datetime.utcnow()

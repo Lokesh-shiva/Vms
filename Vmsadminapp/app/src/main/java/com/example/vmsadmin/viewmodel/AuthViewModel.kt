@@ -34,6 +34,9 @@ class AuthViewModel(
     val currentRole: StateFlow<String?> = tokenManager.roleFlow
         .stateIn(viewModelScope, SharingStarted.Lazily, null)
 
+    val currentUserId: StateFlow<Int?> = tokenManager.userIdFlow
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+
     private val _debugRole = MutableStateFlow<String?>(null)
 
     /** The role actually used for UI — overridden by debug switcher when active. */
@@ -59,6 +62,10 @@ class AuthViewModel(
                     } else {
                         tokenManager.saveToken(response.data.access_token)
                         tokenManager.saveRole(role)
+                        val userId = response.data.user_id
+                        if (userId != null) {
+                            tokenManager.saveUserId(userId)
+                        }
                         _loginState.value = LoginState.Success
                     }
                 } else {

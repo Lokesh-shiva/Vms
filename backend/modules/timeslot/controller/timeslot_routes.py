@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from modules.timeslot.service.timeslot_service import TimeslotService
-from modules.timeslot.schemas.timeslot_schema import CreateTimeslotSchema, UpdateTimeslotSchema
+from modules.timeslot.schemas.timeslot_schema import (
+    CreateTimeslotSchema,
+    UpdateTimeslotSchema,
+)
 
 
 router = APIRouter(prefix="/api/v1/timeslots", tags=["Timeslots"])
@@ -10,11 +13,13 @@ timeslot_service = TimeslotService()
 
 # ── Response helper ───────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
 
 @router.post("", status_code=201)
 def create_timeslot(request_data: dict):

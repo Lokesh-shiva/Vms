@@ -65,11 +65,7 @@ class ItemRepository:
         """Retrieve all items belonging to a specific cart type."""
         session = self._session_factory()
         try:
-            items = (
-                session.query(Item)
-                .filter(Item.cart_type_id == cart_type_id)
-                .all()
-            )
+            items = session.query(Item).filter(Item.cart_type_id == cart_type_id).all()
             return [i.to_dict() for i in items]
         finally:
             session.close()

@@ -10,16 +10,17 @@ MATCH_ARRIVE_URL = f"{BASE_URL}/api/v1/matches/{{match_id}}/arrive"
 MATCH_FINISH_URL = f"{BASE_URL}/api/v1/matches/{{match_id}}/finish"
 MATCHMAKING_LEAVE_URL = f"{BASE_URL}/api/v1/matchmaking/leave"
 
+
 def finish_match_successfully():
     timeout = 30
     # Step 1: Register new user
-    unique_timestamp = int(time.time()*1000)
+    unique_timestamp = int(time.time() * 1000)
     register_payload = {
         "username": f"testuser_{unique_timestamp}",
         "password": "TestPass123!",
         "email": f"testuser_{unique_timestamp}@example.com",
         "name": "Test User",
-        "phone": f"1234567{unique_timestamp % 1000000:06d}"
+        "phone": f"1234567{unique_timestamp % 1000000:06d}",
     }
     r = requests.post(REGISTER_URL, json=register_payload, timeout=timeout)
     assert r.status_code == 201 or r.status_code == 200, f"Register failed: {r.text}"
@@ -27,23 +28,20 @@ def finish_match_successfully():
     # Step 2: Login and get JWT token
     login_payload = {
         "username": register_payload["username"],
-        "password": register_payload["password"]
+        "password": register_payload["password"],
     }
     r = requests.post(LOGIN_URL, json=login_payload, timeout=timeout)
     assert r.status_code == 200, f"Login failed: {r.text}"
     token = r.json().get("access_token")
     assert token and isinstance(token, str), "Token not received"
 
-    headers = {
-        "Authorization": f"Bearer {token}"
-    }
+    headers = {"Authorization": f"Bearer {token}"}
 
     # Step 3: Join matchmaking queue with valid data
-    play_now_payload = {
-        "sport_id": 1,
-        "skill_level": "BEGINNER"
-    }
-    r = requests.post(PLAY_NOW_URL, json=play_now_payload, headers=headers, timeout=timeout)
+    play_now_payload = {"sport_id": 1, "skill_level": "BEGINNER"}
+    r = requests.post(
+        PLAY_NOW_URL, json=play_now_payload, headers=headers, timeout=timeout
+    )
     assert r.status_code == 201, f"Join queue failed: {r.text}"
     queue_entry = r.json()
     assert "entry_id" in queue_entry, "entry_id missing in join matchmaking response"
@@ -85,29 +83,40 @@ def finish_match_successfully():
 
     try:
         # Step 5: Mark arrival with valid GPS coordinates to ensure status IN_PROGRESS
-        arrive_payload = {
-            "latitude": 12.0,
-            "longitude": 77.0
-        }
-        r = requests.post(MATCH_ARRIVE_URL.format(match_id=match_id), json=arrive_payload, headers=headers, timeout=timeout)
+        arrive_payload = {"latitude": 12.0, "longitude": 77.0}
+        r = requests.post(
+            MATCH_ARRIVE_URL.format(match_id=match_id),
+            json=arrive_payload,
+            headers=headers,
+            timeout=timeout,
+        )
         # Allow either 200 success or 400 if already arrived or in progress
         assert r.status_code == 200, f"Arrival failed: {r.text}"
         match_after_arrival = r.json()
-        assert match_after_arrival.get("status") in ["IN_PROGRESS", "ARRIVED"], "Match status did not become IN_PROGRESS or ARRIVED"
+        assert match_after_arrival.get("status") in ["IN_PROGRESS", "ARRIVED"], (
+            "Match status did not become IN_PROGRESS or ARRIVED"
+        )
 
         # Step 6: Finish the match POST /api/v1/matches/{match_id}/finish
-        r = requests.post(MATCH_FINISH_URL.format(match_id=match_id), headers=headers, timeout=timeout)
+        r = requests.post(
+            MATCH_FINISH_URL.format(match_id=match_id), headers=headers, timeout=timeout
+        )
         assert r.status_code == 200, f"Finish match failed: {r.text}"
         match_finished = r.json()
         # Validate match status moved to COMPLETED
-        assert match_finished.get("status") == "COMPLETED", f"Match status after finish not COMPLETED: {match_finished.get('status')}"
+        assert match_finished.get("status") == "COMPLETED", (
+            f"Match status after finish not COMPLETED: {match_finished.get('status')}"
+        )
         # Validate ground status returned to AVAILABLE
         ground = match_finished.get("ground") or match_finished.get("cart") or {}
-        assert ground.get("status") == "AVAILABLE", f"Ground status not AVAILABLE after finish: {ground.get('status')}"
+        assert ground.get("status") == "AVAILABLE", (
+            f"Ground status not AVAILABLE after finish: {ground.get('status')}"
+        )
 
     finally:
         # Cleanup: leave matchmaking queue if still active (if possible)
         requests.delete(MATCHMAKING_LEAVE_URL, headers=headers, timeout=timeout)
         # No way to delete match directly, let it expire or be reset by system
+
 
 finish_match_successfully()

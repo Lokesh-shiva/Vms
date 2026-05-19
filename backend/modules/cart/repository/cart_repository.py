@@ -109,14 +109,11 @@ class CartRepository:
         own_session = session is None
         session = session or self._session_factory()
         try:
-            query = (
-                session.query(Cart)
-                .filter(
-                    Cart.region_id == region_id,
-                    Cart.cart_type_id == cart_type_id,
-                    Cart.status == "AVAILABLE",
-                    Cart.is_active == True,  # noqa: E712
-                )
+            query = session.query(Cart).filter(
+                Cart.region_id == region_id,
+                Cart.cart_type_id == cart_type_id,
+                Cart.status == "AVAILABLE",
+                Cart.is_active == True,  # noqa: E712
             )
 
             dialect = session.bind.dialect.name

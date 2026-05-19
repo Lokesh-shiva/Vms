@@ -1,4 +1,3 @@
-from datetime import datetime
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from core.database.db_connection import SessionLocal
@@ -64,7 +63,10 @@ class QueueEntryRepository:
         try:
             entry = (
                 session.query(QueueEntry)
-                .filter(QueueEntry.user_id == user_id, QueueEntry.status.in_(["WAITING", "MATCHED"]))
+                .filter(
+                    QueueEntry.user_id == user_id,
+                    QueueEntry.status.in_(["WAITING", "MATCHED"]),
+                )
                 .first()
             )
             return entry.to_dict() if entry else None
@@ -80,7 +82,9 @@ class QueueEntryRepository:
             .first()
         )
 
-    def update_status(self, entry_id: int, new_status: str, session=None) -> dict | None:
+    def update_status(
+        self, entry_id: int, new_status: str, session=None
+    ) -> dict | None:
         """Update the status of a QueueEntry. Returns updated dict or None if not found."""
         own_session = session is None
         session = session or self._session_factory()

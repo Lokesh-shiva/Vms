@@ -1,5 +1,8 @@
 from modules.cart_type.service.cart_type_service import CartTypeService
-from modules.cart_type.schemas.cart_type_schema import CreateCartTypeSchema, UpdateCartTypeSchema
+from modules.cart_type.schemas.cart_type_schema import (
+    CreateCartTypeSchema,
+    UpdateCartTypeSchema,
+)
 
 
 class CartTypeController:
@@ -57,7 +60,9 @@ class CartTypeController:
             return self._error_response(schema.errors)
 
         try:
-            cart_type = self.cart_type_service.update_cart_type(cart_type_id, schema.validated_data)
+            cart_type = self.cart_type_service.update_cart_type(
+                cart_type_id, schema.validated_data
+            )
             if not cart_type:
                 return self._error_response("Cart type not found.")
             return self._success_response(cart_type, "Cart type updated successfully.")

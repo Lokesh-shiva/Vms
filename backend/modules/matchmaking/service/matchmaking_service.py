@@ -21,7 +21,9 @@ class MatchmakingService:
     - Return queue status on-demand.
     """
 
-    def join_queue(self, user_id: int, region_id: int, sport_id: int, skill_level: str) -> dict:
+    def join_queue(
+        self, user_id: int, region_id: int, sport_id: int, skill_level: str
+    ) -> dict:
         """
         Place user into the WAITING queue.
 
@@ -63,9 +65,7 @@ class MatchmakingService:
         # Duplicate guard: one active WAITING entry per user
         existing = queue_entry_repository.find_waiting_by_user(user_id)
         if existing:
-            raise ValueError(
-                f"User {user_id} is already in the queue."
-            )
+            raise ValueError(f"User {user_id} is already in the queue.")
 
         db = SessionLocal()
         try:
@@ -76,13 +76,15 @@ class MatchmakingService:
         players_searching = pricing["queue_count"]
         estimated_wait = players_searching * _WAIT_PER_PLAYER_SECONDS
 
-        entry = queue_entry_repository.create({
-            "user_id": user_id,
-            "region_id": region_id,
-            "sport_id": sport_id,
-            "skill_level": skill_level,
-            "status": "WAITING",
-        })
+        entry = queue_entry_repository.create(
+            {
+                "user_id": user_id,
+                "region_id": region_id,
+                "sport_id": sport_id,
+                "skill_level": skill_level,
+                "status": "WAITING",
+            }
+        )
 
         return {
             "entry": entry,
@@ -125,18 +127,19 @@ class MatchmakingService:
             pricing = PricingService(db).calculate_price(
                 entry["region_id"], entry["sport_id"]
             )
-            
+
             players_searching = pricing["queue_count"]
             match_id = None
             if entry["status"] == "MATCHED":
                 # Find the match_id where this user is a player
                 from modules.match.model.match_model import Match, MatchPlayer
+
                 match_p = (
                     db.query(MatchPlayer)
                     .join(Match, MatchPlayer.match_id == Match.id)
                     .filter(
                         MatchPlayer.user_id == user_id,
-                        Match.status.in_(["MATCHED", "ARRIVED", "IN_PROGRESS"])
+                        Match.status.in_(["MATCHED", "ARRIVED", "IN_PROGRESS"]),
                     )
                     .order_by(Match.created_at.desc())
                     .first()
@@ -145,17 +148,23 @@ class MatchmakingService:
                     match_id = match_p.match_id
 
             if entry["status"] == "MATCHED":
-                wait_estimation_msg = "You're matched — arrive in 20 mins or lose your spot"
+                wait_estimation_msg = (
+                    "You're matched — arrive in 20 mins or lose your spot"
+                )
             elif players_searching == 0:
                 wait_estimation_msg = "No players nearby yet — hang tight"
             else:
-                wait_mins = max(1, round((players_searching * _WAIT_PER_PLAYER_SECONDS) / 60))
+                wait_mins = max(
+                    1, round((players_searching * _WAIT_PER_PLAYER_SECONDS) / 60)
+                )
                 wait_estimation_msg = f"{players_searching} players nearby — match likely in {wait_mins} mins"
 
             return {
                 "entry": entry,
                 "players_searching": players_searching,
-                "estimated_wait_seconds": 0 if match_id else (pricing["queue_count"] * _WAIT_PER_PLAYER_SECONDS),
+                "estimated_wait_seconds": 0
+                if match_id
+                else (pricing["queue_count"] * _WAIT_PER_PLAYER_SECONDS),
                 "pricing": pricing,
                 "match_id": match_id,
                 "wait_estimation_msg": wait_estimation_msg,

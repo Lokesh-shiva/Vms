@@ -1,7 +1,13 @@
 from core.base.base_service import BaseService
-from modules.cart.repository.cart_repository import cart_repository as _default_cart_repo
-from modules.location.repository.location_repository import location_repository as _default_location_repo
-from modules.cart_type.repository.cart_type_repository import cart_type_repository as _default_cart_type_repo
+from modules.cart.repository.cart_repository import (
+    cart_repository as _default_cart_repo,
+)
+from modules.location.repository.location_repository import (
+    location_repository as _default_location_repo,
+)
+from modules.cart_type.repository.cart_type_repository import (
+    cart_type_repository as _default_cart_type_repo,
+)
 
 
 class CartService(BaseService):
@@ -15,8 +21,9 @@ class CartService(BaseService):
     - Returns formatted results to the controller.
     """
 
-    def __init__(self, cart_repository=None, location_repository=None,
-                 cart_type_repository=None):
+    def __init__(
+        self, cart_repository=None, location_repository=None, cart_type_repository=None
+    ):
         super().__init__()
         self.cart_repository = cart_repository or _default_cart_repo
         self.location_repository = location_repository or _default_location_repo

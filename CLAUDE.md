@@ -71,3 +71,8 @@ Every change set must append an entry to `backend/DEV_LOG.md` with:
 
 ## Current focus
 Phase 01 — RBAC foundation, navigation restructure, role-locked panels, captain + tournament backend foundations.
+
+## Persistent memory
+- Read .claude/context/memory.md at the start of every session before doing anything
+- Use semantic_search before exploring any file manually
+- Never re-scan the codebase — check memory.md + RAG first

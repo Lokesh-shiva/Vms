@@ -31,21 +31,31 @@ class CreateBookingSchema:
         # region_id — required, positive int
         region_id = self._data.get("region_id")
         if region_id is None or not isinstance(region_id, int) or region_id <= 0:
-            self.errors.append("'region_id' is required and must be a positive integer.")
+            self.errors.append(
+                "'region_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["region_id"] = region_id
 
         # cart_type_id — required, positive int
         cart_type_id = self._data.get("cart_type_id")
-        if cart_type_id is None or not isinstance(cart_type_id, int) or cart_type_id <= 0:
-            self.errors.append("'cart_type_id' is required and must be a positive integer.")
+        if (
+            cart_type_id is None
+            or not isinstance(cart_type_id, int)
+            or cart_type_id <= 0
+        ):
+            self.errors.append(
+                "'cart_type_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["cart_type_id"] = cart_type_id
 
         # timeslot_id — required, positive int
         timeslot_id = self._data.get("timeslot_id")
         if timeslot_id is None or not isinstance(timeslot_id, int) or timeslot_id <= 0:
-            self.errors.append("'timeslot_id' is required and must be a positive integer.")
+            self.errors.append(
+                "'timeslot_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["timeslot_id"] = timeslot_id
 
@@ -65,9 +75,7 @@ class CreateBookingSchema:
                 validated_items = []
                 for idx, entry in enumerate(items):
                     if not isinstance(entry, dict):
-                        self.errors.append(
-                            f"'items[{idx}]' must be an object."
-                        )
+                        self.errors.append(f"'items[{idx}]' must be an object.")
                         continue
                     item_schema = BookingItemInputSchema(entry)
                     if not item_schema.is_valid():
@@ -99,7 +107,9 @@ class CancelBookingSchema:
 
         booking_id = self._data.get("booking_id")
         if booking_id is None or not isinstance(booking_id, int) or booking_id <= 0:
-            self.errors.append("'booking_id' is required and must be a positive integer.")
+            self.errors.append(
+                "'booking_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["booking_id"] = booking_id
 

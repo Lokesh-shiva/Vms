@@ -23,7 +23,9 @@ class Timeslot(Base):
     __tablename__ = "timeslots"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    location_id = Column(Integer, ForeignKey("locations.id"), nullable=False, index=True)
+    location_id = Column(
+        Integer, ForeignKey("locations.id"), nullable=False, index=True
+    )
     date = Column(String, nullable=False)
     start_time = Column(String, nullable=False)
     end_time = Column(String, nullable=False)
@@ -47,4 +49,6 @@ class Timeslot(Base):
         }
 
     def __repr__(self):
-        return f"<Timeslot id={self.id} location_id={self.location_id} date={self.date}>"
+        return (
+            f"<Timeslot id={self.id} location_id={self.location_id} date={self.date}>"
+        )

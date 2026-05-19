@@ -34,7 +34,9 @@ class RegisterSchema:
         else:
             normalized = _normalize_phone(phone)
             if not re.match(r"^\+?[\d\-]{7,15}$", normalized):
-                self.errors.append("'phone' must be a valid phone number (7-15 digits).")
+                self.errors.append(
+                    "'phone' must be a valid phone number (7-15 digits)."
+                )
             else:
                 self.validated_data["phone"] = normalized
 

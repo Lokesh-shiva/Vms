@@ -44,7 +44,9 @@ class LocationRepository:
         """Retrieve a location by ID."""
         session = self._session_factory()
         try:
-            location = session.query(Location).filter(Location.id == location_id).first()
+            location = (
+                session.query(Location).filter(Location.id == location_id).first()
+            )
             return location.to_dict() if location else None
         finally:
             session.close()
@@ -53,9 +55,11 @@ class LocationRepository:
         """Retrieve a location by name (case-insensitive)."""
         session = self._session_factory()
         try:
-            location = session.query(Location).filter(
-                func.lower(Location.name) == name.lower()
-            ).first()
+            location = (
+                session.query(Location)
+                .filter(func.lower(Location.name) == name.lower())
+                .first()
+            )
             return location.to_dict() if location else None
         finally:
             session.close()
@@ -73,12 +77,16 @@ class LocationRepository:
         """Update an existing location record. Automatically refreshes updated_at."""
         session = self._session_factory()
         try:
-            location = session.query(Location).filter(Location.id == location_id).first()
+            location = (
+                session.query(Location).filter(Location.id == location_id).first()
+            )
             if not location:
                 return None
 
             for key, value in update_data.items():
-                if key not in ("id", "created_at", "updated_at") and hasattr(location, key):
+                if key not in ("id", "created_at", "updated_at") and hasattr(
+                    location, key
+                ):
                     setattr(location, key, value)
 
             location.updated_at = datetime.utcnow()
@@ -95,7 +103,9 @@ class LocationRepository:
         """Delete a location record by ID."""
         session = self._session_factory()
         try:
-            location = session.query(Location).filter(Location.id == location_id).first()
+            location = (
+                session.query(Location).filter(Location.id == location_id).first()
+            )
             if not location:
                 return False
             session.delete(location)

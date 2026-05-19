@@ -8,6 +8,7 @@ LEAVE_URL = f"{BASE_URL}/api/v1/matchmaking/leave"
 TEST_USER_PHONE = "+10000000003"
 TEST_USER_PASSWORD = "TestPassword123!"
 
+
 def login(phone: str, password: str) -> str:
     resp = requests.post(
         LOGIN_URL,
@@ -21,11 +22,13 @@ def login(phone: str, password: str) -> str:
         raise ValueError("Login response missing access token")
     return token
 
+
 def cancel_active_queue_entry(token: str):
     headers = {"Authorization": f"Bearer {token}"}
     resp = requests.delete(LEAVE_URL, headers=headers, timeout=30)
     # It's okay if no active entry, ignore error here as leave might fail
     # This is to ensure no active entries remain for the user before test
+
 
 def test_get_queue_status_without_active_entry_should_fail():
     # 1. Login to get token
@@ -52,5 +55,6 @@ def test_get_queue_status_without_active_entry_should_fail():
     assert message == "User has no active queue entry.", (
         f"Expected message 'User has no active queue entry.', got '{message}'"
     )
+
 
 test_get_queue_status_without_active_entry_should_fail()

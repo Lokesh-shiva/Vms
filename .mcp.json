@@ -1,0 +1,11 @@
+﻿{
+  "mcpServers": {
+    "lokesh-rag": {
+      "command": "node",
+      "args": ["D:\\Waifu\\tools\\rag-mcp\\src\\index.js"],
+      "env": {
+        "PROJECT_ROOT": "D:\\Vms project"
+      }
+    }
+  }
+}
