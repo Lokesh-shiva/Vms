@@ -1297,3 +1297,52 @@ System stable.
 - **User App**: Added `Item` data class with `description` and `image_url` fields for future UI rendering.
 - **No breaking changes**: Existing items without images work correctly with placeholder fallback.
 
+
+## 2026-05-19 — Phase 01: RBAC Foundation (Tasks 1–6) — Backend middleware + Android auth layer
+
+### Added
+- `backend/core/security/auth_manager.py` — `AuthManager` class with `_ALL_PERMISSIONS` frozenset (23 permissions), `_ROLE_PERMISSIONS` map for all 7 Plixo roles + `user`, `has_permission(role, permission)` and `get_permissions(role)` methods, module-level `auth_manager` singleton.
+- `require_role(*allowed_roles)` factory in `auth_dependencies.py` — returns a FastAPI `Depends` that enforces role membership; role values compared against `UserRole` enum.
+- `require_permission(permission)` factory in `auth_dependencies.py` — delegates to `auth_manager.has_permission`; returns 403 with named permission in detail.
+
+### Modified
+- `backend/modules/user/model/user_model.py` — `UserRole` enum extended from 2 values (`USER`, `ADMIN`) to 8 (`USER`, `SUPER_ADMIN`, `OPS_MANAGER`, `GROUND_OWNER`, `TOURNAMENT_MANAGER`, `SUPPORT`, `FINANCE`, `CSR_PARTNER`). `ADMIN` removed.
+- `backend/main.py` — `startup()` function: added idempotent `UPDATE users SET role = 'super_admin' WHERE role = 'admin'` migration shim so existing admin rows are renamed on next boot.
+- `backend/modules/auth/dependencies/auth_dependencies.py` — added `from typing import Callable`, `UserRole` and `auth_manager` imports; added `require_role()` and `require_permission()` factories. Existing `require_admin`, `require_user`, `get_current_user` left intact for backwards compatibility.
+- `backend/modules/payment/controller/payment_routes.py` — all 7 endpoints migrated from `require_admin` to granular `require_role` guards: list/booking/config-read allow FINANCE+SUPER_ADMIN+OPS_MANAGER+SUPPORT; approve/reject/refund/config-write restricted to FINANCE+SUPER_ADMIN only.
+- `backend/modules/admin/controller/admin_routes.py` — all 6 endpoints migrated: dashboard allows SUPER_ADMIN+OPS_MANAGER+FINANCE; metrics/queue-stats allow SUPER_ADMIN+OPS_MANAGER; matches allows +SUPPORT+TOURNAMENT_MANAGER; config endpoints restricted to SUPER_ADMIN only.
+- `Vmsadminapp/app/src/main/java/com/example/vmsadmin/data/TokenManager.kt` — added `ROLE_KEY`, `roleFlow`, `saveRole()`, `clearRole()` via new `clearSession()` which atomically clears both token and role. `clearToken()` now delegates to `clearSession()`.
+- `Vmsadminapp/app/src/main/java/com/example/vmsadmin/viewmodel/AuthViewModel.kt` — added `currentRole: StateFlow<String?>` backed by `tokenManager.roleFlow` via `stateIn`; replaced hard-coded `role != "admin"` gate with `adminRoles` set of all 7 Plixo roles; now calls `tokenManager.saveRole(role)` on successful login; `logout()` uses `clearSession()`.
+
+### Backend changes
+- New permission middleware in `core/security/auth_manager.py` — pure Python, no DB queries
+- `require_role()` / `require_permission()` usable on any FastAPI route as `current_user: dict = require_role(UserRole.X, ...)`
+- Existing `require_admin` still wired on routes not touched this session — will be migrated in follow-on phases
+
+### Architectural decisions
+- Kept `require_admin()` in `auth_dependencies.py` during transition; removing it now would break untouched controllers. It will be eliminated after all controllers are migrated to `require_role`.
+- Role stored in JWT payload (already existed) and mirrored to DataStore on login — avoids re-decoding JWT on every screen load.
+- `UserRole` uses `str, Enum` so enum values compare equal to raw JWT role strings without extra coercion.
+- Startup migration shim is idempotent — safe to leave permanently; no Alembic dependency.
+
+
+## 2026-05-19 — Phase 01: RBAC Tasks 7 & 8 — Role-filtered navigation + ForbiddenScreen
+
+### Added
+- `Vmsadminapp/app/src/main/java/com/example/vmsadmin/ui/screens/ForbiddenScreen.kt` — new Compose screen shown when a user lacks access; displays "Access Denied" message with a Logout button.
+
+### Modified
+- `Vmsadminapp/app/src/main/java/com/example/vmsadmin/navigation/AppNavigation.kt`
+  - Added imports: `collectAsState`, `getValue`, `ForbiddenScreen`
+  - Collect `role` from `authViewModel.currentRole` as state
+  - Pass `role = role ?: ""` to `MainScreen` in the `composable("main")` block
+  - Added `composable("forbidden")` route that renders `ForbiddenScreen` with logout + navigate-to-login logic
+
+- `Vmsadminapp/app/src/main/java/com/example/vmsadmin/ui/screens/MainScreen.kt`
+  - Added `role: String = ""` parameter to `MainScreen` composable
+  - Replaced hardcoded `val items = listOf(...)` with role-filtered list: `Payments` visible only to `super_admin`/`finance`; `Manage` visible only to `super_admin`/`ops_manager`; `Dashboard` and `Bookings` visible to all
+
+### Architectural decisions
+- Role filtering is applied at the composable level using the `role` StateFlow collected in `AppNavigation`, following the four-layer RBAC enforcement pattern (backend, ViewModel, navigation, UI).
+- `ForbiddenScreen` is wired into the NavHost so any future guard logic can `navigate("forbidden")` without additional boilerplate.
+- No changes to `BottomNavItem` sealed class definitions.

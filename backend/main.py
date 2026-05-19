@@ -3,15 +3,16 @@ VMS Backend — Application Entry Point
 
 Starts the FastAPI application with:
 - Centralized error handling middleware
-- User module routes registered
+- All module routers registered
 - Interactive API documentation at /docs (Swagger UI)
 
 Run with:
     uvicorn backend.main:app --reload --port 8000
 """
 
-import sys
 import os
+import sys
+from contextlib import asynccontextmanager
 
 # Ensure the backend package is importable when running from project root.
 sys.path.insert(0, os.path.dirname(__file__))
@@ -37,7 +38,9 @@ from modules.auth.controller.auth_routes import router as auth_router
 from modules.fee_config.controller.fee_config_routes import router as fee_config_router
 from modules.admin.controller.admin_routes import router as admin_router
 from modules.match.controller.match_routes import router as match_router
-from modules.matchmaking.controller.matchmaking_routes import router as matchmaking_router
+from modules.matchmaking.controller.matchmaking_routes import (
+    router as matchmaking_router,
+)
 from modules.pricing.controller.pricing_routes import router as pricing_router
 from modules.match.controller.match_engine_routes import router as engine_router
 from modules.match.model.match_model import Match, MatchPlayer  # noqa: F401 — registers models
@@ -49,6 +52,27 @@ from modules.sport.model.sport_model import Sport  # noqa: F401 — registers mo
 from modules.matchmaking.model.queue_entry_model import QueueEntry  # noqa: F401 — registers model
 
 
+# ── Lifespan ──────────────────────────────────────────────────────────
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Create all ORM tables and run idempotent schema migrations on startup."""
+    Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        # Add columns that may be missing from pre-existing tables (no Alembic)
+        conn.execute(
+            text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS started_at TIMESTAMP")
+        )
+        conn.execute(
+            text("ALTER TABLE matches ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP")
+        )
+        # Idempotent migration: rename legacy 'admin' role to 'super_admin'
+        conn.execute(text("UPDATE users SET role = 'super_admin' WHERE role = 'admin'"))
+        conn.commit()
+    yield
+
+
 # ── Application ───────────────────────────────────────────────────────
 
 app = FastAPI(
@@ -57,24 +81,8 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
-
-
-# ── Startup Event ────────────────────────────────────────────────────
-
-@app.on_event("startup")
-def startup():
-    """Create all ORM tables on startup (no-op if they already exist)."""
-    Base.metadata.create_all(bind=engine)
-    # Add columns that may be missing from pre-existing tables (no Alembic)
-    with engine.connect() as conn:
-        conn.execute(text(
-            "ALTER TABLE matches ADD COLUMN IF NOT EXISTS started_at TIMESTAMP"
-        ))
-        conn.execute(text(
-            "ALTER TABLE matches ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP"
-        ))
-        conn.commit()
 
 
 # ── Middleware ────────────────────────────────────────────────────────
@@ -83,6 +91,7 @@ app.add_middleware(ErrorHandlerMiddleware)
 
 
 # ── Custom HTTPException handler (standardized format) ────────────────
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -103,7 +112,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     """Return FastAPI 422 validation errors in the standard {success, data, message} envelope."""
     return JSONResponse(
         status_code=422,
-        content={"success": False, "data": None, "message": "Validation error.", "detail": exc.errors()},
+        content={
+            "success": False,
+            "data": None,
+            "message": "Validation error.",
+            "detail": exc.errors(),
+        },
     )
 
 
@@ -121,10 +135,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(user_router)
 app.include_router(location_router)
 app.include_router(timeslot_router)
-app.include_router(sport_router)       # /api/v1/sports  (domain name)
-app.include_router(ground_router)      # /api/v1/grounds (domain name)
-app.include_router(cart_type_router)   # /api/v1/cart-types (deprecated)
-app.include_router(cart_router)        # /api/v1/carts      (deprecated)
+app.include_router(sport_router)  # /api/v1/sports  (domain name)
+app.include_router(ground_router)  # /api/v1/grounds (domain name)
+app.include_router(cart_type_router)  # /api/v1/cart-types (deprecated)
+app.include_router(cart_router)  # /api/v1/carts      (deprecated)
 app.include_router(item_router)
 app.include_router(booking_router)
 app.include_router(payment_router)
@@ -138,6 +152,7 @@ app.include_router(engine_router)
 
 
 # ── Health Check ──────────────────────────────────────────────────────
+
 
 @app.get("/", tags=["System"])
 @app.head("/", tags=["System"])
@@ -155,5 +170,6 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
+
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

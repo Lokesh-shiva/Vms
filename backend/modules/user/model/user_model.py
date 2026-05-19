@@ -8,8 +8,15 @@ from core.database.db_connection import Base
 
 class UserRole(str, Enum):
     """Allowed user roles. All role assignments must use these values."""
+
     USER = "user"
-    ADMIN = "admin"
+    SUPER_ADMIN = "super_admin"
+    OPS_MANAGER = "ops_manager"
+    GROUND_OWNER = "ground_owner"
+    TOURNAMENT_MANAGER = "tournament_manager"
+    SUPPORT = "support"
+    FINANCE = "finance"
+    CSR_PARTNER = "csr_partner"
 
 
 class User(Base):
@@ -21,7 +28,7 @@ class User(Base):
         name (str): Full name of the user.
         phone (str): Contact phone number (unique, indexed).
         password_hash (str): Bcrypt hash — never exposed via to_dict().
-        role (str): User role — 'user' or 'admin'.
+        role (str): One of the UserRole values (e.g. 'user', 'super_admin').
         is_active (bool): Whether the account is active.
         created_at (datetime): Timestamp of account creation (immutable).
         updated_at (datetime): Timestamp of last update.
@@ -56,5 +63,5 @@ class User(Base):
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User id={self.id} name={self.name} role={self.role}>"

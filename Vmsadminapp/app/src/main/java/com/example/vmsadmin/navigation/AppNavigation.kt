@@ -2,10 +2,13 @@ package com.example.vmsadmin.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.vmsadmin.network.ApiClient
+import com.example.vmsadmin.ui.screens.ForbiddenScreen
 import com.example.vmsadmin.ui.screens.LoginScreen
 import com.example.vmsadmin.ui.screens.MainScreen
 import com.example.vmsadmin.viewmodel.AuthViewModel
@@ -38,6 +41,8 @@ fun AppNavigation(
     startDestination: String
 ) {
     val navController = rememberNavController()
+    val realRole by authViewModel.currentRole.collectAsState()
+    val role by authViewModel.effectiveRole.collectAsState()
 
     // Auto-logout on 401
     LaunchedEffect(Unit) {
@@ -71,8 +76,24 @@ fun AppNavigation(
                 feeConfigViewModel = feeConfigViewModel,
                 itemViewModel = itemViewModel,
                 matchViewModel = matchViewModel,
-                groundViewModel = groundViewModel
+                groundViewModel = groundViewModel,
+                role = role ?: "",
+                isDebugMode = realRole == "super_admin",
+                onSetDebugRole = { authViewModel.setDebugRole(it) },
+                onForbidden = {
+                    navController.navigate("forbidden") {
+                        popUpTo(0)
+                    }
+                }
             )
+        }
+        composable("forbidden") {
+            ForbiddenScreen(onLogout = {
+                authViewModel.logout()
+                navController.navigate("login") {
+                    popUpTo(0)
+                }
+            })
         }
     }
 }

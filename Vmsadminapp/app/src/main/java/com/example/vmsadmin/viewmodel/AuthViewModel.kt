@@ -7,17 +7,43 @@ import com.example.vmsadmin.data.TokenManager
 import com.example.vmsadmin.models.LoginRequest
 import com.example.vmsadmin.network.ApiService
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
 
 class AuthViewModel(
     private val apiService: ApiService,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
+    companion object {
+        private val ADMIN_ROLES = setOf(
+            "super_admin", "ops_manager", "ground_owner",
+            "tournament_manager", "support", "finance", "csr_partner"
+        )
+    }
+
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState.asStateFlow()
+
+    val currentRole: StateFlow<String?> = tokenManager.roleFlow
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    private val _debugRole = MutableStateFlow<String?>(null)
+
+    /** The role actually used for UI — overridden by debug switcher when active. */
+    val effectiveRole: StateFlow<String?> = currentRole
+        .combine(_debugRole) { real, debug -> debug ?: real }
+        .stateIn(viewModelScope, SharingStarted.Lazily, null)
+
+    fun setDebugRole(role: String?) {
+        _debugRole.value = role
+    }
 
     fun login(phoneNumber: String, passwordHash: String) {
         viewModelScope.launch {
@@ -25,19 +51,25 @@ class AuthViewModel(
             try {
                 val request = LoginRequest(phone = phoneNumber, password = passwordHash)
                 val response = apiService.login(request)
-                
+
                 if (response.success && response.data != null) {
-                    if (response.data.role != "admin") {
-                        _loginState.value = LoginState.Error("Access denied: Administrative privileges required.")
+                    val role = response.data.role
+                    if (role == null || role !in ADMIN_ROLES) {
+                        _loginState.value = LoginState.Error("Access denied: this account does not have admin access.")
                     } else {
                         tokenManager.saveToken(response.data.access_token)
+                        tokenManager.saveRole(role)
                         _loginState.value = LoginState.Success
                     }
                 } else {
                     _loginState.value = LoginState.Error(response.message ?: "Login failed")
                 }
+            } catch (e: HttpException) {
+                _loginState.value = LoginState.Error("Login failed. Please try again.")
+            } catch (e: IOException) {
+                _loginState.value = LoginState.Error("Network error. Please check your connection.")
             } catch (e: Exception) {
-                _loginState.value = LoginState.Error(e.message ?: "Network error occurred")
+                _loginState.value = LoginState.Error("An unexpected error occurred.")
             }
         }
     }
@@ -48,7 +80,8 @@ class AuthViewModel(
 
     fun logout() {
         viewModelScope.launch {
-            tokenManager.clearToken()
+            _debugRole.value = null
+            tokenManager.clearSession()
         }
     }
 }
