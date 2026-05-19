@@ -44,6 +44,7 @@ import com.example.vmsadmin.viewmodel.FeeConfigViewModel
 import com.example.vmsadmin.viewmodel.ItemViewModel
 import com.example.vmsadmin.viewmodel.GroundViewModel
 import com.example.vmsadmin.viewmodel.MatchViewModel
+import com.example.vmsadmin.viewmodel.UserManagementViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
 import com.example.vmsadmin.viewmodel.TimeslotViewModel
@@ -57,6 +58,7 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
 
 private val MANAGE_ROLES = setOf("super_admin", "ops_manager")
 private val PAYMENT_ROLES = setOf("super_admin", "finance")
+private val USERS_ROLES = setOf("super_admin")
 
 @Composable
 fun MainScreen(
@@ -71,6 +73,8 @@ fun MainScreen(
     itemViewModel: ItemViewModel,
     matchViewModel: MatchViewModel,
     groundViewModel: GroundViewModel,
+    userManagementViewModel: UserManagementViewModel,
+    currentUserId: Int? = null,
     role: String = "",
     isDebugMode: Boolean = false,
     onSetDebugRole: (String?) -> Unit = {},
@@ -161,27 +165,15 @@ fun MainScreen(
                     LaunchedEffect(Unit) { onForbidden() }
                 } else {
                     ManageScreen(
-                        onNavigateToRegions = {
-                            navController.navigate("manage/regions")
-                        },
-                        onNavigateToSports = {
-                            navController.navigate("manage/sports")
-                        },
-                        onNavigateToTimeslots = {
-                            navController.navigate("manage/timeslots")
-                        },
-                        onNavigateToFeeConfig = {
-                            navController.navigate("manage/fee-config")
-                        },
-                        onNavigateToItems = {
-                            navController.navigate("manage/items")
-                        },
-                        onNavigateToMatches = {
-                            navController.navigate("manage/matches")
-                        },
-                        onNavigateToGrounds = {
-                            navController.navigate("manage/grounds")
-                        }
+                        onNavigateToRegions = { navController.navigate("manage/regions") },
+                        onNavigateToSports = { navController.navigate("manage/sports") },
+                        onNavigateToTimeslots = { navController.navigate("manage/timeslots") },
+                        onNavigateToFeeConfig = { navController.navigate("manage/fee-config") },
+                        onNavigateToItems = { navController.navigate("manage/items") },
+                        onNavigateToMatches = { navController.navigate("manage/matches") },
+                        onNavigateToGrounds = { navController.navigate("manage/grounds") },
+                        role = role,
+                        onNavigateToUsers = { navController.navigate("manage/users") }
                     )
                 }
             }
@@ -244,6 +236,17 @@ fun MainScreen(
                 } else {
                     GroundsScreen(
                         viewModel = groundViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+            }
+            composable("manage/users") {
+                if (role !in USERS_ROLES) {
+                    LaunchedEffect(Unit) { onForbidden() }
+                } else {
+                    UsersScreen(
+                        viewModel = userManagementViewModel,
+                        currentUserId = currentUserId,
                         onBack = { navController.popBackStack() }
                     )
                 }

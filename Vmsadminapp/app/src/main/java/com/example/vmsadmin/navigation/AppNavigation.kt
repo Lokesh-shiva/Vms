@@ -20,6 +20,7 @@ import com.example.vmsadmin.viewmodel.FeeConfigViewModel
 import com.example.vmsadmin.viewmodel.ItemViewModel
 import com.example.vmsadmin.viewmodel.GroundViewModel
 import com.example.vmsadmin.viewmodel.MatchViewModel
+import com.example.vmsadmin.viewmodel.UserManagementViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
 import com.example.vmsadmin.viewmodel.TimeslotViewModel
@@ -38,11 +39,13 @@ fun AppNavigation(
     itemViewModel: ItemViewModel,
     matchViewModel: MatchViewModel,
     groundViewModel: GroundViewModel,
+    userManagementViewModel: UserManagementViewModel,
     startDestination: String
 ) {
     val navController = rememberNavController()
     val realRole by authViewModel.currentRole.collectAsState()
     val role by authViewModel.effectiveRole.collectAsState()
+    val currentUserId by authViewModel.currentUserId.collectAsState()
 
     // Auto-logout on 401
     LaunchedEffect(Unit) {
@@ -77,6 +80,8 @@ fun AppNavigation(
                 itemViewModel = itemViewModel,
                 matchViewModel = matchViewModel,
                 groundViewModel = groundViewModel,
+                userManagementViewModel = userManagementViewModel,
+                currentUserId = currentUserId,
                 role = role ?: "",
                 isDebugMode = realRole == "super_admin",
                 onSetDebugRole = { authViewModel.setDebugRole(it) },

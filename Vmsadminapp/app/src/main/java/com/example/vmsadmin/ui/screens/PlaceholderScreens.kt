@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.List
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -27,7 +28,9 @@ fun ManageScreen(
     onNavigateToFeeConfig: () -> Unit = {},
     onNavigateToItems: () -> Unit = {},
     onNavigateToMatches: () -> Unit = {},
-    onNavigateToGrounds: () -> Unit = {}
+    onNavigateToGrounds: () -> Unit = {},
+    role: String = "",
+    onNavigateToUsers: () -> Unit = {}
 ) {
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
@@ -115,6 +118,17 @@ fun ManageScreen(
                     enabled = true,
                     onClick = onNavigateToMatches
                 )
+            }
+            if (role == "super_admin") {
+                item {
+                    ManageCard(
+                        title = "Users",
+                        subtitle = "Manage user roles and access",
+                        icon = Icons.Outlined.Person,
+                        enabled = true,
+                        onClick = onNavigateToUsers
+                    )
+                }
             }
         }
     }
