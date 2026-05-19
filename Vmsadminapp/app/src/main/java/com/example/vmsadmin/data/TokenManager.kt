@@ -58,7 +58,4 @@ class TokenManager(private val context: Context) {
         }
     }
 
-    suspend fun clearToken() {
-        clearSession()
-    }
 }

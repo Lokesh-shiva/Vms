@@ -89,8 +89,8 @@ fun MainScreen(
         BottomNavItem.Manage,
     ).filter { item ->
         when (item) {
-            BottomNavItem.Payments -> role in setOf("super_admin", "finance")
-            BottomNavItem.Manage -> role in setOf("super_admin", "ops_manager")
+            BottomNavItem.Payments -> role in PAYMENT_ROLES
+            BottomNavItem.Manage -> role in MANAGE_ROLES
             else -> true
         }
     }

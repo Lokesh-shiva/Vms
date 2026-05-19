@@ -90,7 +90,10 @@ def update_user(
 
     # Guard 3: Deactivation — only SUPER_ADMIN may set is_active=False.
     # TODO(phase01-audit): emit audit event here — deactivation
-    if request_data.get("is_active") is False and caller_role != UserRole.SUPER_ADMIN.value:
+    if (
+        request_data.get("is_active") is False
+        and caller_role != UserRole.SUPER_ADMIN.value
+    ):
         raise HTTPException(
             status_code=403, detail="Only super admins can deactivate users."
         )
