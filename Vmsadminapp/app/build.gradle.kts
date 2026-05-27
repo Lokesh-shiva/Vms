@@ -62,12 +62,16 @@ dependencies {
     // Local Storage
     implementation(libs.androidx.datastore.preferences)
 
+    // Extended Material Icons (Visibility, etc.)
+    implementation("androidx.compose.material:material-icons-extended")
+
     // Image loading
     // Using direct coordinate to ensure Coil is on classpath even if
     // version catalog alias resolution changes.
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -21,14 +21,22 @@ class CreateFeeConfigSchema:
         # region_id — required, positive int
         region_id = self._data.get("region_id")
         if region_id is None or not isinstance(region_id, int) or region_id <= 0:
-            self.errors.append("'region_id' is required and must be a positive integer.")
+            self.errors.append(
+                "'region_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["region_id"] = region_id
 
         # cart_type_id — required, positive int
         cart_type_id = self._data.get("cart_type_id")
-        if cart_type_id is None or not isinstance(cart_type_id, int) or cart_type_id <= 0:
-            self.errors.append("'cart_type_id' is required and must be a positive integer.")
+        if (
+            cart_type_id is None
+            or not isinstance(cart_type_id, int)
+            or cart_type_id <= 0
+        ):
+            self.errors.append(
+                "'cart_type_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["cart_type_id"] = cart_type_id
 
@@ -41,8 +49,12 @@ class CreateFeeConfigSchema:
 
         # cancellation_fee_pct — required, number
         cancellation_fee_pct = self._data.get("cancellation_fee_pct")
-        if cancellation_fee_pct is None or not isinstance(cancellation_fee_pct, (int, float)):
-            self.errors.append("'cancellation_fee_pct' is required and must be a number.")
+        if cancellation_fee_pct is None or not isinstance(
+            cancellation_fee_pct, (int, float)
+        ):
+            self.errors.append(
+                "'cancellation_fee_pct' is required and must be a number."
+            )
         else:
             self.validated_data["cancellation_fee_pct"] = float(cancellation_fee_pct)
 
@@ -65,7 +77,10 @@ class UpdateFeeConfigSchema:
     """
 
     ALLOWED_FIELDS = {
-        "booking_fee", "cancellation_fee_pct", "platform_fee_pct", "is_active",
+        "booking_fee",
+        "cancellation_fee_pct",
+        "platform_fee_pct",
+        "is_active",
     }
 
     def __init__(self, data: dict):
@@ -91,7 +106,9 @@ class UpdateFeeConfigSchema:
             if not isinstance(cancellation_fee_pct, (int, float)):
                 self.errors.append("'cancellation_fee_pct' must be a number.")
             else:
-                self.validated_data["cancellation_fee_pct"] = float(cancellation_fee_pct)
+                self.validated_data["cancellation_fee_pct"] = float(
+                    cancellation_fee_pct
+                )
 
         # platform_fee_pct — optional, number
         platform_fee_pct = self._data.get("platform_fee_pct")

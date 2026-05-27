@@ -22,7 +22,9 @@ from modules.location.repository.location_repository import LocationRepository
 from modules.cart_type.repository.cart_type_repository import CartTypeRepository
 from modules.timeslot.repository.timeslot_repository import TimeslotRepository
 from modules.cart.repository.cart_repository import CartRepository
-from modules.booking_item.repository.booking_item_repository import BookingItemRepository
+from modules.booking_item.repository.booking_item_repository import (
+    BookingItemRepository,
+)
 from modules.booking_item.service.booking_item_service import BookingItemService
 from modules.item.repository.item_repository import ItemRepository
 from modules.payment.repository.payment_repository import PaymentRepository
@@ -56,64 +58,78 @@ class TestBookingItemService(unittest.TestCase):
         # Cart type repo — backed by SQLite
         self.cart_type_repo = CartTypeRepository(session_factory=test_session_factory)
         self.cart_type_repo.create({"name": "Standard"})  # id=1
-        self.cart_type_repo.create({"name": "Premium"})   # id=2
+        self.cart_type_repo.create({"name": "Premium"})  # id=2
 
         # Timeslot repo — capacity=5 (SQLite-backed)
         self.timeslot_repo = TimeslotRepository(session_factory=test_session_factory)
-        self.timeslot_repo.create({
-            "location_id": 1,
-            "date": "2026-03-01",
-            "start_time": "09:00",
-            "end_time": "10:00",
-            "capacity": 5,
-        })  # id=1
+        self.timeslot_repo.create(
+            {
+                "location_id": 1,
+                "date": "2026-03-01",
+                "start_time": "09:00",
+                "end_time": "10:00",
+                "capacity": 5,
+            }
+        )  # id=1
 
         # Cart repo — one available cart (SQLite-backed)
         self.cart_repo = CartRepository(session_factory=test_session_factory)
-        self.cart_repo.create({
-            "region_id": 1,
-            "cart_type_id": 1,
-            "status": "AVAILABLE",
-        })  # id=1
+        self.cart_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "status": "AVAILABLE",
+            }
+        )  # id=1
 
         # Item repo — items belonging to cart_type 1 (SQLite-backed)
         self.item_repo = ItemRepository(session_factory=test_session_factory)
-        self.item_repo.create({
-            "cart_type_id": 1,
-            "name": "Water Bottle",
-            "description": "500ml",
-            "price": 25.50,
-            "is_available": True,
-        })  # id=1
+        self.item_repo.create(
+            {
+                "cart_type_id": 1,
+                "name": "Water Bottle",
+                "description": "500ml",
+                "price": 25.50,
+                "is_available": True,
+            }
+        )  # id=1
 
-        self.item_repo.create({
-            "cart_type_id": 1,
-            "name": "Snack Pack",
-            "description": "Mixed nuts",
-            "price": 40.00,
-            "is_available": True,
-        })  # id=2
+        self.item_repo.create(
+            {
+                "cart_type_id": 1,
+                "name": "Snack Pack",
+                "description": "Mixed nuts",
+                "price": 40.00,
+                "is_available": True,
+            }
+        )  # id=2
 
         # Item belonging to cart_type 2 (wrong cart type for Standard bookings)
-        self.item_repo.create({
-            "cart_type_id": 2,
-            "name": "Premium Meal",
-            "description": "Full meal",
-            "price": 150.00,
-            "is_available": True,
-        })  # id=3
+        self.item_repo.create(
+            {
+                "cart_type_id": 2,
+                "name": "Premium Meal",
+                "description": "Full meal",
+                "price": 150.00,
+                "is_available": True,
+            }
+        )  # id=3
 
         # Unavailable item in cart_type 1
-        self.item_repo.create({
-            "cart_type_id": 1,
-            "name": "Discontinued Item",
-            "description": "No longer sold",
-            "price": 10.00,
-            "is_available": False,
-        })  # id=4
+        self.item_repo.create(
+            {
+                "cart_type_id": 1,
+                "name": "Discontinued Item",
+                "description": "No longer sold",
+                "price": 10.00,
+                "is_available": False,
+            }
+        )  # id=4
 
         # BookingItem service with isolated repos
-        self.booking_item_repo = BookingItemRepository(session_factory=test_session_factory)
+        self.booking_item_repo = BookingItemRepository(
+            session_factory=test_session_factory
+        )
         self.booking_item_service = BookingItemService(
             booking_item_repository=self.booking_item_repo,
             item_repository=self.item_repo,
@@ -129,14 +145,16 @@ class TestBookingItemService(unittest.TestCase):
 
         # Fee config — active for region=1, cart_type=1
         self.fee_config_repo = FeeConfigRepository(session_factory=test_session_factory)
-        self.fee_config_repo.create({
-            "region_id": 1,
-            "cart_type_id": 1,
-            "booking_fee": 50.0,
-            "cancellation_fee_pct": 10.0,
-            "platform_fee_pct": 5.0,
-            "is_active": True,
-        })
+        self.fee_config_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "booking_fee": 50.0,
+                "cancellation_fee_pct": 10.0,
+                "platform_fee_pct": 5.0,
+                "is_active": True,
+            }
+        )
 
         # Booking service with all isolated repos
         self.service = BookingService(
@@ -247,7 +265,7 @@ class TestBookingItemService(unittest.TestCase):
         items = [
             {"item_id": 1, "quantity": 2},  # 2 * 25.50 = 51.00
             {"item_id": 2, "quantity": 3},  # 3 * 40.00 = 120.00
-        ]                                   # Total: 171.00
+        ]  # Total: 171.00
         result = self.service.create_booking(self._valid_data(items=items))
         self.assertEqual(result["estimated_total"], 171.00)
 

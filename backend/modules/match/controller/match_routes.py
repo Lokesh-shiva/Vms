@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from modules.auth.dependencies.auth_dependencies import (
+    _ADMIN_ROLES,
     get_current_user,
     require_admin,
     require_user,
@@ -14,11 +15,13 @@ router = APIRouter(prefix="/api/v1/matches", tags=["Matches"])
 
 # ── Response helper ───────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
 
 @router.post("", status_code=201)
 def create_match(request_data: dict, current_user: dict = Depends(require_user)):
@@ -62,9 +65,11 @@ def leave_match(match_id: int, current_user: dict = Depends(require_user)):
 @router.post("/{match_id}/cancel")
 def cancel_match(match_id: int, current_user: dict = Depends(get_current_user)):
     """Cancel a match. Creator or admin only."""
-    is_admin = current_user.get("role") == "admin"
+    is_admin = current_user.get("role") in _ADMIN_ROLES
     try:
-        match = match_service.cancel_match(current_user["id"], match_id, is_admin=is_admin)
+        match = match_service.cancel_match(
+            current_user["id"], match_id, is_admin=is_admin
+        )
         return _success(match, "Match cancelled successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

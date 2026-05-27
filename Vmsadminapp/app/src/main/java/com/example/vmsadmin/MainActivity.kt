@@ -18,6 +18,10 @@ import com.example.vmsadmin.data.ItemRepository
 import com.example.vmsadmin.data.PaymentRepository
 import com.example.vmsadmin.data.GroundRepository
 import com.example.vmsadmin.data.MatchRepository
+import com.example.vmsadmin.data.CaptainRepository
+import com.example.vmsadmin.data.QueueRepository
+import com.example.vmsadmin.data.SystemConfigRepository
+import com.example.vmsadmin.data.UserManagementRepository
 import com.example.vmsadmin.data.RegionRepository
 import com.example.vmsadmin.data.TimeslotRepository
 import com.example.vmsadmin.data.TokenManager
@@ -42,10 +46,18 @@ import com.example.vmsadmin.viewmodel.GroundViewModel
 import com.example.vmsadmin.viewmodel.GroundViewModelFactory
 import com.example.vmsadmin.viewmodel.MatchViewModel
 import com.example.vmsadmin.viewmodel.MatchViewModelFactory
+import com.example.vmsadmin.viewmodel.UserManagementViewModel
+import com.example.vmsadmin.viewmodel.UserManagementViewModelFactory
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModelFactory
+import com.example.vmsadmin.viewmodel.CaptainViewModel
+import com.example.vmsadmin.viewmodel.CaptainViewModelFactory
+import com.example.vmsadmin.viewmodel.QueueOverviewViewModel
+import com.example.vmsadmin.viewmodel.QueueOverviewViewModelFactory
 import com.example.vmsadmin.viewmodel.RegionViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModelFactory
+import com.example.vmsadmin.viewmodel.SystemConfigViewModel
+import com.example.vmsadmin.viewmodel.SystemConfigViewModelFactory
 import com.example.vmsadmin.viewmodel.TimeslotViewModel
 import com.example.vmsadmin.viewmodel.TimeslotViewModelFactory
 import kotlinx.coroutines.flow.firstOrNull
@@ -106,6 +118,23 @@ class MainActivity : ComponentActivity() {
         val groundViewModelFactory = GroundViewModelFactory(groundRepository)
         val groundViewModel = ViewModelProvider(this, groundViewModelFactory)[GroundViewModel::class.java]
 
+        val userManagementRepository = UserManagementRepository(apiService)
+        val initialUserId = runBlocking { tokenManager.userIdFlow.firstOrNull() }
+        val userManagementViewModelFactory = UserManagementViewModelFactory(userManagementRepository, initialUserId)
+        val userManagementViewModel = ViewModelProvider(this, userManagementViewModelFactory)[UserManagementViewModel::class.java]
+
+        val systemConfigRepository = SystemConfigRepository(apiService)
+        val systemConfigViewModelFactory = SystemConfigViewModelFactory(systemConfigRepository)
+        val systemConfigViewModel = ViewModelProvider(this, systemConfigViewModelFactory)[SystemConfigViewModel::class.java]
+
+        val queueRepository = QueueRepository(apiService)
+        val queueOverviewViewModelFactory = QueueOverviewViewModelFactory(queueRepository)
+        val queueOverviewViewModel = ViewModelProvider(this, queueOverviewViewModelFactory)[QueueOverviewViewModel::class.java]
+
+        val captainRepository = CaptainRepository(apiService)
+        val captainViewModelFactory = CaptainViewModelFactory(captainRepository)
+        val captainViewModel = ViewModelProvider(this, captainViewModelFactory)[CaptainViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -128,6 +157,10 @@ class MainActivity : ComponentActivity() {
                         itemViewModel = itemViewModel,
                         matchViewModel = matchViewModel,
                         groundViewModel = groundViewModel,
+                        userManagementViewModel = userManagementViewModel,
+                        systemConfigViewModel = systemConfigViewModel,
+                        queueOverviewViewModel = queueOverviewViewModel,
+                        captainViewModel = captainViewModel,
                         startDestination = startDestination
                     )
                 }

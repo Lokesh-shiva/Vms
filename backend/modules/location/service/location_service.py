@@ -1,5 +1,7 @@
 from core.base.base_service import BaseService
-from modules.location.repository.location_repository import location_repository as _default_repo
+from modules.location.repository.location_repository import (
+    location_repository as _default_repo,
+)
 
 
 class LocationService(BaseService):

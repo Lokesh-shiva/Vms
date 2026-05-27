@@ -21,7 +21,9 @@ object ApiClient {
     // private const val BASE_URL = "http://192.168.1.4:8000"
     // private const val BASE_URL = "http://192.168.0.105:8000"
     // private const val BASE_URL = "http://192.168.1.3:8000"
-    private const val BASE_URL = "http://192.168.1.7:8000"
+    // private const val BASE_URL = "http://192.168.1.6:8000"
+    // private const val BASE_URL = "http://192.168.1.5:8000"
+    private const val BASE_URL = "http://192.168.9.148:8000"
     // private const val BASE_URL = "https://vms-tx1c.onrender.com"
 
     private val json = Json {
@@ -50,7 +52,7 @@ object ApiClient {
                 if (response.code == 401 && !chain.request().url.encodedPath.contains("/auth/login")) {
                     Log.e("AUTH", "401 Unauthorized — forcing logout")
                     CoroutineScope(Dispatchers.IO).launch {
-                        tokenManager.clearToken()
+                        tokenManager.clearSession()
                         _logoutEvent.emit(Unit)
                     }
                 }

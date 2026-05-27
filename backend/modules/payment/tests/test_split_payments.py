@@ -39,11 +39,12 @@ from modules.cart.repository.cart_repository import CartRepository
 from modules.payment.repository.payment_repository import PaymentRepository
 from modules.payment.repository.system_config_repository import SystemConfigRepository
 from modules.payment.service.payment_service import PaymentService
-from modules.fee_config.repository.fee_config_repository import FeeConfigRepository
 
 
 def _make_session_factory():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}
+    )
     Base.metadata.create_all(bind=engine)
     return sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
@@ -67,33 +68,40 @@ class TestCreateSplitPayments(unittest.TestCase):
         ct_repo.create({"name": "Badminton"})
 
         ts_repo = TimeslotRepository(session_factory=self.sf)
-        ts_repo.create({
-            "location_id": 1, "date": "2026-04-01",
-            "start_time": "09:00", "end_time": "10:00", "capacity": 2,
-        })
+        ts_repo.create(
+            {
+                "location_id": 1,
+                "date": "2026-04-01",
+                "start_time": "09:00",
+                "end_time": "10:00",
+                "capacity": 2,
+            }
+        )
 
         cart_repo = CartRepository(session_factory=self.sf)
         cart_repo.create({"region_id": 1, "cart_type_id": 1, "status": "BUSY"})
 
         # Create a CONFIRMED booking with booking_fee=10, estimated_total=90 → total=100
         self.booking_repo = BookingRepository(session_factory=self.sf)
-        self.booking = self.booking_repo.create({
-            "user_id": self.user1["id"],
-            "region_id": 1,
-            "cart_type_id": 1,
-            "timeslot_id": 1,
-            "assigned_cart_id": 1,
-            "address": "Ground A",
-            "booking_fee": 10.0,
-            "estimated_total": 90.0,
-            "status": "CONFIRMED",
-            "payment_status": "PENDING",
-            "refund_status": "NONE",
-            "refund_amount": 0.0,
-            "cancellation_fee_pct_snapshot": 0.0,
-            "platform_fee_pct_snapshot": 0.0,
-            "date": "2026-04-01",
-        })
+        self.booking = self.booking_repo.create(
+            {
+                "user_id": self.user1["id"],
+                "region_id": 1,
+                "cart_type_id": 1,
+                "timeslot_id": 1,
+                "assigned_cart_id": 1,
+                "address": "Ground A",
+                "booking_fee": 10.0,
+                "estimated_total": 90.0,
+                "status": "CONFIRMED",
+                "payment_status": "PENDING",
+                "refund_status": "NONE",
+                "refund_amount": 0.0,
+                "cancellation_fee_pct_snapshot": 0.0,
+                "platform_fee_pct_snapshot": 0.0,
+                "date": "2026-04-01",
+            }
+        )
 
         # Create a match linked to the booking
         session = self.sf()
@@ -128,16 +136,21 @@ class TestCreateSplitPayments(unittest.TestCase):
         )
         # Override the internal SessionLocal used by create_split_payments
         import modules.payment.service.payment_service as ps_module
-        self._orig_session_local = ps_module.SessionLocal if hasattr(ps_module, "SessionLocal") else None
+
+        self._orig_session_local = (
+            ps_module.SessionLocal if hasattr(ps_module, "SessionLocal") else None
+        )
 
     def _patch_session_factory(self):
         """Patch core.database.db_connection.SessionLocal to use our test DB."""
         import core.database.db_connection as db_mod
+
         self._orig_sl = db_mod.SessionLocal
         db_mod.SessionLocal = self.sf
 
     def _restore_session_factory(self):
         import core.database.db_connection as db_mod
+
         db_mod.SessionLocal = self._orig_sl
 
     def test_creates_two_payments(self):
@@ -205,7 +218,9 @@ class TestCreateSplitPayments(unittest.TestCase):
             self._restore_session_factory()
 
         user_ids = [p["user_id"] for p in payments]
-        self.assertEqual(len(user_ids), len(set(user_ids)), "Duplicate user_id found in payments")
+        self.assertEqual(
+            len(user_ids), len(set(user_ids)), "Duplicate user_id found in payments"
+        )
 
     def test_raises_if_match_not_found(self):
         """ValueError is raised when match_id does not exist."""

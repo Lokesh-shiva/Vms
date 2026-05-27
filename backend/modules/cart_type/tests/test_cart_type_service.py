@@ -53,9 +53,7 @@ class TestCartTypeService(unittest.TestCase):
 
     def test_create_cart_type_inactive(self):
         """Creating a cart type with is_active=False succeeds."""
-        result = self.service.create_cart_type(
-            {"name": "Archived", "is_active": False}
-        )
+        result = self.service.create_cart_type({"name": "Archived", "is_active": False})
         self.assertFalse(result["is_active"])
 
     # ── Read ──────────────────────────────────────────────────────────

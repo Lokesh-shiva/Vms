@@ -1,5 +1,146 @@
 # Development Log
 
+## 2026-05-27 — Phase 01: Navigation restructure + Captain module + Timeslot is_active + User search
+
+### Summary
+Wired all orphaned ViewModels (SystemConfig, QueueOverview) into navigation. Added Support and Captain stubs. Backend: captain module from scratch, timeslot `is_active`, user phone-search endpoint, DB migration script.
+
+### Backend — New Files
+
+| File | Description |
+|------|-------------|
+| `backend/modules/captain/__init__.py` | Package marker |
+| `backend/modules/captain/controller/__init__.py` | Package marker |
+| `backend/modules/captain/model/captain_model.py` | `CaptainStatus` constants + `Captain` ORM model linked to `users` table |
+| `backend/modules/captain/schemas/captain_schema.py` | `CreateCaptainSchema` + `UpdateCaptainSchema` (dict-validation pattern) |
+| `backend/modules/captain/repository/captain_repository.py` | `CaptainRepository`: get_all, get_by_id, get_by_user_id, create, update, delete; module-level singleton |
+| `backend/modules/captain/service/captain_service.py` | `CaptainService` with user-join enrichment; raises `HTTPException` directly (404/400) |
+| `backend/modules/captain/controller/captain_routes.py` | `/api/v1/captains` CRUD routes using `require_role()` (SUPER_ADMIN + OPS_MANAGER) |
+| `backend/run_migrations.py` | Idempotent migration script: adds `timeslots.is_active`, creates `captains` table |
+
+### Backend — Modified Files
+
+| File | Change |
+|------|--------|
+| `backend/modules/timeslot/model/timeslot_model.py` | Added `is_active = Column(Boolean, nullable=False, default=True)` |
+| `backend/modules/timeslot/schemas/timeslot_schema.py` | Added optional `is_active` bool validation in `UpdateTimeslotSchema.is_valid()` |
+| `backend/modules/timeslot/repository/timeslot_repository.py` | `create()` passes `is_active` to ORM constructor |
+| `backend/modules/user/controller/user_routes.py` | Added `GET /api/v1/users/search?phone=` (SUPER_ADMIN + SUPPORT only); placed before `/{user_id}` to avoid path shadowing |
+| `backend/main.py` | Registered captain router; imported `Captain` model for `Base.metadata.create_all` |
+
+### Admin App — New Files
+
+| File | Description |
+|------|-------------|
+| `ui/screens/SupportScreen.kt` | Stub screen with back button and "coming soon" body |
+| `ui/screens/CaptainScreen.kt` | Stub screen with back button and "coming soon" body |
+
+### Admin App — Modified Files
+
+| File | Change |
+|------|--------|
+| `ui/screens/MainScreen.kt` | Full rewrite: TopAppBar (Plixo title + role chip + logout icon), Support bottom tab, new role sets (SUPPORT_ROLES, SYSTEM_CONFIG_ROLES, QUEUE_ROLES, CAPTAIN_ROLES, TOURNAMENT_ROLES, CSR_ROLES, GROUND_OWNER_ROLES), new params `systemConfigViewModel` + `queueOverviewViewModel` + `onLogout`, new routes `manage/system-config`, `manage/queue`, `manage/captains`, DebugRoleSwitcher with all 8 roles |
+| `ui/screens/PlaceholderScreens.kt` | Added `onNavigateToSystemConfig`, `onNavigateToQueue`, `onNavigateToCaptains` params; System Config tile (super_admin), Queue Overview + Captains tiles (super_admin/ops_manager) |
+| `navigation/AppNavigation.kt` | Added `systemConfigViewModel: SystemConfigViewModel`, `queueOverviewViewModel: QueueOverviewViewModel` params; wired `onLogout` → `authViewModel.logout()` + navigate("login") |
+| `MainActivity.kt` | Instantiated `SystemConfigRepository`, `QueueRepository`, `SystemConfigViewModel`, `QueueOverviewViewModel`; all passed to `AppNavigation` |
+
+### Backend Changes
+- `POST /api/v1/captains` — create captain profile (links user_id to ground)
+- `GET /api/v1/captains` — list all captains with user enrichment
+- `GET /api/v1/captains/{id}` — get single captain
+- `PUT /api/v1/captains/{id}` — update captain status/ground
+- `DELETE /api/v1/captains/{id}` — remove captain
+- `GET /api/v1/users/search?phone=` — find user by phone (SUPER_ADMIN + SUPPORT)
+- `timeslots.is_active` column added (DEFAULT TRUE, non-breaking)
+- Migration: run `cd backend && python run_migrations.py`
+
+### Architectural Decisions
+- **Captain as profile table** (not a new UserRole enum): user identity vs operational function kept separate; a user can have both `super_admin` role and a captain profile if needed
+- **`is_active` default TRUE**: non-breaking migration; existing timeslot records get TRUE backfilled by `DEFAULT TRUE`
+- **SupportScreen/CaptainScreen as stubs**: referenced by MainScreen.kt routing, so must exist to compile; real content comes in Phase 01-B
+- **All four RBAC layers applied to new routes**: backend role guard → ViewModel (will have role check in Phase 01-B) → navigation LaunchedEffect guard → UI tile visibility
+
+---
+
+## 2026-05-27 — Phase 01-B: UI Overhaul (Clean Professional Style)
+
+### Summary
+Admin app visual overhaul: replaced glassmorphism cards and gradient background with clean white cards, flat bottom nav, grouped ManageScreen with labelled sections, renamed confusing menu items, and unified icon/weight styling throughout.
+
+### Backend — No Changes
+
+### Admin App — Modified Files
+
+| File | Change |
+|------|--------|
+| `ui/components/AppCard.kt` | Replaced glassmorphism (gradient brush, border, 18dp corners, 20dp padding, dark-mode glass tint) with plain white card: 12dp corners, 1dp elevation, 16dp padding, no border |
+| `ui/theme/Color.kt` | `BackgroundLight` tweaked from `#F5F6FA` to `#F8F9FC` (cooler, less yellow) |
+| `ui/screens/MainScreen.kt` | Removed `Box` radial gradient background; Scaffold `containerColor` → `MaterialTheme.colorScheme.background`; bottom nav: removed floating pill (padding + clip RoundedCornerShape 24dp), `tonalElevation` 8dp → 0dp, `containerColor` → plain surface |
+| `ui/screens/PlaceholderScreens.kt` | ManageScreen rewritten: grouped into 4 labelled sections (Operations, Catalogue, Venues & Matches, Admin); renamed tiles (Sports→Sport Types, Fee Config→Pricing, Items→Menu Items, Queue Overview→Live Queue, System Config→System Settings); ManageCard simplified (no coloured icon box, plain grey icon + title/subtitle) |
+| `ui/screens/DashboardScreen.kt` | `StatCard`: removed per-card `accentColor` param, icon box uses neutral `surfaceVariant` background + `onSurfaceVariant` tint; value text `FontWeight.Bold` → `FontWeight.SemiBold`; header `FontWeight.Bold` → `FontWeight.SemiBold` |
+
+### Architectural Decisions
+- **No gradient in production UI**: gradient was purely decorative and made text contrast hard to predict across devices; flat background is more readable and accessible
+- **Grouped ManageScreen**: all 10+ items in a flat list overwhelmed non-technical admins; section headers make intent clear without extra navigation
+- **Neutral icon tint on StatCards**: per-card accent colours (blue/orange/green) created a "traffic light" perception mismatch — numbers don't inherently carry colour semantics here
+- **`AppCard` simplified aggressively**: removing the `isDark` branch reduced ~60 lines to ~15; dark mode now relies entirely on Material3 theme surface token
+
+---
+
+## 2026-05-20 — Phase 01: SUPER_ADMIN User Management
+
+### Summary
+Implemented full user management feature for SUPER_ADMIN role. Backend RBAC hardened: only `super_admin` can change roles or deactivate users; self-lockout enforced. Admin app wired end-to-end with four-layer RBAC enforcement.
+
+### Backend — Modified Files
+
+| File | Change |
+|------|--------|
+| `backend/modules/user/controller/user_routes.py` | Replaced loose `_ADMIN_ROLES` guard on role-change with `SUPER_ADMIN`-only check; added self-lockout (caller cannot change own role or deactivate self); added `is_active=False` deactivation guard; added `# TODO(phase01-audit)` hooks on both privileged paths; imported `UserRole` enum for consistency |
+| `backend/modules/user/service/user_service.py` | Mirrored same guards at service layer (defense-in-depth): `SUPER_ADMIN`-only for role-change and deactivation, self-lockout raised as `ValueError`; imported `UserRole` |
+| `backend/modules/auth/tests/test_user_rbac_routes.py` | Added `OPS_MANAGER_USER` fixture + 7 new RBAC tests: super_admin can change role, ops_manager blocked, self role-change blocked, self-deactivation blocked, super_admin can deactivate/reactivate others, invalid role value → 400 |
+| `backend/modules/user/tests/test_user_service.py` | Added 2 service-layer tests: non-super-admin role change raises ValueError, super_admin self role-change raises ValueError |
+
+### Admin App — New Files
+
+| File | Description |
+|------|-------------|
+| `data/UserManagementRepository.kt` | `getUsers()`, `updateRole(id, role)`, `setActive(id, active)` — mirrors RegionRepository pattern with `parseErrorDetail()` |
+| `viewmodel/UserManagementViewModel.kt` | `UserManagementState` sealed class, `loadUsers()`, `changeRole()`, `toggleActive()`, per-row `pendingIds` StateFlow, ViewModel-layer self-mutation guard, `UserManagementViewModelFactory` |
+| `ui/screens/UsersScreen.kt` | Full users screen: shimmer skeleton, pull-to-refresh, per-row overflow menu, role change AlertDialog (8 roles), active/inactive badges, self-row "(you)" with hidden menu (fourth RBAC layer) |
+
+### Admin App — Modified Files
+
+| File | Change |
+|------|--------|
+| `models/Models.kt` | Added `AppUser`, `UpdateUserRequest(role?, is_active?)` (single merged DTO); added `user_id: Int? = null` to `LoginResponse` |
+| `network/ApiService.kt` | Added `getUsers()` and single `updateUser(id, UpdateUserRequest)` endpoints |
+| `data/TokenManager.kt` | Added `USER_ID_KEY`, `userIdFlow: Flow<Int?>`, `saveUserId(id)`, removed USER_ID_KEY in `clearSession()` |
+| `viewmodel/AuthViewModel.kt` | Exposed `currentUserId: StateFlow<Int?>` (SharingStarted.Lazily); saves `user_id` from login response |
+| `ui/screens/PlaceholderScreens.kt` | `ManageScreen` adds `role` and `onNavigateToUsers` params; Users tile rendered only when `role == "super_admin"` (UI-hide layer) |
+| `ui/screens/MainScreen.kt` | Added `USERS_ROLES = setOf("super_admin")`; `manage/users` composable route with role guard → `ForbiddenScreen`; passes `userManagementViewModel` and `currentUserId` to `UsersScreen` |
+| `navigation/AppNavigation.kt` | Added `userManagementViewModel` param; collects `currentUserId` from `authViewModel.currentUserId`; passes both to `MainScreen` |
+| `MainActivity.kt` | Instantiates `UserManagementRepository` + `UserManagementViewModel`; passes to `AppNavigation` |
+
+### Backend Changes
+- `PUT /api/v1/users/{id}`: role-change guard tightened from any `_ADMIN_ROLES` to `SUPER_ADMIN` only
+- New guard: deactivation (`is_active=False`) restricted to `SUPER_ADMIN`
+- New guard: self-lockout — any caller blocked from changing own role or deactivating self
+- Service layer mirrors all three guards (defense-in-depth)
+- Audit TODO hooks left at both privileged paths for phase01-audit integration
+
+### Architectural Decisions
+- **Single `UpdateUserRequest(role?, is_active?)` DTO** instead of two separate DTOs — avoids Retrofit interface duplication for the same URL; keeps the model layer clean
+- **`AppUser` naming** (not `User`) avoids future naming collision with `User` imports in Compose
+- **Four-layer RBAC enforcement** for user management: backend endpoint → service (defense-in-depth) → ViewModel (refuses to call backend) → navigation guard → UI-hide (tile + self-row menu)
+- **`user_id` persisted in DataStore** via `TokenManager` so `UserManagementViewModel` can block self-mutation without a round-trip
+
+### Test Results
+- Backend: 46/46 pass (all new RBAC tests green)
+- Android: `./gradlew assembleDebug` BUILD SUCCESSFUL (0 errors, 1 pre-existing deprecation warning in PlaceholderScreens.kt unrelated to this change)
+
+---
+
 ## 19 Mar 2026 — Day 29: Cart Screen + Checkout + Booking Creation
 
 ### Summary
@@ -1346,3 +1487,34 @@ System stable.
 - Role filtering is applied at the composable level using the `role` StateFlow collected in `AppNavigation`, following the four-layer RBAC enforcement pattern (backend, ViewModel, navigation, UI).
 - `ForbiddenScreen` is wired into the NavHost so any future guard logic can `navigate("forbidden")` without additional boilerplate.
 - No changes to `BottomNavItem` sealed class definitions.
+
+
+## 2026-05-27 — Phase 01: Captain module + timeslot is_active + user phone search
+
+### Added
+- `backend/modules/captain/__init__.py` — package marker
+- `backend/modules/captain/controller/__init__.py` — package marker
+- `backend/modules/captain/model/captain_model.py` — `CaptainStatus` constants class + `Captain` SQLAlchemy ORM model mapping to `captains` table; FK to `users` (CASCADE) and `locations` (SET NULL); fields: id, user_id, region_id, status, rating, total_trips, bio, created_at, updated_at; `to_dict()` serializer.
+- `backend/modules/captain/schemas/captain_schema.py` — `CreateCaptainSchema` (required: user_id; optional: region_id, bio) and `UpdateCaptainSchema` (all optional: region_id, status, bio); status validates against `CaptainStatus.ALL` frozenset.
+- `backend/modules/captain/repository/captain_repository.py` — `CaptainRepository` with `get_all(region_id)`, `get_by_id`, `get_by_user_id`, `create`, `update`, `delete`; module-level `captain_repository` singleton.
+- `backend/modules/captain/service/captain_service.py` — `CaptainService` with `list_captains(region_id)`, `get_captain`, `create_captain`, `update_captain`, `delete_captain`; all list/get methods join with `users` table to enrich dicts with `name` + `phone`; `create_captain` validates user existence and duplicate guard; raises HTTPException 404/400 directly.
+- `backend/modules/captain/controller/captain_routes.py` — FastAPI router at `/api/v1/captains`; GET/POST guarded by `OPS_MANAGER|SUPER_ADMIN`; GET/{id}/PUT/{id} same; DELETE/{id} restricted to `SUPER_ADMIN`; uses `require_role()` factory pattern.
+- `backend/run_migrations.py` — standalone psycopg2 migration script (run once from backend/ directory).
+
+### Modified
+- `backend/modules/timeslot/model/timeslot_model.py` — added `is_active` column (`Boolean, nullable=False, default=True, server_default="true"`); updated `to_dict()` to include `is_active`.
+- `backend/modules/timeslot/schemas/timeslot_schema.py` — added `is_active` validation to `UpdateTimeslotSchema` (optional bool field).
+- `backend/modules/timeslot/repository/timeslot_repository.py` — `create()` now explicitly passes `is_active=timeslot_data.get("is_active", True)` to the ORM constructor; `update()` already handles via generic setattr loop.
+- `backend/modules/user/controller/user_routes.py` — added `GET /api/v1/users/search?phone=` endpoint (SUPER_ADMIN + SUPPORT only); direct DB query via `get_db` dependency; returns 404 if not found.
+- `backend/main.py` — registered `captain_router` and `Captain` model (for `Base.metadata.create_all`).
+
+### Backend changes (schema / routes)
+- `captains` table: `CREATE TABLE IF NOT EXISTS captains (id SERIAL PK, user_id INT UNIQUE NOT NULL FK users, region_id INT FK locations, status VARCHAR(50) DEFAULT 'ACTIVE', rating FLOAT DEFAULT 0.0, total_trips INT DEFAULT 0, bio TEXT, created_at TIMESTAMP, updated_at TIMESTAMP)`
+- `timeslots` table: `ALTER TABLE timeslots ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE`
+- New routes: `GET/POST /api/v1/captains`, `GET/PUT/DELETE /api/v1/captains/{id}`, `GET /api/v1/users/search?phone=`
+
+### Architectural decisions
+- Captain service owns the user-join logic internally (not in the repository) to keep repository pure data-access; service opens its own session for join queries rather than accepting one from caller — consistent with existing LocationService/TimeslotService pattern.
+- `is_active` on timeslots follows the same `server_default="true"` pattern as `Boolean` columns elsewhere to ensure DB-level default for rows inserted outside the ORM.
+- User phone search route placed at `/users/search` (before `/{user_id}`) so FastAPI's path matching doesn't shadow it with the int-param route.
+- `run_migrations.py` created as a standalone script (not Alembic) consistent with the no-Alembic project constraint; migrations are idempotent (`IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`).

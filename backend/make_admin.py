@@ -1,6 +1,7 @@
 from core.database.db_connection import SessionLocal
 from modules.user.model.user_model import User
 
+
 def make_all_users_admin():
     db = SessionLocal()
     try:
@@ -14,6 +15,7 @@ def make_all_users_admin():
         db.rollback()
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     make_all_users_admin()

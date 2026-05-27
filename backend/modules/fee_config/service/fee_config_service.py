@@ -19,8 +19,12 @@ class FeeConfigService(BaseService):
     structural / type validation via schemas.
     """
 
-    def __init__(self, fee_config_repository=None, location_repository=None,
-                 cart_type_repository=None):
+    def __init__(
+        self,
+        fee_config_repository=None,
+        location_repository=None,
+        cart_type_repository=None,
+    ):
         super().__init__()
         self.fee_config_repository = fee_config_repository or _default_repo
         self.location_repository = location_repository or _default_location_repo

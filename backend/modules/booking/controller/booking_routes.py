@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from modules.auth.dependencies.auth_dependencies import (
+    _ADMIN_ROLES,
     get_current_user,
     require_admin,
     require_user,
@@ -15,11 +16,13 @@ booking_service = BookingService()
 
 # ── Response helper ───────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
 
 @router.post("", status_code=201)
 def create_booking(request_data: dict, current_user: dict = Depends(require_user)):
@@ -40,7 +43,7 @@ def create_booking(request_data: dict, current_user: dict = Depends(require_user
 @router.get("")
 def list_bookings(current_user: dict = Depends(get_current_user)):
     """Retrieve bookings. Admins see all; users see only their own."""
-    if current_user["role"] == "admin":
+    if current_user["role"] in _ADMIN_ROLES:
         bookings = booking_service.list_bookings()
     else:
         bookings = booking_service.list_bookings_by_user(current_user["id"])
@@ -54,8 +57,13 @@ def get_booking(booking_id: int, current_user: dict = Depends(get_current_user))
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")
 
-    if current_user["role"] != "admin" and booking["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="You can only view your own bookings.")
+    if (
+        current_user["role"] not in _ADMIN_ROLES
+        and booking["user_id"] != current_user["id"]
+    ):
+        raise HTTPException(
+            status_code=403, detail="You can only view your own bookings."
+        )
 
     return _success(booking)
 
@@ -67,8 +75,13 @@ def cancel_booking(booking_id: int, current_user: dict = Depends(get_current_use
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")
 
-    if current_user["role"] != "admin" and booking["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="You can only cancel your own bookings.")
+    if (
+        current_user["role"] not in _ADMIN_ROLES
+        and booking["user_id"] != current_user["id"]
+    ):
+        raise HTTPException(
+            status_code=403, detail="You can only cancel your own bookings."
+        )
 
     try:
         updated = booking_service.cancel_booking(booking_id)

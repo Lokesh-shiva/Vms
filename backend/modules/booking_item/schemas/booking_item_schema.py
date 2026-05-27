@@ -17,18 +17,14 @@ class BookingItemInputSchema:
         # item_id — required, positive int
         item_id = self._data.get("item_id")
         if item_id is None or not isinstance(item_id, int) or item_id <= 0:
-            self.errors.append(
-                "'item_id' is required and must be a positive integer."
-            )
+            self.errors.append("'item_id' is required and must be a positive integer.")
         else:
             self.validated_data["item_id"] = item_id
 
         # quantity — required, positive int
         quantity = self._data.get("quantity")
         if quantity is None or not isinstance(quantity, int) or quantity <= 0:
-            self.errors.append(
-                "'quantity' is required and must be a positive integer."
-            )
+            self.errors.append("'quantity' is required and must be a positive integer.")
         else:
             self.validated_data["quantity"] = quantity
 

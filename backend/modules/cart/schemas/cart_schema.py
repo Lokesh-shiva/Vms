@@ -28,13 +28,21 @@ class CreateCartSchema:
 
         region_id = self._data.get("region_id")
         if region_id is None or not isinstance(region_id, int) or region_id <= 0:
-            self.errors.append("'region_id' is required and must be a positive integer.")
+            self.errors.append(
+                "'region_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["region_id"] = region_id
 
         cart_type_id = self._data.get("cart_type_id")
-        if cart_type_id is None or not isinstance(cart_type_id, int) or cart_type_id <= 0:
-            self.errors.append("'cart_type_id' is required and must be a positive integer.")
+        if (
+            cart_type_id is None
+            or not isinstance(cart_type_id, int)
+            or cart_type_id <= 0
+        ):
+            self.errors.append(
+                "'cart_type_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["cart_type_id"] = cart_type_id
 

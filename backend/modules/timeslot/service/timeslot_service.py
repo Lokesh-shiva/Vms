@@ -1,6 +1,10 @@
 from core.base.base_service import BaseService
-from modules.timeslot.repository.timeslot_repository import timeslot_repository as _default_timeslot_repo
-from modules.location.repository.location_repository import location_repository as _default_location_repo
+from modules.timeslot.repository.timeslot_repository import (
+    timeslot_repository as _default_timeslot_repo,
+)
+from modules.location.repository.location_repository import (
+    location_repository as _default_location_repo,
+)
 
 
 class TimeslotService(BaseService):
@@ -54,8 +58,9 @@ class TimeslotService(BaseService):
         self._validate_location(timeslot_data["location_id"])
 
         # Validate time range
-        self._validate_time_range(timeslot_data["start_time"],
-                                  timeslot_data["end_time"])
+        self._validate_time_range(
+            timeslot_data["start_time"], timeslot_data["end_time"]
+        )
 
         # Enforce unique (location_id, date, start_time)
         existing = self.timeslot_repository.find_by_location_date_start(
@@ -112,11 +117,15 @@ class TimeslotService(BaseService):
         eff_date = update_data.get("date", existing["date"])
         eff_start = update_data.get("start_time", existing["start_time"])
 
-        if (eff_location != existing["location_id"]
-                or eff_date != existing["date"]
-                or eff_start != existing["start_time"]):
+        if (
+            eff_location != existing["location_id"]
+            or eff_date != existing["date"]
+            or eff_start != existing["start_time"]
+        ):
             conflict = self.timeslot_repository.find_by_location_date_start(
-                eff_location, eff_date, eff_start,
+                eff_location,
+                eff_date,
+                eff_start,
             )
             if conflict:
                 raise ValueError(
@@ -140,7 +149,10 @@ class TimeslotService(BaseService):
         except Exception as e:
             # Check if it's a foreign key violation (psycopg2.errors.ForeignKeyViolation)
             error_str = str(e)
-            if "ForeignKeyViolation" in error_str or "violates foreign key constraint" in error_str:
+            if (
+                "ForeignKeyViolation" in error_str
+                or "violates foreign key constraint" in error_str
+            ):
                 raise ValueError(
                     "Cannot delete timeslot because it is still referenced by existing bookings. "
                     "Try making it inactive instead."

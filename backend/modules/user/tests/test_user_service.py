@@ -119,6 +119,31 @@ class TestUserService(unittest.TestCase):
         """Deleting a non-existent user returns False."""
         self.assertFalse(self.service.delete_user(999))
 
+    # ── SUPER_ADMIN-only role/deactivate guards ───────────────────────
+
+    def test_update_user_only_super_admin_can_change_role(self):
+        """Non-super-admin caller raising ValueError when attempting a role change."""
+        created = self.service.create_user({"name": "Frank", "phone": "+6661112222"})
+        with self.assertRaises(ValueError) as ctx:
+            self.service.update_user(
+                created["id"],
+                {"role": "ops_manager"},
+                current_user={"id": 99, "role": "ops_manager"},
+            )
+        self.assertIn("super admin", str(ctx.exception).lower())
+
+    def test_update_user_blocks_self_role_change(self):
+        """SUPER_ADMIN cannot change their own role (self-lockout guard)."""
+        created = self.service.create_user({"name": "Grace", "phone": "+7771112222"})
+        target_id = created["id"]
+        with self.assertRaises(ValueError) as ctx:
+            self.service.update_user(
+                target_id,
+                {"role": "ops_manager"},
+                current_user={"id": target_id, "role": "super_admin"},
+            )
+        self.assertIn("Cannot change your own role", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -74,3 +74,7 @@ state.json
 progress.txt
 roadmap.json
 testsprite_tests/tmp/
+
+# Claude Code
+.claude/rag-index/
+.claude/bash-audit.log

@@ -2,9 +2,15 @@ import os
 import random
 
 from core.base.base_service import BaseService
-from modules.payment.repository.payment_repository import payment_repository as _default_payment_repo
-from modules.booking.repository.booking_repository import booking_repository as _default_booking_repo
-from modules.payment.repository.system_config_repository import system_config_repository as _default_config_repo
+from modules.payment.repository.payment_repository import (
+    payment_repository as _default_payment_repo,
+)
+from modules.booking.repository.booking_repository import (
+    booking_repository as _default_booking_repo,
+)
+from modules.payment.repository.system_config_repository import (
+    system_config_repository as _default_config_repo,
+)
 
 
 # Fallback UPI ID from environment variable (used when no DB override exists)
@@ -30,8 +36,12 @@ class PaymentService(BaseService):
     (single source of truth rule).
     """
 
-    def __init__(self, payment_repository=None, booking_repository=None,
-                 system_config_repository=None):
+    def __init__(
+        self,
+        payment_repository=None,
+        booking_repository=None,
+        system_config_repository=None,
+    ):
         super().__init__()
         self.payment_repository = payment_repository or _default_payment_repo
         self.booking_repository = booking_repository or _default_booking_repo
@@ -78,9 +88,7 @@ class PaymentService(BaseService):
             # If payments were already created for this match (e.g. duplicate
             # finish call or retry after a partial failure), return them as-is.
             existing_payments = (
-                session.query(PaymentORM)
-                .filter(PaymentORM.match_id == match_id)
-                .all()
+                session.query(PaymentORM).filter(PaymentORM.match_id == match_id).all()
             )
             if existing_payments:
                 return [p.to_dict() for p in existing_payments]
@@ -100,9 +108,8 @@ class PaymentService(BaseService):
             if not players:
                 raise ValueError(f"No players found for match {match_id}.")
 
-            total = (
-                float(booking.get("estimated_total", 0))
-                + float(booking.get("booking_fee", 0))
+            total = float(booking.get("estimated_total", 0)) + float(
+                booking.get("booking_fee", 0)
             )
             split_amount = round(total / len(players), 2)
 
@@ -111,15 +118,17 @@ class PaymentService(BaseService):
                 reference_code = self._generate_split_reference_code(
                     booking["id"], player.user_id
                 )
-                payment = self.payment_repository.create({
-                    "booking_id": booking["id"],
-                    "user_id": player.user_id,
-                    "match_id": match_id,
-                    "provider": "MANUAL_UPI",
-                    "amount": split_amount,
-                    "reference_code": reference_code,
-                    "status": "PENDING",
-                })
+                payment = self.payment_repository.create(
+                    {
+                        "booking_id": booking["id"],
+                        "user_id": player.user_id,
+                        "match_id": match_id,
+                        "provider": "MANUAL_UPI",
+                        "amount": split_amount,
+                        "reference_code": reference_code,
+                        "status": "PENDING",
+                    }
+                )
                 created_payments.append(payment)
 
             return created_payments
@@ -153,6 +162,7 @@ class PaymentService(BaseService):
         """Return Merchant Name from DB config, falling back to env var."""
         db_value = self.config_repository.get(MERCHANT_NAME_CONFIG_KEY)
         return db_value if db_value else _ENV_MERCHANT_NAME
+
     # ── Public Methods ─────────────────────────────────────────────────
 
     def initiate_payment(self, booking_id: int) -> dict:
@@ -171,14 +181,14 @@ class PaymentService(BaseService):
         if not booking:
             raise ValueError("Booking not found.")
         if booking["status"] != "PENDING_PAYMENT":
-            raise ValueError("Payment can only be initiated for bookings in PENDING_PAYMENT status.")
+            raise ValueError(
+                "Payment can only be initiated for bookings in PENDING_PAYMENT status."
+            )
 
         existing_payment = self.payment_repository.find_by_booking_id(booking_id)
         if existing_payment:
             if existing_payment["status"] in ("PENDING", "UNDER_REVIEW"):
-                raise ValueError(
-                    "A payment is already in progress for this booking."
-                )
+                raise ValueError("A payment is already in progress for this booking.")
             if existing_payment["status"] == "SUCCESS":
                 raise ValueError("Payment already completed for this booking.")
             # FAILED or REFUNDED → allow retry (new payment record, old stays)
@@ -188,13 +198,15 @@ class PaymentService(BaseService):
         for attempt in range(MAX_REFCODE_ATTEMPTS):
             reference_code = self._generate_reference_code(booking_id)
             try:
-                payment = self.payment_repository.create({
-                    "booking_id": booking_id,
-                    "provider": "MANUAL_UPI",
-                    "amount": amount,
-                    "reference_code": reference_code,
-                    "status": "PENDING",
-                })
+                payment = self.payment_repository.create(
+                    {
+                        "booking_id": booking_id,
+                        "provider": "MANUAL_UPI",
+                        "amount": amount,
+                        "reference_code": reference_code,
+                        "status": "PENDING",
+                    }
+                )
 
                 # Build UPI deep link for mobile redirect
                 upi_id = self._get_active_upi_id()
@@ -247,10 +259,13 @@ class PaymentService(BaseService):
         if not transaction_id or not transaction_id.strip():
             raise ValueError("Transaction ID is required.")
 
-        return self.payment_repository.update(payment["id"], {
-            "transaction_id": transaction_id.strip(),
-            "status": "UNDER_REVIEW",
-        })
+        return self.payment_repository.update(
+            payment["id"],
+            {
+                "transaction_id": transaction_id.strip(),
+                "status": "UNDER_REVIEW",
+            },
+        )
 
     def approve_payment(self, payment_id: int) -> dict:
         """
@@ -267,19 +282,26 @@ class PaymentService(BaseService):
         if payment["status"] != "UNDER_REVIEW":
             raise ValueError("Only payments under review can be approved.")
 
-        updated_payment = self.payment_repository.update(payment_id, {
-            "status": "SUCCESS",
-        })
+        updated_payment = self.payment_repository.update(
+            payment_id,
+            {
+                "status": "SUCCESS",
+            },
+        )
 
-        self.booking_repository.update(payment["booking_id"], {
-            "payment_status": "SUCCESS",
-        })
+        self.booking_repository.update(
+            payment["booking_id"],
+            {
+                "payment_status": "SUCCESS",
+            },
+        )
 
         # Auto-confirm booking (lazy import to avoid circular dependency)
         booking = self.booking_repository.find_by_id(payment["booking_id"])
         if booking and booking["status"] == "PENDING_PAYMENT":
             try:
                 from modules.booking.service.booking_service import BookingService
+
                 booking_service = BookingService()
                 booking_service.confirm_booking(payment["booking_id"])
             except ValueError:
@@ -302,13 +324,19 @@ class PaymentService(BaseService):
         if payment["status"] != "UNDER_REVIEW":
             raise ValueError("Only payments under review can be rejected.")
 
-        updated_payment = self.payment_repository.update(payment_id, {
-            "status": "FAILED",
-        })
+        updated_payment = self.payment_repository.update(
+            payment_id,
+            {
+                "status": "FAILED",
+            },
+        )
 
-        self.booking_repository.update(payment["booking_id"], {
-            "payment_status": "FAILED",
-        })
+        self.booking_repository.update(
+            payment["booking_id"],
+            {
+                "payment_status": "FAILED",
+            },
+        )
 
         return updated_payment
 
@@ -343,7 +371,9 @@ class PaymentService(BaseService):
         else:
             # Fallback: fetch booking to get snapshot values
             fetched_booking = self.booking_repository.find_by_id(payment["booking_id"])
-            cancellation_pct = float(fetched_booking.get("cancellation_fee_pct_snapshot", 0))
+            cancellation_pct = float(
+                fetched_booking.get("cancellation_fee_pct_snapshot", 0)
+            )
             platform_pct = float(fetched_booking.get("platform_fee_pct_snapshot", 0))
 
         total_pct = cancellation_pct + platform_pct
@@ -354,14 +384,20 @@ class PaymentService(BaseService):
 
         refund_amount = round(total_paid * (1 - total_pct / 100), 2)
 
-        updated_payment = self.payment_repository.update(payment_id, {
-            "status": "REFUNDED",
-        })
+        updated_payment = self.payment_repository.update(
+            payment_id,
+            {
+                "status": "REFUNDED",
+            },
+        )
 
-        self.booking_repository.update(payment["booking_id"], {
-            "refund_status": "REFUNDED",
-            "refund_amount": refund_amount,
-        })
+        self.booking_repository.update(
+            payment["booking_id"],
+            {
+                "refund_status": "REFUNDED",
+                "refund_amount": refund_amount,
+            },
+        )
 
         return updated_payment
 
@@ -378,13 +414,15 @@ class PaymentService(BaseService):
             "merchant_name": self._get_active_merchant_name(),
         }
 
-    def update_admin_payment_config(self, upi_id: str | None, merchant_name: str | None) -> dict:
+    def update_admin_payment_config(
+        self, upi_id: str | None, merchant_name: str | None
+    ) -> dict:
         """Update payment configuration in DB."""
         if upi_id is not None:
             if not upi_id.strip() or "@" not in upi_id:
                 raise ValueError("Valid UPI ID is required (must contain '@').")
             self.config_repository.set(UPI_ID_CONFIG_KEY, upi_id.strip())
-            
+
         if merchant_name is not None:
             if not merchant_name.strip():
                 raise ValueError("Merchant name cannot be empty.")

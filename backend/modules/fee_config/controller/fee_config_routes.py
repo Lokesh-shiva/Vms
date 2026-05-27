@@ -14,11 +14,13 @@ fee_config_service = FeeConfigService()
 
 # ── Response helper ───────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
 
 @router.post("/create", status_code=201, dependencies=[Depends(require_admin)])
 def create_fee_config(request_data: dict):

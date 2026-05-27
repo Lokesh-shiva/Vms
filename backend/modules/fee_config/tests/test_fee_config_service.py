@@ -36,11 +36,11 @@ class TestFeeConfigService(unittest.TestCase):
 
         self.location_repo = LocationRepository(session_factory=test_session_factory)
         self.location_repo.create({"name": "Downtown", "is_serviceable": True})  # id=1
-        self.location_repo.create({"name": "Suburbs", "is_serviceable": True})   # id=2
+        self.location_repo.create({"name": "Suburbs", "is_serviceable": True})  # id=2
 
         self.cart_type_repo = CartTypeRepository(session_factory=test_session_factory)
         self.cart_type_repo.create({"name": "Standard"})  # id=1
-        self.cart_type_repo.create({"name": "Premium"})    # id=2
+        self.cart_type_repo.create({"name": "Premium"})  # id=2
 
         self.fee_config_repo = FeeConfigRepository(session_factory=test_session_factory)
 
@@ -109,10 +109,12 @@ class TestFeeConfigService(unittest.TestCase):
     def test_create_config_pct_sum_exceeds_100(self):
         """Sum of cancellation + platform pct > 100 is blocked."""
         with self.assertRaises(ValueError) as ctx:
-            self.service.create_config(self._valid_data(
-                cancellation_fee_pct=60.0,
-                platform_fee_pct=50.0,
-            ))
+            self.service.create_config(
+                self._valid_data(
+                    cancellation_fee_pct=60.0,
+                    platform_fee_pct=50.0,
+                )
+            )
         self.assertIn("cannot exceed 100", str(ctx.exception))
 
     def test_create_config_negative_cancellation_pct(self):
@@ -135,10 +137,12 @@ class TestFeeConfigService(unittest.TestCase):
 
     def test_create_config_pct_sum_exactly_100(self):
         """Sum of cancellation + platform pct == 100 is allowed."""
-        result = self.service.create_config(self._valid_data(
-            cancellation_fee_pct=60.0,
-            platform_fee_pct=40.0,
-        ))
+        result = self.service.create_config(
+            self._valid_data(
+                cancellation_fee_pct=60.0,
+                platform_fee_pct=40.0,
+            )
+        )
         self.assertEqual(result["cancellation_fee_pct"], 60.0)
         self.assertEqual(result["platform_fee_pct"], 40.0)
 
@@ -180,9 +184,9 @@ class TestFeeConfigService(unittest.TestCase):
 
     def test_update_config_pct_sum_exceeds_100_blocked(self):
         """Update that causes pct sum > 100 is blocked."""
-        created = self.service.create_config(self._valid_data(
-            cancellation_fee_pct=30.0, platform_fee_pct=30.0
-        ))
+        created = self.service.create_config(
+            self._valid_data(cancellation_fee_pct=30.0, platform_fee_pct=30.0)
+        )
         with self.assertRaises(ValueError) as ctx:
             self.service.update_config(created["id"], {"cancellation_fee_pct": 80.0})
         self.assertIn("cannot exceed 100", str(ctx.exception))

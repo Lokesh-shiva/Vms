@@ -1,6 +1,7 @@
 package com.example.vmsadmin.network
 
 import com.example.vmsadmin.models.ApiResponse
+import com.example.vmsadmin.models.AppUser
 import com.example.vmsadmin.models.Booking
 import com.example.vmsadmin.models.Cart
 import com.example.vmsadmin.models.CartType
@@ -22,6 +23,7 @@ import com.example.vmsadmin.models.UpdateCartTypeRequest
 import com.example.vmsadmin.models.UpdateFeeConfigRequest
 import com.example.vmsadmin.models.UpdateRegionRequest
 import com.example.vmsadmin.models.UpdateTimeslotRequest
+import com.example.vmsadmin.models.UpdateUserRequest
 import com.example.vmsadmin.models.CreateItemRequest
 import com.example.vmsadmin.models.Item
 import com.example.vmsadmin.models.UpdateItemRequest
@@ -33,6 +35,9 @@ import com.example.vmsadmin.models.SystemConfigListResponse
 import com.example.vmsadmin.models.SystemConfigResponse
 import com.example.vmsadmin.models.UpdateConfigRequest
 import com.example.vmsadmin.models.QueueStatsResponse
+import com.example.vmsadmin.models.Captain
+import com.example.vmsadmin.models.CreateCaptainRequest
+import com.example.vmsadmin.models.UpdateCaptainRequest
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -211,6 +216,16 @@ interface ApiService {
     @POST("/api/v1/matches/{match_id}/complete")
     suspend fun completeMatch(@Path("match_id") matchId: Int): ApiResponse<Match>
 
+    // ── User Management endpoints (super_admin only) ─────────────────
+    @GET("/api/v1/users")
+    suspend fun getUsers(): ApiResponse<List<AppUser>>
+
+    @PUT("/api/v1/users/{id}")
+    suspend fun updateUser(
+        @Path("id") id: Int,
+        @Body request: UpdateUserRequest
+    ): ApiResponse<AppUser>
+
     // ── System Configuration endpoints ──────────────────────────────
     @GET("/api/v1/admin/config")
     suspend fun getSystemConfigs(): SystemConfigListResponse
@@ -224,4 +239,24 @@ interface ApiService {
     // ── Queue Overview endpoints ────────────────────────────────────
     @GET("/api/v1/admin/queue-stats")
     suspend fun getQueueStats(): QueueStatsResponse
+
+    // ── User search (support) ──────────────────────────────────────
+    @GET("/api/v1/users/search")
+    suspend fun searchUserByPhone(@Query("phone") phone: String): ApiResponse<AppUser>
+
+    // ── Captain endpoints ──────────────────────────────────────────
+    @GET("/api/v1/captains")
+    suspend fun getCaptains(): ApiResponse<List<Captain>>
+
+    @POST("/api/v1/captains")
+    suspend fun createCaptain(@Body request: CreateCaptainRequest): ApiResponse<Captain>
+
+    @PUT("/api/v1/captains/{id}")
+    suspend fun updateCaptain(
+        @Path("id") id: Int,
+        @Body request: UpdateCaptainRequest
+    ): ApiResponse<Captain>
+
+    @DELETE("/api/v1/captains/{id}")
+    suspend fun deleteCaptain(@Path("id") id: Int): ApiResponse<Unit>
 }

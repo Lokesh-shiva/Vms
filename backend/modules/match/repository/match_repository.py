@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from sqlalchemy.exc import IntegrityError
 
 from core.database.db_connection import SessionLocal
 from modules.match.model.match_model import Match, MatchPlayer
@@ -57,14 +56,20 @@ class MatchRepository:
 
     def find_by_id_orm(self, match_id: int, session):
         """Return the ORM object (still attached to session) for row-locking."""
-        return session.query(Match).filter(Match.id == match_id).with_for_update().first()
+        return (
+            session.query(Match).filter(Match.id == match_id).with_for_update().first()
+        )
 
-    def find_open_matches(self, cart_type_id: int = None, region_id: int = None) -> list[dict]:
+    def find_open_matches(
+        self, cart_type_id: int = None, region_id: int = None
+    ) -> list[dict]:
         """
         Return OPEN matches whose timeslot starts in the future.
         Optionally filtered by cart_type_id and/or region_id.
         """
-        from modules.timeslot.model.timeslot_model import Timeslot  # avoid circular import
+        from modules.timeslot.model.timeslot_model import (
+            Timeslot,
+        )  # avoid circular import
 
         session = self._session_factory()
         try:
@@ -89,7 +94,10 @@ class MatchRepository:
         """Return all matches across all statuses, newest first."""
         session = self._session_factory()
         try:
-            return [m.to_dict() for m in session.query(Match).order_by(Match.created_at.desc()).all()]
+            return [
+                m.to_dict()
+                for m in session.query(Match).order_by(Match.created_at.desc()).all()
+            ]
         finally:
             session.close()
 

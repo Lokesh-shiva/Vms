@@ -59,12 +59,14 @@ class AuthService:
 
         hashed = _hash_password(data["password"])
 
-        user = self.user_repository.create({
-            "name": data["name"],
-            "phone": data["phone"],
-            "password_hash": hashed,
-            "role": "user",
-        })
+        user = self.user_repository.create(
+            {
+                "name": data["name"],
+                "phone": data["phone"],
+                "password_hash": hashed,
+                "role": "user",
+            }
+        )
 
         return user
 
@@ -87,7 +89,9 @@ class AuthService:
         if not _verify_password(data["password"], user["password_hash"]):
             raise ValueError("Invalid phone number or password.")
 
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+        )
         payload = {
             "sub": str(user["id"]),
             "role": user["role"],
@@ -95,8 +99,4 @@ class AuthService:
         }
         token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-        return {
-            "access_token": token,
-            "token_type": "bearer",
-            "role": user["role"]
-        }
+        return {"access_token": token, "token_type": "bearer", "role": user["role"]}

@@ -44,9 +44,15 @@ class Booking(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     region_id = Column(Integer, ForeignKey("locations.id"), nullable=False, index=True)
-    cart_type_id = Column(Integer, ForeignKey("cart_types.id"), nullable=False, index=True)
-    timeslot_id = Column(Integer, ForeignKey("timeslots.id"), nullable=False, index=True)
-    assigned_cart_id = Column(Integer, ForeignKey("carts.id"), nullable=True, index=True)
+    cart_type_id = Column(
+        Integer, ForeignKey("cart_types.id"), nullable=False, index=True
+    )
+    timeslot_id = Column(
+        Integer, ForeignKey("timeslots.id"), nullable=False, index=True
+    )
+    assigned_cart_id = Column(
+        Integer, ForeignKey("carts.id"), nullable=True, index=True
+    )
     address = Column(String, nullable=False)
     booking_fee = Column(Numeric(10, 2), nullable=False)
     estimated_total = Column(Numeric(10, 2), nullable=False)
@@ -72,7 +78,9 @@ class Booking(Base):
             "timeslot_id": self.timeslot_id,
             "assigned_cart_id": self.assigned_cart_id,
             "address": self.address,
-            "booking_fee": float(self.booking_fee) if self.booking_fee is not None else 0.0,
+            "booking_fee": float(self.booking_fee)
+            if self.booking_fee is not None
+            else 0.0,
             "estimated_total": (
                 float(self.estimated_total) if self.estimated_total is not None else 0.0
             ),
@@ -84,11 +92,13 @@ class Booking(Base):
             ),
             "cancellation_fee_pct_snapshot": (
                 float(self.cancellation_fee_pct_snapshot)
-                if self.cancellation_fee_pct_snapshot is not None else 0.0
+                if self.cancellation_fee_pct_snapshot is not None
+                else 0.0
             ),
             "platform_fee_pct_snapshot": (
                 float(self.platform_fee_pct_snapshot)
-                if self.platform_fee_pct_snapshot is not None else 0.0
+                if self.platform_fee_pct_snapshot is not None
+                else 0.0
             ),
             "date": self.date,
             "created_at": self.created_at.isoformat() if self.created_at else None,

@@ -36,7 +36,9 @@ class Cart(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     label = Column(String, nullable=False, default="")
     region_id = Column(Integer, ForeignKey("locations.id"), nullable=False, index=True)
-    cart_type_id = Column(Integer, ForeignKey("cart_types.id"), nullable=False, index=True)
+    cart_type_id = Column(
+        Integer, ForeignKey("cart_types.id"), nullable=False, index=True
+    )
     status = Column(String, nullable=False, default="AVAILABLE")
     is_active = Column(Boolean, nullable=False, default=True)
     latitude = Column(Float, nullable=True)

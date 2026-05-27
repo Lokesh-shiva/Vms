@@ -1,4 +1,9 @@
+from __future__ import annotations
+
+from typing import Optional
+
 from core.base.base_service import BaseService
+from modules.user.model.user_model import UserRole
 from modules.user.repository.user_repository import user_repository as _default_repo
 
 
@@ -50,7 +55,9 @@ class UserService(BaseService):
         """Retrieve all users."""
         return self.user_repository.find_all()
 
-    def update_user(self, user_id: int, update_data: dict, current_user: dict = None) -> dict | None:
+    def update_user(
+        self, user_id: int, update_data: dict, current_user: Optional[dict] = None
+    ) -> dict | None:
         """
         Update an existing user.
 
@@ -65,9 +72,27 @@ class UserService(BaseService):
         Raises:
             ValueError: If phone uniqueness is violated or non-admin attempts role change.
         """
+        # Defense-in-depth: mirror route-level guards at the service layer.
+        # Self-lockout checked first — same ordering as the route layer.
+        if current_user and current_user.get("id") == user_id:
+            if "role" in update_data or (
+                "is_active" in update_data and update_data["is_active"] is False
+            ):
+                raise ValueError("Cannot change your own role or deactivate yourself.")
         if "role" in update_data:
-            if not current_user or current_user.get("role") != "admin":
-                raise ValueError("Only admins can change user roles.")
+            # TODO(phase01-audit): emit audit event here — role change
+            if (
+                not current_user
+                or current_user.get("role") != UserRole.SUPER_ADMIN.value
+            ):
+                raise ValueError("Only super admins can change user roles.")
+        if "is_active" in update_data and update_data["is_active"] is False:
+            # TODO(phase01-audit): emit audit event here — deactivation
+            if (
+                not current_user
+                or current_user.get("role") != UserRole.SUPER_ADMIN.value
+            ):
+                raise ValueError("Only super admins can deactivate users.")
 
         existing = self.user_repository.find_by_id(user_id)
         if not existing:
@@ -82,7 +107,7 @@ class UserService(BaseService):
 
         return self.user_repository.update(user_id, update_data)
 
-    def delete_user(self, user_id: int, current_user: dict = None) -> bool:
+    def delete_user(self, user_id: int, current_user: Optional[dict] = None) -> bool:
         """
         Delete a user by ID.
 

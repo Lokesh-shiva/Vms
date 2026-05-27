@@ -28,7 +28,7 @@ class TestCartService(unittest.TestCase):
         session_factory = _make_test_session_factory()
 
         self.location_repo = LocationRepository(session_factory=session_factory)
-        self.location_repo.create({"name": "Downtown", "is_serviceable": True})   # id=1
+        self.location_repo.create({"name": "Downtown", "is_serviceable": True})  # id=1
 
         self.cart_type_repo = CartTypeRepository(session_factory=session_factory)
         self.cart_type_repo.create({"name": "Standard"})  # id=1
@@ -158,11 +158,13 @@ class TestCartSchemaLockdown(unittest.TestCase):
 
     def test_create_schema_rejects_status(self):
         """CreateCartSchema must reject payloads containing 'status'."""
-        schema = CreateCartSchema({
-            "region_id": 1,
-            "cart_type_id": 1,
-            "status": "AVAILABLE",
-        })
+        schema = CreateCartSchema(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "status": "AVAILABLE",
+            }
+        )
         self.assertFalse(schema.is_valid())
         self.assertTrue(
             any("status" in e.lower() for e in schema.errors),
@@ -172,18 +174,22 @@ class TestCartSchemaLockdown(unittest.TestCase):
 
     def test_create_schema_valid_without_status(self):
         """CreateCartSchema accepts payloads without 'status'."""
-        schema = CreateCartSchema({
-            "region_id": 1,
-            "cart_type_id": 1,
-        })
+        schema = CreateCartSchema(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+            }
+        )
         self.assertTrue(schema.is_valid())
         self.assertNotIn("status", schema.validated_data)
 
     def test_update_schema_rejects_status(self):
         """UpdateCartSchema must reject payloads containing 'status'."""
-        schema = UpdateCartSchema({
-            "status": "BUSY",
-        })
+        schema = UpdateCartSchema(
+            {
+                "status": "BUSY",
+            }
+        )
         self.assertFalse(schema.is_valid())
         self.assertTrue(
             any("status" in e.lower() for e in schema.errors),

@@ -31,11 +31,13 @@ _cart_type_service = CartTypeService()
 
 # ── Response helper ───────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
 
 @router.post("", status_code=201, dependencies=[Depends(require_admin)])
 def create_sport(request_data: dict):

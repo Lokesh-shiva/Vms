@@ -20,8 +20,12 @@ import com.example.vmsadmin.viewmodel.FeeConfigViewModel
 import com.example.vmsadmin.viewmodel.ItemViewModel
 import com.example.vmsadmin.viewmodel.GroundViewModel
 import com.example.vmsadmin.viewmodel.MatchViewModel
+import com.example.vmsadmin.viewmodel.UserManagementViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
+import com.example.vmsadmin.viewmodel.CaptainViewModel
+import com.example.vmsadmin.viewmodel.QueueOverviewViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
+import com.example.vmsadmin.viewmodel.SystemConfigViewModel
 import com.example.vmsadmin.viewmodel.TimeslotViewModel
 
 @Composable
@@ -38,11 +42,16 @@ fun AppNavigation(
     itemViewModel: ItemViewModel,
     matchViewModel: MatchViewModel,
     groundViewModel: GroundViewModel,
+    userManagementViewModel: UserManagementViewModel,
+    systemConfigViewModel: SystemConfigViewModel,
+    queueOverviewViewModel: QueueOverviewViewModel,
+    captainViewModel: CaptainViewModel,
     startDestination: String
 ) {
     val navController = rememberNavController()
     val realRole by authViewModel.currentRole.collectAsState()
     val role by authViewModel.effectiveRole.collectAsState()
+    val currentUserId by authViewModel.currentUserId.collectAsState()
 
     // Auto-logout on 401
     LaunchedEffect(Unit) {
@@ -77,9 +86,18 @@ fun AppNavigation(
                 itemViewModel = itemViewModel,
                 matchViewModel = matchViewModel,
                 groundViewModel = groundViewModel,
+                userManagementViewModel = userManagementViewModel,
+                systemConfigViewModel = systemConfigViewModel,
+                queueOverviewViewModel = queueOverviewViewModel,
+                captainViewModel = captainViewModel,
+                currentUserId = currentUserId,
                 role = role ?: "",
                 isDebugMode = realRole == "super_admin",
                 onSetDebugRole = { authViewModel.setDebugRole(it) },
+                onLogout = {
+                    authViewModel.logout()
+                    navController.navigate("login") { popUpTo(0) }
+                },
                 onForbidden = {
                     navController.navigate("forbidden") {
                         popUpTo(0)
