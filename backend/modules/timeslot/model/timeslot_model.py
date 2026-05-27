@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, DateTime
 
 from core.database.db_connection import Base
 
@@ -16,6 +16,7 @@ class Timeslot(Base):
         start_time (str): Slot start time (HH:MM).
         end_time (str): Slot end time (HH:MM).
         capacity (int): Maximum capacity for this slot (must be > 0).
+        is_active (bool): Whether this timeslot is open for bookings (default True).
         created_at (datetime): Timestamp of record creation (immutable).
         updated_at (datetime): Timestamp of last update.
     """
@@ -30,6 +31,7 @@ class Timeslot(Base):
     start_time = Column(String, nullable=False)
     end_time = Column(String, nullable=False)
     capacity = Column(Integer, nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True, server_default="true")
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -44,6 +46,7 @@ class Timeslot(Base):
             "start_time": self.start_time,
             "end_time": self.end_time,
             "capacity": self.capacity,
+            "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

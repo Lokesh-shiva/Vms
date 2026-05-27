@@ -124,4 +124,11 @@ class UpdateTimeslotSchema:
             else:
                 self.validated_data["capacity"] = capacity
 
+        if "is_active" in self._data:
+            is_active = self._data["is_active"]
+            if not isinstance(is_active, bool):
+                self.errors.append("'is_active' must be a boolean.")
+            else:
+                self.validated_data["is_active"] = is_active
+
         return len(self.errors) == 0

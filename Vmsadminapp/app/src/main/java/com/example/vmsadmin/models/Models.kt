@@ -341,3 +341,34 @@ data class QueueStatsResponse(
     val data: List<QueueStat>? = null,
     val message: String? = null
 )
+
+// --- Captain Models ---
+
+@Serializable
+data class Captain(
+    val id: Int,
+    val user_id: Int,
+    val region_id: Int? = null,
+    val status: String,
+    val rating: Float = 0f,
+    val total_trips: Int = 0,
+    val bio: String? = null,
+    val created_at: String? = null,
+    val updated_at: String? = null,
+    val name: String? = null,
+    val phone: String? = null
+)
+
+@Serializable
+data class CreateCaptainRequest(
+    val user_id: Int,
+    val region_id: Int? = null,
+    val bio: String? = null
+)
+
+@Serializable
+data class UpdateCaptainRequest(
+    val status: String? = null,
+    val region_id: Int? = null,
+    val bio: String? = null
+)

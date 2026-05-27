@@ -35,6 +35,9 @@ import com.example.vmsadmin.models.SystemConfigListResponse
 import com.example.vmsadmin.models.SystemConfigResponse
 import com.example.vmsadmin.models.UpdateConfigRequest
 import com.example.vmsadmin.models.QueueStatsResponse
+import com.example.vmsadmin.models.Captain
+import com.example.vmsadmin.models.CreateCaptainRequest
+import com.example.vmsadmin.models.UpdateCaptainRequest
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -236,4 +239,24 @@ interface ApiService {
     // ── Queue Overview endpoints ────────────────────────────────────
     @GET("/api/v1/admin/queue-stats")
     suspend fun getQueueStats(): QueueStatsResponse
+
+    // ── User search (support) ──────────────────────────────────────
+    @GET("/api/v1/users/search")
+    suspend fun searchUserByPhone(@Query("phone") phone: String): ApiResponse<AppUser>
+
+    // ── Captain endpoints ──────────────────────────────────────────
+    @GET("/api/v1/captains")
+    suspend fun getCaptains(): ApiResponse<List<Captain>>
+
+    @POST("/api/v1/captains")
+    suspend fun createCaptain(@Body request: CreateCaptainRequest): ApiResponse<Captain>
+
+    @PUT("/api/v1/captains/{id}")
+    suspend fun updateCaptain(
+        @Path("id") id: Int,
+        @Body request: UpdateCaptainRequest
+    ): ApiResponse<Captain>
+
+    @DELETE("/api/v1/captains/{id}")
+    suspend fun deleteCaptain(@Path("id") id: Int): ApiResponse<Unit>
 }

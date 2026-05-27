@@ -50,6 +50,8 @@ from modules.payment.model.system_config_model import SystemConfig  # noqa: F401
 from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401 — registers model
 from modules.sport.model.sport_model import Sport  # noqa: F401 — registers model
 from modules.matchmaking.model.queue_entry_model import QueueEntry  # noqa: F401 — registers model
+from modules.captain.controller.captain_routes import router as captain_router
+from modules.captain.model.captain_model import Captain  # noqa: F401 — registers model
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────
@@ -149,6 +151,7 @@ app.include_router(match_router)
 app.include_router(matchmaking_router)
 app.include_router(pricing_router)
 app.include_router(engine_router)
+app.include_router(captain_router)
 
 
 # ── Health Check ──────────────────────────────────────────────────────

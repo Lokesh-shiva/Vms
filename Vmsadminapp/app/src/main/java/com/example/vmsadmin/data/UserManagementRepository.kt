@@ -44,6 +44,16 @@ class UserManagementRepository(private val apiService: ApiService) {
         }
     }
 
+    suspend fun searchByPhone(phone: String): AppUser? {
+        return try {
+            val response = apiService.searchUserByPhone(phone)
+            if (response.success) response.data else null
+        } catch (e: HttpException) {
+            if (e.code() == 404) null
+            else throw Exception(parseErrorDetail(e) ?: "Search failed")
+        }
+    }
+
     private fun parseErrorDetail(e: HttpException): String? {
         return try {
             val errorBody = e.response()?.errorBody()?.string() ?: return null

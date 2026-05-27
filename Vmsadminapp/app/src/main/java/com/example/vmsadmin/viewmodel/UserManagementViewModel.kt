@@ -10,6 +10,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+sealed class SearchStatus {
+    object Idle : SearchStatus()
+    object Loading : SearchStatus()
+    object Found : SearchStatus()
+    object NotFound : SearchStatus()
+    data class Error(val message: String) : SearchStatus()
+}
+
 sealed class UserManagementState {
     object Loading : UserManagementState()
     data class Success(val users: List<AppUser>) : UserManagementState()
@@ -75,6 +83,33 @@ class UserManagementViewModel(
                 _pendingIds.value = _pendingIds.value - id
             }
         }
+    }
+
+    // ── Support: user phone search ────────────────────────────────
+    private val _searchResult = MutableStateFlow<AppUser?>(null)
+    val searchResult: StateFlow<AppUser?> = _searchResult.asStateFlow()
+
+    private val _searchStatus = MutableStateFlow<SearchStatus>(SearchStatus.Idle)
+    val searchStatus: StateFlow<SearchStatus> = _searchStatus.asStateFlow()
+
+    fun searchByPhone(phone: String) {
+        if (phone.isBlank()) return
+        viewModelScope.launch {
+            _searchStatus.value = SearchStatus.Loading
+            _searchResult.value = null
+            try {
+                val user = repository.searchByPhone(phone)
+                _searchResult.value = user
+                _searchStatus.value = if (user != null) SearchStatus.Found else SearchStatus.NotFound
+            } catch (e: Exception) {
+                _searchStatus.value = SearchStatus.Error(e.message ?: "Search failed")
+            }
+        }
+    }
+
+    fun clearSearch() {
+        _searchResult.value = null
+        _searchStatus.value = SearchStatus.Idle
     }
 
     fun toggleActive(id: Int, currentActive: Boolean) {

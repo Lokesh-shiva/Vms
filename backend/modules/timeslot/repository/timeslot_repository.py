@@ -30,6 +30,7 @@ class TimeslotRepository:
                 start_time=timeslot_data.get("start_time"),
                 end_time=timeslot_data.get("end_time"),
                 capacity=timeslot_data.get("capacity"),
+                is_active=timeslot_data.get("is_active", True),
             )
             session.add(timeslot)
             session.commit()

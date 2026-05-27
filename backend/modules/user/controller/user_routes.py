@@ -1,12 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from modules.user.service.user_service import UserService
 from modules.user.schemas.user_schema import CreateUserSchema, UpdateUserSchema
-from modules.user.model.user_model import UserRole
+from modules.user.model.user_model import User, UserRole
 from modules.auth.dependencies.auth_dependencies import (
     _ADMIN_ROLES,
     get_current_user,
     require_admin,
+    require_role,
 )
+from core.database.db_connection import get_db
+from sqlalchemy.orm import Session
 
 
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
@@ -22,6 +25,22 @@ def _success(data, message: str = "Success") -> dict:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
+
+@router.get("/search")
+def search_user_by_phone(
+    phone: str = Query(..., description="Phone number to search"),
+    current_user: dict = require_role(UserRole.SUPER_ADMIN, UserRole.SUPPORT),
+    db: Session = Depends(get_db),
+):
+    """Search for a user by exact phone number. Restricted to SUPER_ADMIN and SUPPORT."""
+    user = db.query(User).filter(User.phone == phone).first()
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail={"success": False, "message": "User not found"},
+        )
+    return _success(user.to_dict())
 
 
 @router.post("", status_code=201, dependencies=[Depends(require_admin)])
