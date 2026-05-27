@@ -27,13 +27,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.viewmodel.DashboardViewModel
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,7 +49,6 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
         visible = true
     }
 
-    // Show snackbar when error occurs
     LaunchedEffect(uiState.error) {
         uiState.error?.let { error ->
             snackbarHostState.showSnackbar(
@@ -75,37 +76,32 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp)
+                    .padding(horizontal = 20.dp)
             ) {
-                Text(
-                    "Admin Dashboard",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-
                 Spacer(modifier = Modifier.height(20.dp))
 
+                // ── Header ───────────────────────────────────────────────
+                DashboardHeader()
+
+                Spacer(modifier = Modifier.height(24.dp))
+
                 if (uiState.isLoading && uiState.stats == null) {
-                    // ── Shimmer loading skeleton ─────────────────────
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(4) {
-                            ShimmerCard()
-                        }
+                        items(4) { ShimmerStatCard() }
                     }
                 } else if (uiState.error != null && uiState.stats == null) {
-                    // ── Error state with retry ───────────────────────
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = "Failed to load dashboard stats",
+                                text = "Could not load dashboard",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.error
                             )
@@ -119,14 +115,13 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                         }
                     }
                 } else {
-                    // ── Dashboard cards ───────────────────────────────
                     val stats = uiState.stats
                     AnimatedVisibility(
                         visible = visible && stats != null,
-                        enter = fadeIn(animationSpec = tween(500)) +
+                        enter = fadeIn(animationSpec = tween(400)) +
                                 slideInVertically(
-                                    initialOffsetY = { 50 },
-                                    animationSpec = tween(500)
+                                    initialOffsetY = { 40 },
+                                    animationSpec = tween(400)
                                 ),
                         modifier = Modifier.weight(1f)
                     ) {
@@ -137,39 +132,31 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             item {
-                                DashboardStatCard(
-                                    title = "Active Services",
+                                StatCard(
+                                    label = "Active Services",
                                     value = "${stats?.active_services ?: 0}",
-                                    subtitle = "Bookings currently in progress",
-                                    icon = Icons.AutoMirrored.Outlined.List,
-                                    iconTint = Color(0xFF2196F3)
+                                    icon = Icons.AutoMirrored.Outlined.List
                                 )
                             }
                             item {
-                                DashboardStatCard(
-                                    title = "Payments Awaiting Review",
+                                StatCard(
+                                    label = "Awaiting Review",
                                     value = "${stats?.payments_under_review ?: 0}",
-                                    subtitle = "Manual confirmations pending",
-                                    icon = Icons.Outlined.Warning,
-                                    iconTint = Color(0xFFFF9800)
+                                    icon = Icons.Outlined.Warning
                                 )
                             }
                             item {
-                                DashboardStatCard(
-                                    title = "Completed Today",
+                                StatCard(
+                                    label = "Completed Today",
                                     value = "${stats?.completed_today ?: 0}",
-                                    subtitle = "Services completed today",
-                                    icon = Icons.Outlined.Done,
-                                    iconTint = Color(0xFF4CAF50)
+                                    icon = Icons.Outlined.Done
                                 )
                             }
                             item {
-                                DashboardStatCard(
-                                    title = "Total Bookings",
+                                StatCard(
+                                    label = "Total Bookings",
                                     value = "${stats?.total_bookings ?: 0}",
-                                    subtitle = "All bookings recorded",
-                                    icon = Icons.Outlined.ShoppingCart,
-                                    iconTint = MaterialTheme.colorScheme.primary
+                                    icon = Icons.Outlined.ShoppingCart
                                 )
                             }
                         }
@@ -180,55 +167,83 @@ fun DashboardScreen(viewModel: DashboardViewModel) {
     }
 }
 
-// ── Dashboard Stat Card ──────────────────────────────────────────────
+// ── Dashboard Header ─────────────────────────────────────────────────
 
 @Composable
-fun DashboardStatCard(
-    title: String,
+private fun DashboardHeader() {
+    val today = remember {
+        LocalDate.now().format(
+            DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault())
+        )
+    }
+    Column {
+        Text(
+            text = "Overview",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = today,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+// ── Stat Card ────────────────────────────────────────────────────────
+
+@Composable
+fun StatCard(
+    label: String,
     value: String,
-    subtitle: String,
-    icon: ImageVector,
-    iconTint: Color = MaterialTheme.colorScheme.primary
+    icon: ImageVector
 ) {
     AppCard {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = value,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = value,
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 38.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 16.sp
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
 
-// ── Shimmer Loading Card ─────────────────────────────────────────────
+// ── Shimmer skeleton ─────────────────────────────────────────────────
 
 @Composable
-fun ShimmerCard() {
+fun ShimmerStatCard() {
     val transition = rememberInfiniteTransition(label = "shimmer")
     val translateAnim by transition.animateFloat(
         initialValue = 0f,
@@ -239,7 +254,6 @@ fun ShimmerCard() {
         ),
         label = "shimmerTranslate"
     )
-
     val shimmerBrush = Brush.linearGradient(
         colors = listOf(
             MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
@@ -251,38 +265,32 @@ fun ShimmerCard() {
     )
 
     AppCard {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
         ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Box(
+                    modifier = Modifier
+                        .width(56.dp)
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(shimmerBrush)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.75f)
+                        .height(12.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(shimmerBrush)
+                )
+            }
             Box(
                 modifier = Modifier
-                    .size(24.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(shimmerBrush)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Box(
-                modifier = Modifier
-                    .width(60.dp)
-                    .height(28.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(shimmerBrush)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.7f)
-                    .height(14.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(shimmerBrush)
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .height(12.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(shimmerBrush)
             )
         }

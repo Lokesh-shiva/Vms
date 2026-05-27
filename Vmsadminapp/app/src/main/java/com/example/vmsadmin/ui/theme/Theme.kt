@@ -24,28 +24,29 @@ private val DarkColorScheme = darkColorScheme(
     onBackground = TextPrimary,
     onSurface = TextPrimary,
     onSurfaceVariant = TextSecondary,
+    outline = Color(0xFF2E3140),
     error = DangerRed
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = PrimaryGold,
-    secondary = SecondaryGold,
-    tertiary = PrimaryGold,
+    primary = PrimaryLight,
+    secondary = PrimaryLight,
+    tertiary = PrimaryLight,
     background = BackgroundLight,
     surface = SurfaceLight,
-    surfaceVariant = SurfaceLight,
+    surfaceVariant = SurfaceVariantLight,
     onPrimary = Color.White,
-    onSecondary = TextPrimaryLight,
+    onSecondary = PrimaryLight,
     onBackground = TextPrimaryLight,
     onSurface = TextPrimaryLight,
     onSurfaceVariant = TextSecondaryLight,
+    outline = OutlineLight,
     error = DangerRed
 )
 
 @Composable
 fun VmsAdminTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Disabled dynamic color by default so our custom themes show
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -54,7 +55,6 @@ fun VmsAdminTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
