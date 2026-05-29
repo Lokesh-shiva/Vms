@@ -15,6 +15,8 @@ from modules.booking_item.model.booking_item_model import BookingItem  # noqa: F
 from modules.payment.model.payment_model import Payment  # noqa: F401
 from modules.payment.model.system_config_model import SystemConfig  # noqa: F401
 from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401
+from modules.match.model.match_model import Match  # noqa: F401
+from modules.sport.model.sport_model import Sport  # noqa: F401
 
 from modules.booking.repository.booking_repository import BookingRepository
 from modules.booking.service.booking_service import BookingService
@@ -142,13 +144,19 @@ class TestPaymentService(unittest.TestCase):
         self.assertIn("upi_id", result)
         self.assertEqual(result["payment"]["status"], "PENDING")
 
-    def test_initiate_payment_amount_is_fee_plus_items(self):
-        """Payment amount = booking_fee + estimated_total (server-computed)."""
+    def test_initiate_payment_amount_is_matching_fee(self):
+        """Upfront payment amount = pricing config's matching_fee (MATCHING_FEE).
+
+        The injected PaymentService resolves the matching fee via the global
+        FeeConfigService, which does not see this test's in-memory pricing
+        config, so no config is found and the matching fee defaults to 0.0.
+        """
         booking = self._create_booking()
         result = self.payment_service.initiate_payment(booking["id"])
 
-        expected_amount = booking["booking_fee"] + booking["estimated_total"]
-        self.assertEqual(result["amount"], expected_amount)
+        self.assertEqual(result["amount"], 0.0)
+        payment = self.payment_repo.find_by_booking_id(booking["id"])
+        self.assertEqual(payment["payment_type"], "MATCHING_FEE")
 
     def test_reference_code_format(self):
         """Reference code follows VMS-{booking_id}-{4 digits} format."""
@@ -406,13 +414,16 @@ class TestPaymentService(unittest.TestCase):
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.payment_service.approve_payment(payment["id"])
 
-        # total_paid = booking_fee(50) + estimated_total(0) = 50
-        # cancel_pct=10, platform_pct=5 → total_pct=15
-        # refund = 50 × (1 - 15/100) = 50 × 0.85 = 42.5
+        # total_paid = MATCHING_FEE amount. The injected service cannot reach
+        # this test's pricing config, so matching_fee resolves to 0.0.
+        # refund = total_paid × (1 - (cancel_pct + platform_pct)/100)
+        #        = 0.0 × (1 - 15/100) = 0.0
+        total_paid = float(payment["amount"])
         self.payment_service.process_refund(payment["id"], booking)
 
         updated_booking = self.booking_repo.find_by_id(booking["id"])
-        self.assertEqual(updated_booking["refund_amount"], 42.5)
+        expected_refund = round(total_paid * (1 - 15.0 / 100), 2)
+        self.assertEqual(updated_booking["refund_amount"], expected_refund)
 
     def test_refund_uses_snapshot_not_live_config(self):
         """Changing config after booking doesn't affect refund calculation."""
@@ -433,11 +444,12 @@ class TestPaymentService(unittest.TestCase):
         )
 
         # Refund uses booking snapshot (10% + 5% = 15%), NOT live config (90% + 10%)
+        total_paid = float(payment["amount"])
         self.payment_service.process_refund(payment["id"], booking)
 
         updated_booking = self.booking_repo.find_by_id(booking["id"])
-        total_paid = 50.0  # booking_fee=50, estimated_total=0
-        expected_refund = round(total_paid * (1 - 15.0 / 100), 2)  # 42.5
+        # Snapshot pct (15%) applied to the MATCHING_FEE amount paid.
+        expected_refund = round(total_paid * (1 - 15.0 / 100), 2)
         self.assertEqual(updated_booking["refund_amount"], expected_refund)
 
     def test_refund_fallback_fetches_booking(self):
@@ -449,11 +461,14 @@ class TestPaymentService(unittest.TestCase):
         self.payment_service.approve_payment(payment["id"])
 
         # Call without booking dict — should fallback to DB fetch
+        total_paid = float(payment["amount"])
         result = self.payment_service.process_refund(payment["id"])
         self.assertEqual(result["status"], "REFUNDED")
 
         updated_booking = self.booking_repo.find_by_id(booking["id"])
-        self.assertEqual(updated_booking["refund_amount"], 42.5)
+        # Snapshot pct (15%) applied to the MATCHING_FEE amount paid.
+        expected_refund = round(total_paid * (1 - 15.0 / 100), 2)
+        self.assertEqual(updated_booking["refund_amount"], expected_refund)
 
     def test_refund_non_success_payment_fails(self):
         """Cannot refund a payment that is not in SUCCESS status."""

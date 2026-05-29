@@ -193,7 +193,12 @@ class PaymentService(BaseService):
                 raise ValueError("Payment already completed for this booking.")
             # FAILED or REFUNDED → allow retry (new payment record, old stays)
 
-        amount = booking["estimated_total"] + booking["booking_fee"]
+        from modules.fee_config.service.fee_config_service import FeeConfigService
+        pricing = FeeConfigService().get_config_by_region_and_cart_type(
+            booking["region_id"], booking["cart_type_id"]
+        )
+        matching_fee = float(pricing["matching_fee"]) if pricing else 0.0
+        amount = matching_fee
 
         for attempt in range(MAX_REFCODE_ATTEMPTS):
             reference_code = self._generate_reference_code(booking_id)
@@ -202,6 +207,7 @@ class PaymentService(BaseService):
                     {
                         "booking_id": booking_id,
                         "provider": "MANUAL_UPI",
+                        "payment_type": "MATCHING_FEE",
                         "amount": amount,
                         "reference_code": reference_code,
                         "status": "PENDING",
@@ -296,17 +302,30 @@ class PaymentService(BaseService):
             },
         )
 
-        # Auto-confirm booking (lazy import to avoid circular dependency)
+        # Type-aware booking transition
         booking = self.booking_repository.find_by_id(payment["booking_id"])
-        if booking and booking["status"] == "PENDING_PAYMENT":
-            try:
-                from modules.booking.service.booking_service import BookingService
-
-                booking_service = BookingService()
-                booking_service.confirm_booking(payment["booking_id"])
-            except ValueError:
-                # Confirm may fail (e.g. no cart available) — payment still succeeds
-                pass
+        if booking:
+            if payment.get("payment_type") == "TIME_BILL":
+                # Final payment — complete the booking and release the ground
+                if booking["status"] == "AWAITING_TIME_PAYMENT":
+                    self.booking_repository.update(
+                        payment["booking_id"], {"status": "COMPLETED"}
+                    )
+                    if booking.get("assigned_cart_id"):
+                        from modules.cart.repository.cart_repository import (
+                            cart_repository,
+                        )
+                        cart_repository.update(
+                            booking["assigned_cart_id"], {"status": "AVAILABLE"}
+                        )
+            else:
+                # MATCHING_FEE — auto-confirm (existing behaviour)
+                if booking["status"] == "PENDING_PAYMENT":
+                    try:
+                        from modules.booking.service.booking_service import BookingService
+                        BookingService().confirm_booking(payment["booking_id"])
+                    except ValueError:
+                        pass
 
         return updated_payment
 
@@ -404,6 +423,38 @@ class PaymentService(BaseService):
     def get_payment_by_booking_id(self, booking_id: int) -> dict | None:
         """Retrieve payment details for admin inspection."""
         return self.payment_repository.find_by_booking_id(booking_id)
+
+    def create_time_bill_payment(self, booking_id: int, amount: float) -> dict:
+        """Create the post-session TIME_BILL payment for the user to pay.
+
+        Idempotent: if a TIME_BILL payment already exists for this booking,
+        return it instead of creating a duplicate.
+        """
+        existing = self.payment_repository.find_all(status=None)
+        for p in existing:
+            if p.get("booking_id") == booking_id and p.get("payment_type") == "TIME_BILL":
+                return p
+
+        booking = self.booking_repository.find_by_id(booking_id)
+        user_id = booking["user_id"] if booking else None
+
+        for attempt in range(MAX_REFCODE_ATTEMPTS):
+            reference_code = f"{self._generate_reference_code(booking_id)}-T"
+            try:
+                return self.payment_repository.create(
+                    {
+                        "booking_id": booking_id,
+                        "user_id": user_id,
+                        "provider": "MANUAL_UPI",
+                        "payment_type": "TIME_BILL",
+                        "amount": amount,
+                        "reference_code": reference_code,
+                        "status": "PENDING",
+                    }
+                )
+            except Exception:
+                if attempt == MAX_REFCODE_ATTEMPTS - 1:
+                    raise RuntimeError("Failed to generate unique TIME_BILL reference code.")
 
     # ── Admin Config ───────────────────────────────────────────────────
 
