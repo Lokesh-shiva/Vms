@@ -107,6 +107,36 @@ class BookingViewModel(
             }
         }
     }
+
+    fun startSession(bookingId: Int) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            try {
+                bookingRepository.startSession(bookingId)
+                loadBookings()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Failed to start session"
+                )
+            }
+        }
+    }
+
+    fun endSession(bookingId: Int) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            try {
+                bookingRepository.endSession(bookingId)
+                loadBookings()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Failed to end session"
+                )
+            }
+        }
+    }
 }
 
 class BookingViewModelFactory(
