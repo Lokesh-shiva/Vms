@@ -53,11 +53,18 @@ data class Booking(
     val address: String? = null,
     val date: String? = null,
     val created_at: String? = null,
-    // Display-friendly names (will be populated when backend supports them)
+    // Display-friendly names
     val region_name: String? = null,
     val cart_type_name: String? = null,
     val timeslot_label: String? = null,
-    val cart_label: String? = null
+    val cart_label: String? = null,
+    // Session / time-billing fields (null when session not started)
+    val session_started_at: String? = null,
+    val session_ended_at: String? = null,
+    val session_minutes: Int? = null,
+    val session_blocks: Int? = null,
+    val time_bill_amount: Double? = null,
+    val surge_multiplier_snapshot: Double? = null
 )
 
 @Serializable
@@ -69,6 +76,7 @@ data class Payment(
     val reference_code: String? = null,
     val transaction_id: String? = null,
     val status: String? = null,
+    val payment_type: String? = null,   // "MATCHING_FEE" or "TIME_BILL"
     val created_at: String? = null,
     val updated_at: String? = null
 )
@@ -207,7 +215,14 @@ data class FeeConfig(
     val region_name: String? = null,
     val cart_type_name: String? = null,
     val created_at: String? = null,
-    val updated_at: String? = null
+    val updated_at: String? = null,
+    // Time-based billing fields
+    val matching_fee: Double = 0.0,
+    val rate_per_block: Double = 0.0,
+    val block_duration_minutes: Int = 45,
+    val max_duration_minutes: Int = 180,
+    val surge_enabled: Boolean = false,
+    val surge_multiplier: Double = 1.0
 )
 
 @Serializable
@@ -216,7 +231,11 @@ data class CreateFeeConfigRequest(
     val cart_type_id: Int,
     val booking_fee: Double,
     val cancellation_fee_pct: Double,
-    val platform_fee_pct: Double
+    val platform_fee_pct: Double,
+    val matching_fee: Double = 0.0,
+    val rate_per_block: Double = 0.0,
+    val block_duration_minutes: Int = 45,
+    val max_duration_minutes: Int = 180
 )
 
 @Serializable
@@ -224,7 +243,13 @@ data class UpdateFeeConfigRequest(
     val booking_fee: Double? = null,
     val cancellation_fee_pct: Double? = null,
     val platform_fee_pct: Double? = null,
-    val is_active: Boolean? = null
+    val is_active: Boolean? = null,
+    val matching_fee: Double? = null,
+    val rate_per_block: Double? = null,
+    val block_duration_minutes: Int? = null,
+    val max_duration_minutes: Int? = null,
+    val surge_enabled: Boolean? = null,
+    val surge_multiplier: Double? = null
 )
 
 @Serializable
@@ -371,4 +396,14 @@ data class UpdateCaptainRequest(
     val status: String? = null,
     val region_id: Int? = null,
     val bio: String? = null
+)
+
+@Serializable
+data class SessionStatus(
+    val booking_id: Int,
+    val status: String,
+    val running: Boolean,
+    val elapsed_minutes: Int,
+    val current_blocks: Int,
+    val estimated_time_bill: Double
 )
