@@ -430,9 +430,9 @@ class PaymentService(BaseService):
         Idempotent: if a TIME_BILL payment already exists for this booking,
         return it instead of creating a duplicate.
         """
-        existing = self.payment_repository.find_all(status=None)
+        existing = self.payment_repository.find_by_booking_id_all(booking_id)
         for p in existing:
-            if p.get("booking_id") == booking_id and p.get("payment_type") == "TIME_BILL":
+            if p.get("payment_type") == "TIME_BILL":
                 return p
 
         booking = self.booking_repository.find_by_id(booking_id)
