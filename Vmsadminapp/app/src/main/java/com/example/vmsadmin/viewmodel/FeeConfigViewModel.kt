@@ -74,13 +74,20 @@ class FeeConfigViewModel(
         cartTypeId: Int,
         bookingFee: Double,
         cancellationFeePct: Double,
-        platformFeePct: Double
+        platformFeePct: Double,
+        matchingFee: Double = 0.0,
+        ratePerBlock: Double = 0.0,
+        blockDurationMinutes: Int = 45,
+        maxDurationMinutes: Int = 180
     ) {
         if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, error = null) }
             try {
-                repository.createFeeConfig(regionId, cartTypeId, bookingFee, cancellationFeePct, platformFeePct)
+                repository.createFeeConfig(
+                    regionId, cartTypeId, bookingFee, cancellationFeePct, platformFeePct,
+                    matchingFee, ratePerBlock, blockDurationMinutes, maxDurationMinutes
+                )
                 delay(200)
                 loadConfigs()
                 _uiState.update { it.copy(successMessage = "Fee config saved", showAddDialog = false) }
@@ -96,7 +103,13 @@ class FeeConfigViewModel(
         id: Int,
         bookingFee: Double,
         cancellationFeePct: Double,
-        platformFeePct: Double
+        platformFeePct: Double,
+        matchingFee: Double,
+        ratePerBlock: Double,
+        blockDurationMinutes: Int,
+        maxDurationMinutes: Int,
+        surgeEnabled: Boolean,
+        surgeMultiplier: Double
     ) {
         if (_uiState.value.isSubmitting) return
         viewModelScope.launch {
@@ -106,11 +119,23 @@ class FeeConfigViewModel(
                     id = id,
                     bookingFee = bookingFee,
                     cancellationFeePct = cancellationFeePct,
-                    platformFeePct = platformFeePct
+                    platformFeePct = platformFeePct,
+                    matchingFee = matchingFee,
+                    ratePerBlock = ratePerBlock,
+                    blockDurationMinutes = blockDurationMinutes,
+                    maxDurationMinutes = maxDurationMinutes,
+                    surgeEnabled = surgeEnabled,
+                    surgeMultiplier = surgeMultiplier
                 )
                 delay(200)
                 loadConfigs()
-                _uiState.update { it.copy(successMessage = "Configuration updated", showEditDialog = false, editingConfig = null) }
+                _uiState.update {
+                    it.copy(
+                        successMessage = "Configuration updated",
+                        showEditDialog = false,
+                        editingConfig = null
+                    )
+                }
             } catch (e: Exception) {
                 _uiState.update { it.copy(error = e.message ?: "Failed to update fee config") }
             } finally {

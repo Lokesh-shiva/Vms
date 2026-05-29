@@ -49,6 +49,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.Switch
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -112,7 +113,7 @@ fun FeeConfigScreen(
 
     if (uiState.showAddDialog) {
         FeeConfigFormDialog(
-            title = "Add Fee Configuration",
+            title = "Add Pricing Config",
             regions = regionState.regions,
             cartTypes = cartTypeState.cartTypes,
             existingConfigs = uiState.feeConfigs,
@@ -123,8 +124,14 @@ fun FeeConfigScreen(
             initialCancellationPct = "",
             initialPlatformPct = "",
             isSubmitting = uiState.isSubmitting,
-            onConfirm = { regionId, cartTypeId, bookingFee, cancellationPct, platformPct ->
-                viewModel.addConfig(regionId, cartTypeId, bookingFee, cancellationPct, platformPct)
+            // new optional params use defaults (0.0, 0.0, "45", "180", false, "1.0")
+            onConfirm = { regionId, cartTypeId, bookingFee, cancellationPct, platformPct,
+                          matchingFee, ratePerBlock, blockDurationMinutes, maxDurationMinutes,
+                          _, _ ->
+                viewModel.addConfig(
+                    regionId, cartTypeId, bookingFee, cancellationPct, platformPct,
+                    matchingFee, ratePerBlock, blockDurationMinutes, maxDurationMinutes
+                )
             },
             onDismiss = { viewModel.dismissAddDialog() }
         )
@@ -133,7 +140,7 @@ fun FeeConfigScreen(
     if (uiState.showEditDialog && uiState.editingConfig != null) {
         val config = uiState.editingConfig!!
         FeeConfigFormDialog(
-            title = "Edit Fee Configuration",
+            title = "Edit Pricing Config",
             regions = regionState.regions,
             cartTypes = cartTypeState.cartTypes,
             existingConfigs = uiState.feeConfigs,
@@ -144,8 +151,27 @@ fun FeeConfigScreen(
             initialCancellationPct = config.cancellation_fee_pct.toBigDecimal().stripTrailingZeros().toPlainString(),
             initialPlatformPct = config.platform_fee_pct.toBigDecimal().stripTrailingZeros().toPlainString(),
             isSubmitting = uiState.isSubmitting,
-            onConfirm = { _, _, bookingFee, cancellationPct, platformPct ->
-                viewModel.updateConfig(config.id, bookingFee, cancellationPct, platformPct)
+            initialMatchingFee = config.matching_fee.toBigDecimal().stripTrailingZeros().toPlainString(),
+            initialRatePerBlock = config.rate_per_block.toBigDecimal().stripTrailingZeros().toPlainString(),
+            initialBlockDuration = config.block_duration_minutes.toString(),
+            initialMaxDuration = config.max_duration_minutes.toString(),
+            initialSurgeEnabled = config.surge_enabled,
+            initialSurgeMultiplier = config.surge_multiplier.toBigDecimal().stripTrailingZeros().toPlainString(),
+            onConfirm = { _, _, bookingFee, cancellationPct, platformPct,
+                          matchingFee, ratePerBlock, blockDurationMinutes, maxDurationMinutes,
+                          surgeEnabled, surgeMultiplier ->
+                viewModel.updateConfig(
+                    id = config.id,
+                    bookingFee = bookingFee,
+                    cancellationFeePct = cancellationPct,
+                    platformFeePct = platformPct,
+                    matchingFee = matchingFee,
+                    ratePerBlock = ratePerBlock,
+                    blockDurationMinutes = blockDurationMinutes,
+                    maxDurationMinutes = maxDurationMinutes,
+                    surgeEnabled = surgeEnabled,
+                    surgeMultiplier = surgeMultiplier
+                )
             },
             onDismiss = { viewModel.dismissEditDialog() }
         )
@@ -398,6 +424,22 @@ private fun FeeConfigCard(
         FeeInfoRow(label = "Booking Fee", value = "₹%.2f".format(config.booking_fee), alpha = contentAlpha)
         FeeInfoRow(label = "Cancellation Fee", value = "%.1f%%".format(config.cancellation_fee_pct), alpha = contentAlpha)
         FeeInfoRow(label = "Platform Fee", value = "%.1f%%".format(config.platform_fee_pct), alpha = contentAlpha)
+        if (config.matching_fee > 0 || config.rate_per_block > 0) {
+            Spacer(modifier = Modifier.height(8.dp))
+            FeeInfoRow(label = "Matching Fee", value = "₹%.2f".format(config.matching_fee), alpha = contentAlpha)
+            FeeInfoRow(
+                label = "Rate / Block",
+                value = "₹%.2f / %dmin".format(config.rate_per_block, config.block_duration_minutes),
+                alpha = contentAlpha
+            )
+            if (config.surge_enabled) {
+                FeeInfoRow(
+                    label = "Surge",
+                    value = "%.1fx (active)".format(config.surge_multiplier),
+                    alpha = contentAlpha
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
@@ -497,7 +539,15 @@ private fun FeeConfigFormDialog(
     initialCancellationPct: String,
     initialPlatformPct: String,
     isSubmitting: Boolean,
-    onConfirm: (regionId: Int, cartTypeId: Int, bookingFee: Double, cancellationPct: Double, platformPct: Double) -> Unit,
+    initialMatchingFee: String = "0.0",
+    initialRatePerBlock: String = "0.0",
+    initialBlockDuration: String = "45",
+    initialMaxDuration: String = "180",
+    initialSurgeEnabled: Boolean = false,
+    initialSurgeMultiplier: String = "1.0",
+    onConfirm: (regionId: Int, cartTypeId: Int, bookingFee: Double, cancellationPct: Double, platformPct: Double,
+                matchingFee: Double, ratePerBlock: Double, blockDurationMinutes: Int, maxDurationMinutes: Int,
+                surgeEnabled: Boolean, surgeMultiplier: Double) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedRegionId by remember { mutableStateOf(initialRegionId) }
@@ -505,6 +555,19 @@ private fun FeeConfigFormDialog(
     var bookingFee by remember { mutableStateOf(initialBookingFee) }
     var cancellationPct by remember { mutableStateOf(initialCancellationPct) }
     var platformPct by remember { mutableStateOf(initialPlatformPct) }
+
+    var matchingFee by remember { mutableStateOf(initialMatchingFee) }
+    var ratePerBlock by remember { mutableStateOf(initialRatePerBlock) }
+    var blockDuration by remember { mutableStateOf(initialBlockDuration) }
+    var maxDuration by remember { mutableStateOf(initialMaxDuration) }
+    var surgeEnabled by remember { mutableStateOf(initialSurgeEnabled) }
+    var surgeMultiplier by remember { mutableStateOf(initialSurgeMultiplier) }
+
+    var matchingFeeError by remember { mutableStateOf<String?>(null) }
+    var ratePerBlockError by remember { mutableStateOf<String?>(null) }
+    var blockDurationError by remember { mutableStateOf<String?>(null) }
+    var maxDurationError by remember { mutableStateOf<String?>(null) }
+    var surgeMultiplierError by remember { mutableStateOf<String?>(null) }
 
     var regionError by remember { mutableStateOf(false) }
     var cartTypeError by remember { mutableStateOf(false) }
@@ -573,9 +636,41 @@ private fun FeeConfigFormDialog(
             valid = false
         }
 
+        val mFee = matchingFee.toDoubleOrNull()
+        if (mFee == null || mFee < 0) {
+            matchingFeeError = "Enter a valid matching fee (>= 0)"
+            valid = false
+        }
+        val rPB = ratePerBlock.toDoubleOrNull()
+        if (rPB == null || rPB < 0) {
+            ratePerBlockError = "Enter a valid rate (>= 0)"
+            valid = false
+        }
+        val bDur = blockDuration.toIntOrNull()
+        if (rPB != null && rPB > 0 && (bDur == null || bDur <= 0)) {
+            blockDurationError = "Required when rate per block is set"
+            valid = false
+        }
+        val mDur = maxDuration.toIntOrNull()
+        if (rPB != null && rPB > 0 && (mDur == null || mDur <= 0)) {
+            maxDurationError = "Required when rate per block is set"
+            valid = false
+        }
+        val sMult = surgeMultiplier.toDoubleOrNull()
+        if (surgeEnabled && (sMult == null || sMult < 1.0 || sMult > 3.0)) {
+            surgeMultiplierError = "Multiplier must be between 1.0 and 3.0"
+            valid = false
+        }
+
         if (valid) {
             keyboardController?.hide()
-            onConfirm(selectedRegionId!!, selectedCartTypeId!!, fee!!, cancel!!, platform!!)
+            onConfirm(
+                selectedRegionId!!, selectedCartTypeId!!,
+                fee!!, cancel!!, platform!!,
+                mFee!!, rPB!!,
+                bDur ?: 45, mDur ?: 180,
+                surgeEnabled, sMult ?: 1.0
+            )
         }
     }
 
@@ -761,9 +856,8 @@ private fun FeeConfigFormDialog(
                     supportingText = platformPctError?.let { err -> { Text(err) } },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Decimal,
-                        imeAction = ImeAction.Done
+                        imeAction = ImeAction.Next
                     ),
-                    keyboardActions = KeyboardActions(onDone = { submit() }),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -774,6 +868,98 @@ private fun FeeConfigFormDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error
                     )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Time-Based Billing",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                OutlinedTextField(
+                    value = matchingFee,
+                    onValueChange = { matchingFee = it; matchingFeeError = null },
+                    label = { Text("Matching Fee (₹)") },
+                    singleLine = true,
+                    isError = matchingFeeError != null,
+                    supportingText = matchingFeeError?.let { err -> { Text(err) } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = ratePerBlock,
+                    onValueChange = { ratePerBlock = it; ratePerBlockError = null },
+                    label = { Text("Rate per Block (₹)") },
+                    singleLine = true,
+                    isError = ratePerBlockError != null,
+                    supportingText = ratePerBlockError?.let { err -> { Text(err) } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = blockDuration,
+                    onValueChange = { blockDuration = it; blockDurationError = null },
+                    label = { Text("Block Duration (minutes)") },
+                    singleLine = true,
+                    isError = blockDurationError != null,
+                    supportingText = blockDurationError?.let { err -> { Text(err) } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = maxDuration,
+                    onValueChange = { maxDuration = it; maxDurationError = null },
+                    label = { Text("Max Duration (minutes)") },
+                    singleLine = true,
+                    isError = maxDurationError != null,
+                    supportingText = maxDurationError?.let { err -> { Text(err) } },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                if (isEditMode) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Surge Pricing",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Enable Surge", style = MaterialTheme.typography.bodyMedium)
+                        Switch(checked = surgeEnabled, onCheckedChange = {
+                            surgeEnabled = it
+                            if (!it) surgeMultiplierError = null
+                        })
+                    }
+                    if (surgeEnabled) {
+                        OutlinedTextField(
+                            value = surgeMultiplier,
+                            onValueChange = { surgeMultiplier = it; surgeMultiplierError = null },
+                            label = { Text("Surge Multiplier (1.0 – 3.0)") },
+                            singleLine = true,
+                            isError = surgeMultiplierError != null,
+                            supportingText = surgeMultiplierError?.let { err -> { Text(err) } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
                 }
 
                 if (!isEditMode && (regions.isEmpty() || cartTypes.isEmpty())) {
