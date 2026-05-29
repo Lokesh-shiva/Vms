@@ -11,6 +11,7 @@ from modules.booking.repository.booking_repository import (
 from modules.payment.repository.system_config_repository import (
     system_config_repository as _default_config_repo,
 )
+from modules.fee_config.service.fee_config_service import FeeConfigService
 
 
 # Fallback UPI ID from environment variable (used when no DB override exists)
@@ -41,11 +42,13 @@ class PaymentService(BaseService):
         payment_repository=None,
         booking_repository=None,
         system_config_repository=None,
+        fee_config_service=None,
     ):
         super().__init__()
         self.payment_repository = payment_repository or _default_payment_repo
         self.booking_repository = booking_repository or _default_booking_repo
         self.config_repository = system_config_repository or _default_config_repo
+        self.fee_config_service = fee_config_service or FeeConfigService()
 
     # ── Split Payments ─────────────────────────────────────────────────
 
@@ -193,12 +196,10 @@ class PaymentService(BaseService):
                 raise ValueError("Payment already completed for this booking.")
             # FAILED or REFUNDED → allow retry (new payment record, old stays)
 
-        from modules.fee_config.service.fee_config_service import FeeConfigService
-        pricing = FeeConfigService().get_config_by_region_and_cart_type(
+        pricing = self.fee_config_service.get_config_by_region_and_cart_type(
             booking["region_id"], booking["cart_type_id"]
         )
-        matching_fee = float(pricing["matching_fee"]) if pricing else 0.0
-        amount = matching_fee
+        amount = float(pricing["matching_fee"]) if pricing else 0.0
 
         for attempt in range(MAX_REFCODE_ATTEMPTS):
             reference_code = self._generate_reference_code(booking_id)

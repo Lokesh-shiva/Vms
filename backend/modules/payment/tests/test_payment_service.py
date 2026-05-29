@@ -34,6 +34,7 @@ from modules.payment.repository.payment_repository import PaymentRepository
 from modules.payment.repository.system_config_repository import SystemConfigRepository
 from modules.payment.service.payment_service import PaymentService
 from modules.fee_config.repository.fee_config_repository import FeeConfigRepository
+from modules.fee_config.service.fee_config_service import FeeConfigService
 
 
 def _make_test_session_factory():
@@ -85,9 +86,9 @@ class TestPaymentService(unittest.TestCase):
             item_repository=self.item_repo,
         )
 
-        # Fee config — 10% cancellation + 5% platform = 15% total deduction
+        # Fee config — matching_fee=150.0; 10% cancellation + 5% platform = 15% deduction
         self.fee_config_repo = FeeConfigRepository(session_factory=test_session_factory)
-        self.fee_config_repo.create(
+        _config = self.fee_config_repo.create(
             {
                 "region_id": 1,
                 "cart_type_id": 1,
@@ -96,6 +97,18 @@ class TestPaymentService(unittest.TestCase):
                 "platform_fee_pct": 5.0,
                 "is_active": True,
             }
+        )
+        # FeeConfigRepository.create() does not accept matching_fee, so set the
+        # known value via update() to drive the MATCHING_FEE pricing assertion.
+        self.fee_config_repo.update(_config["id"], {"matching_fee": 150.0})
+
+        # FeeConfigService backed by the SAME in-memory session so the
+        # PaymentService under test reads pricing from this test's DB, not the
+        # live/global one.
+        self.fee_config_service = FeeConfigService(
+            fee_config_repository=self.fee_config_repo,
+            location_repository=self.location_repo,
+            cart_type_repository=self.cart_type_repo,
         )
 
         self.booking_repo = BookingRepository(session_factory=test_session_factory)
@@ -106,6 +119,7 @@ class TestPaymentService(unittest.TestCase):
             payment_repository=self.payment_repo,
             booking_repository=self.booking_repo,
             system_config_repository=self.config_repo,
+            fee_config_service=self.fee_config_service,
         )
 
         self.booking_service = BookingService(
@@ -147,14 +161,16 @@ class TestPaymentService(unittest.TestCase):
     def test_initiate_payment_amount_is_matching_fee(self):
         """Upfront payment amount = pricing config's matching_fee (MATCHING_FEE).
 
-        The injected PaymentService resolves the matching fee via the global
-        FeeConfigService, which does not see this test's in-memory pricing
-        config, so no config is found and the matching fee defaults to 0.0.
+        The PaymentService under test is injected with a FeeConfigService backed
+        by this test's in-memory session, which holds a pricing config with a
+        known matching_fee of 150.0 for region 1 / cart_type 1. The resolved
+        amount must equal that seeded fee — proving it is read from config and
+        not a hardcoded default.
         """
         booking = self._create_booking()
         result = self.payment_service.initiate_payment(booking["id"])
 
-        self.assertEqual(result["amount"], 0.0)
+        self.assertEqual(result["amount"], 150.0)
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.assertEqual(payment["payment_type"], "MATCHING_FEE")
 

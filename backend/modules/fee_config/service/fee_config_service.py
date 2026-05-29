@@ -131,6 +131,8 @@ class FeeConfigService(BaseService):
 
         multiplier must be within [1.0, 3.0].
         """
+        if not isinstance(multiplier, (int, float)) or isinstance(multiplier, bool):
+            raise ValueError("surge_multiplier must be a number.")
         if multiplier < 1.0 or multiplier > 3.0:
             raise ValueError("surge_multiplier must be between 1.0 and 3.0.")
         existing = self.fee_config_repository.find_by_id(config_id)
