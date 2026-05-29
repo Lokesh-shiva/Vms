@@ -20,6 +20,8 @@ import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.ui.components.StatusBadge
 import com.example.vmsadmin.ui.components.shimmerEffect
 import com.example.vmsadmin.viewmodel.BookingViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,20 +128,20 @@ fun BookingsScreen(viewModel: BookingViewModel) {
                                 BookingCard(
                                     booking = booking,
                                     onStart = {
-                                        dialogTitle = "Start Service?"
-                                        dialogMessage = "Start service for booking #${booking.id}? This will mark it as in progress."
-                                        dialogAction = { viewModel.startBooking(booking.id) }
+                                        dialogTitle = "Start Session?"
+                                        dialogMessage = "Mark booking #${booking.id} as in progress? The player has arrived at the ground."
+                                        dialogAction = { viewModel.startSession(booking.id) }
                                         showDialog = true
                                     },
                                     onComplete = {
-                                        dialogTitle = "Complete Service?"
-                                        dialogMessage = "Mark booking #${booking.id} as completed?"
-                                        dialogAction = { viewModel.completeBooking(booking.id) }
+                                        dialogTitle = "End Session?"
+                                        dialogMessage = "Mark booking #${booking.id} as completed? The session has finished."
+                                        dialogAction = { viewModel.endSession(booking.id) }
                                         showDialog = true
                                     },
                                     onCancel = {
                                         dialogTitle = "Cancel Booking?"
-                                        dialogMessage = "Cancel booking #${booking.id}? This action cannot be undone."
+                                        dialogMessage = "Cancel booking #${booking.id}? This cannot be undone."
                                         dialogAction = { viewModel.cancelBooking(booking.id) }
                                         showDialog = true
                                     }
@@ -161,7 +163,7 @@ private fun BookingCard(
     onCancel: () -> Unit
 ) {
     AppCard {
-        // Status badge
+        // Status badge + ID
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -177,18 +179,41 @@ private fun BookingCard(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        InfoRow(label = "Region", value = booking.region_name ?: "Region ${booking.region_id ?: "-"}")
-        InfoRow(label = "Cart Type", value = booking.cart_type_name ?: "Type ${booking.cart_type_id ?: "-"}")
-        InfoRow(label = "Timeslot", value = booking.timeslot_label ?: "Slot ${booking.timeslot_id ?: "-"}")
-        InfoRow(label = "Date", value = booking.date ?: "-")
-        val cartDisplay = booking.cart_label
-            ?: if (booking.assigned_cart_id != null) "CART-${booking.assigned_cart_id}" else null
-        if (cartDisplay != null) {
-            InfoRow(label = "Cart", value = cartDisplay)
+        InfoRow(label = "Region",   value = booking.region_name    ?: "Region ${booking.region_id ?: "-"}")
+        InfoRow(label = "Sport",    value = booking.cart_type_name ?: "Sport ${booking.cart_type_id ?: "-"}")
+        InfoRow(label = "Date",     value = booking.date           ?: "-")
+        InfoRow(label = "Time",     value = booking.timeslot_label ?: "Slot ${booking.timeslot_id ?: "-"}")
+        booking.cart_label?.let { InfoRow(label = "Ground", value = it) }
+
+        val status = booking.status.uppercase()
+
+        // Live timer for in-progress sessions
+        if (status == "IN_PROGRESS" && booking.session_started_at != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            Spacer(modifier = Modifier.height(12.dp))
+            LiveSessionTimer(sessionStartedAt = booking.session_started_at)
+        }
+
+        // Time bill summary for awaiting payment
+        if (status == "AWAITING_TIME_PAYMENT") {
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+            Spacer(modifier = Modifier.height(12.dp))
+            booking.session_minutes?.let { InfoRow(label = "Session Duration", value = "$it min") }
+            booking.session_blocks?.let { InfoRow(label = "Blocks Used", value = it.toString()) }
+            booking.time_bill_amount?.let {
+                InfoRow(label = "Time Bill", value = "₹%.2f".format(it))
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "⏳ Awaiting time bill payment approval in Payments tab",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary
+            )
         }
 
         // Action buttons based on status
-        val status = booking.status.uppercase()
         if (status in listOf("PENDING_PAYMENT", "CONFIRMED", "IN_PROGRESS")) {
             Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
@@ -207,9 +232,7 @@ private fun BookingCard(
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error
                             )
-                        ) {
-                            Text("Cancel Booking")
-                        }
+                        ) { Text("Cancel") }
                     }
                     "CONFIRMED" -> {
                         OutlinedButton(
@@ -219,25 +242,19 @@ private fun BookingCard(
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error
                             )
-                        ) {
-                            Text("Cancel Booking")
-                        }
+                        ) { Text("Cancel") }
                         Button(
                             onClick = onStart,
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Start Service")
-                        }
+                        ) { Text("Start Session") }
                     }
                     "IN_PROGRESS" -> {
                         Button(
                             onClick = onComplete,
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("Complete Service")
-                        }
+                        ) { Text("End Session") }
                     }
                 }
             }
@@ -263,6 +280,56 @@ private fun InfoRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+private fun elapsedSeconds(sessionStartedAt: String): Long {
+    return try {
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+        val cleaned = sessionStartedAt.replace("T", " ").take(19)
+        val startDate = sdf.parse(cleaned) ?: return 0L
+        ((System.currentTimeMillis() - startDate.time) / 1000L).coerceAtLeast(0L)
+    } catch (_: Exception) {
+        0L
+    }
+}
+
+@Composable
+private fun LiveSessionTimer(sessionStartedAt: String) {
+    var elapsed by remember { mutableStateOf(elapsedSeconds(sessionStartedAt)) }
+
+    LaunchedEffect(sessionStartedAt) {
+        while (isActive) {
+            delay(1000L)
+            elapsed = elapsedSeconds(sessionStartedAt)
+        }
+    }
+
+    val hours = elapsed / 3600
+    val minutes = (elapsed % 3600) / 60
+    val seconds = elapsed % 60
+    val timeText = if (hours > 0)
+        "%02d:%02d:%02d".format(hours, minutes, seconds)
+    else
+        "%02d:%02d".format(minutes, seconds)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "Session Timer",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = timeText,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
         )
     }
 }
