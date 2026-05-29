@@ -45,6 +45,34 @@ cur.execute(
     """
 )
 
+print("Running migration 3: add time-rate + surge columns to region_cart_type_configs ...")
+cur.execute("""
+    ALTER TABLE region_cart_type_configs
+        ADD COLUMN IF NOT EXISTS matching_fee NUMERIC(10,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rate_per_block NUMERIC(10,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS block_duration_minutes INT NOT NULL DEFAULT 45,
+        ADD COLUMN IF NOT EXISTS max_duration_minutes INT NOT NULL DEFAULT 180,
+        ADD COLUMN IF NOT EXISTS surge_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS surge_multiplier NUMERIC(4,2) NOT NULL DEFAULT 1.0;
+""")
+
+print("Running migration 4: add session columns to bookings ...")
+cur.execute("""
+    ALTER TABLE bookings
+        ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS session_ended_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS session_minutes INT,
+        ADD COLUMN IF NOT EXISTS session_blocks INT,
+        ADD COLUMN IF NOT EXISTS time_bill_amount NUMERIC(10,2),
+        ADD COLUMN IF NOT EXISTS surge_multiplier_snapshot NUMERIC(4,2);
+""")
+
+print("Running migration 5: add payment_type to payments ...")
+cur.execute("""
+    ALTER TABLE payments
+        ADD COLUMN IF NOT EXISTS payment_type VARCHAR(50) NOT NULL DEFAULT 'MATCHING_FEE';
+""")
+
 conn.commit()
 cur.close()
 conn.close()
