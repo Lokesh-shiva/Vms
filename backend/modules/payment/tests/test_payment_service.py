@@ -414,16 +414,17 @@ class TestPaymentService(unittest.TestCase):
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.payment_service.approve_payment(payment["id"])
 
-        # total_paid = MATCHING_FEE amount. The injected service cannot reach
-        # this test's pricing config, so matching_fee resolves to 0.0.
-        # refund = total_paid × (1 - (cancel_pct + platform_pct)/100)
-        #        = 0.0 × (1 - 15/100) = 0.0
-        total_paid = float(payment["amount"])
+        # initiate_payment resolves the matching fee via the GLOBAL FeeConfigService,
+        # which cannot see this test's in-memory pricing config, so the payment
+        # amount is 0.0. Seed a KNOWN non-zero amount directly via the repository so
+        # the refund percentage math is genuinely exercised (not 0 × anything).
+        self.payment_repo.update(payment["id"], {"amount": 50.0})
+
+        # refund = 50.0 × (1 - 15/100) = 42.5
         self.payment_service.process_refund(payment["id"], booking)
 
         updated_booking = self.booking_repo.find_by_id(booking["id"])
-        expected_refund = round(total_paid * (1 - 15.0 / 100), 2)
-        self.assertEqual(updated_booking["refund_amount"], expected_refund)
+        self.assertEqual(updated_booking["refund_amount"], 42.5)
 
     def test_refund_uses_snapshot_not_live_config(self):
         """Changing config after booking doesn't affect refund calculation."""
@@ -433,24 +434,26 @@ class TestPaymentService(unittest.TestCase):
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.payment_service.approve_payment(payment["id"])
 
-        # Change config to extreme values after booking creation
+        # Seed a KNOWN non-zero amount so snapshot-vs-live yields DISTINCT refunds.
+        self.payment_repo.update(payment["id"], {"amount": 50.0})
+
+        # Change live config to extreme values AFTER booking creation.
         config = self.fee_config_repo.find_by_region_and_cart_type(1, 1)
         self.fee_config_repo.update(
             config["id"],
             {
-                "cancellation_fee_pct": 90.0,
+                "cancellation_fee_pct": 80.0,
                 "platform_fee_pct": 10.0,
             },
         )
 
-        # Refund uses booking snapshot (10% + 5% = 15%), NOT live config (90% + 10%)
-        total_paid = float(payment["amount"])
+        # Refund must use booking SNAPSHOT (10% + 5% = 15% -> 50.0 × 0.85 = 42.5),
+        # NOT live config (80% + 10% = 90% -> 50.0 × 0.10 = 5.0). The two values
+        # are distinct and non-zero, so this test fails if live config leaks in.
         self.payment_service.process_refund(payment["id"], booking)
 
         updated_booking = self.booking_repo.find_by_id(booking["id"])
-        # Snapshot pct (15%) applied to the MATCHING_FEE amount paid.
-        expected_refund = round(total_paid * (1 - 15.0 / 100), 2)
-        self.assertEqual(updated_booking["refund_amount"], expected_refund)
+        self.assertEqual(updated_booking["refund_amount"], 42.5)
 
     def test_refund_fallback_fetches_booking(self):
         """Refund without booking param fetches snapshot from DB."""
@@ -460,15 +463,17 @@ class TestPaymentService(unittest.TestCase):
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.payment_service.approve_payment(payment["id"])
 
-        # Call without booking dict — should fallback to DB fetch
-        total_paid = float(payment["amount"])
+        # Seed a KNOWN non-zero amount so the fallback path's percentage math
+        # is genuinely exercised (snapshot 15% on 50.0 -> 42.5).
+        self.payment_repo.update(payment["id"], {"amount": 50.0})
+
+        # Call without booking dict — should fallback to DB fetch of the snapshot.
         result = self.payment_service.process_refund(payment["id"])
         self.assertEqual(result["status"], "REFUNDED")
 
         updated_booking = self.booking_repo.find_by_id(booking["id"])
-        # Snapshot pct (15%) applied to the MATCHING_FEE amount paid.
-        expected_refund = round(total_paid * (1 - 15.0 / 100), 2)
-        self.assertEqual(updated_booking["refund_amount"], expected_refund)
+        # Snapshot pct (15%) applied to the seeded amount: 50.0 × 0.85 = 42.5
+        self.assertEqual(updated_booking["refund_amount"], 42.5)
 
     def test_refund_non_success_payment_fails(self):
         """Cannot refund a payment that is not in SUCCESS status."""
