@@ -50,6 +50,7 @@ class Payment(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     match_id = Column(Integer, ForeignKey("matches.id"), nullable=True, index=True)
     provider = Column(String, nullable=False, default="MANUAL_UPI")
+    payment_type = Column(String, nullable=False, default="MATCHING_FEE")
     amount = Column(Numeric(10, 2), nullable=False)
     reference_code = Column(String, nullable=False, unique=True, index=True)
     transaction_id = Column(String, nullable=True)
@@ -67,6 +68,7 @@ class Payment(Base):
             "user_id": self.user_id,
             "match_id": self.match_id,
             "provider": self.provider,
+            "payment_type": self.payment_type,
             "amount": float(self.amount) if self.amount is not None else 0.0,
             "reference_code": self.reference_code,
             "transaction_id": self.transaction_id,
