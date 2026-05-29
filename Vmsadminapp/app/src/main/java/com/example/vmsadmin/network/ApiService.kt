@@ -38,6 +38,7 @@ import com.example.vmsadmin.models.QueueStatsResponse
 import com.example.vmsadmin.models.Captain
 import com.example.vmsadmin.models.CreateCaptainRequest
 import com.example.vmsadmin.models.UpdateCaptainRequest
+import com.example.vmsadmin.models.SessionStatus
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -68,6 +69,15 @@ interface ApiService {
     @POST("/api/v1/bookings/{booking_id}/cancel")
     suspend fun cancelBooking(@Path("booking_id") bookingId: Int): ApiResponse<JsonElement>
 
+    @POST("/api/v1/bookings/{booking_id}/start-session")
+    suspend fun startSession(@Path("booking_id") bookingId: Int): ApiResponse<JsonElement>
+
+    @POST("/api/v1/bookings/{booking_id}/end-session")
+    suspend fun endSession(@Path("booking_id") bookingId: Int): ApiResponse<JsonElement>
+
+    @GET("/api/v1/bookings/{booking_id}/session-status")
+    suspend fun getSessionStatus(@Path("booking_id") bookingId: Int): ApiResponse<SessionStatus>
+
     @GET("/api/v1/payments/config")
     suspend fun getPaymentsConfig(): ApiResponse<PaymentConfig>
 
@@ -79,6 +89,9 @@ interface ApiService {
 
     @POST("/api/v1/payments/reject/{payment_id}")
     suspend fun rejectPayment(@Path("payment_id") paymentId: Int): ApiResponse<JsonElement>
+
+    @POST("/api/v1/payments/refund/{payment_id}")
+    suspend fun refundPayment(@Path("payment_id") paymentId: Int): ApiResponse<JsonElement>
 
     // ── Region (Location) endpoints ──────────────────────────────────
     @GET("/api/v1/locations")
@@ -199,6 +212,9 @@ interface ApiService {
     // ── Ground endpoints ─────────────────────────────────────────────
     @GET("/api/v1/grounds")
     suspend fun getGrounds(): ApiResponse<List<Ground>>
+
+    @GET("/api/v1/grounds")
+    suspend fun getGroundsByRegion(@Query("region_id") regionId: Int): ApiResponse<List<Ground>>
 
     @PUT("/api/v1/grounds/{id}")
     suspend fun updateGround(

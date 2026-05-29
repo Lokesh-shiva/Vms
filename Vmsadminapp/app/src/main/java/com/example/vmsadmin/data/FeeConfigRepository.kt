@@ -26,7 +26,11 @@ class FeeConfigRepository(private val apiService: ApiService) {
         cartTypeId: Int,
         bookingFee: Double,
         cancellationFeePct: Double,
-        platformFeePct: Double
+        platformFeePct: Double,
+        matchingFee: Double = 0.0,
+        ratePerBlock: Double = 0.0,
+        blockDurationMinutes: Int = 45,
+        maxDurationMinutes: Int = 180
     ): FeeConfig {
         try {
             val response = apiService.createFeeConfig(
@@ -35,7 +39,11 @@ class FeeConfigRepository(private val apiService: ApiService) {
                     cart_type_id = cartTypeId,
                     booking_fee = bookingFee,
                     cancellation_fee_pct = cancellationFeePct,
-                    platform_fee_pct = platformFeePct
+                    platform_fee_pct = platformFeePct,
+                    matching_fee = matchingFee,
+                    rate_per_block = ratePerBlock,
+                    block_duration_minutes = blockDurationMinutes,
+                    max_duration_minutes = maxDurationMinutes
                 )
             )
             if (response.success && response.data != null) {
@@ -52,7 +60,13 @@ class FeeConfigRepository(private val apiService: ApiService) {
         bookingFee: Double? = null,
         cancellationFeePct: Double? = null,
         platformFeePct: Double? = null,
-        isActive: Boolean? = null
+        isActive: Boolean? = null,
+        matchingFee: Double? = null,
+        ratePerBlock: Double? = null,
+        blockDurationMinutes: Int? = null,
+        maxDurationMinutes: Int? = null,
+        surgeEnabled: Boolean? = null,
+        surgeMultiplier: Double? = null
     ): FeeConfig {
         try {
             val response = apiService.updateFeeConfig(
@@ -61,7 +75,13 @@ class FeeConfigRepository(private val apiService: ApiService) {
                     booking_fee = bookingFee,
                     cancellation_fee_pct = cancellationFeePct,
                     platform_fee_pct = platformFeePct,
-                    is_active = isActive
+                    is_active = isActive,
+                    matching_fee = matchingFee,
+                    rate_per_block = ratePerBlock,
+                    block_duration_minutes = blockDurationMinutes,
+                    max_duration_minutes = maxDurationMinutes,
+                    surge_enabled = surgeEnabled,
+                    surge_multiplier = surgeMultiplier
                 )
             )
             if (response.success && response.data != null) {
