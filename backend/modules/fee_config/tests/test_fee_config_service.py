@@ -13,6 +13,8 @@ from modules.item.model.item_model import Item  # noqa: F401
 from modules.booking.model.booking_model import Booking  # noqa: F401
 from modules.booking_item.model.booking_item_model import BookingItem  # noqa: F401
 from modules.payment.model.payment_model import Payment  # noqa: F401
+from modules.sport.model.sport_model import Sport  # noqa: F401
+from modules.match.model.match_model import Match  # noqa: F401
 from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401
 
 from modules.location.repository.location_repository import LocationRepository
@@ -195,6 +197,22 @@ class TestFeeConfigService(unittest.TestCase):
         """Updating non-existent config returns None."""
         result = self.service.update_config(999, {"booking_fee": 10.0})
         self.assertIsNone(result)
+
+    # ── Surge ─────────────────────────────────────────────────────────
+
+    def test_set_surge_updates_multiplier(self):
+        """set_surge enables surge and sets the multiplier."""
+        created = self.service.create_config(self._valid_data())
+        result = self.service.set_surge(created["id"], enabled=True, multiplier=1.5)
+        self.assertIsNotNone(result)
+        self.assertIs(result["surge_enabled"], True)
+        self.assertEqual(result["surge_multiplier"], 1.5)
+
+    def test_set_surge_rejects_out_of_range(self):
+        """set_surge rejects a multiplier outside [1.0, 3.0]."""
+        created = self.service.create_config(self._valid_data())
+        with self.assertRaises(ValueError):
+            self.service.set_surge(created["id"], enabled=True, multiplier=5.0)
 
     # ── Soft-Delete ───────────────────────────────────────────────────
 

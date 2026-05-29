@@ -126,6 +126,21 @@ class FeeConfigService(BaseService):
 
         return self.fee_config_repository.update(config_id, update_data)
 
+    def set_surge(self, config_id: int, enabled: bool, multiplier: float) -> dict | None:
+        """Set surge state + multiplier for a pricing config.
+
+        multiplier must be within [1.0, 3.0].
+        """
+        if multiplier < 1.0 or multiplier > 3.0:
+            raise ValueError("surge_multiplier must be between 1.0 and 3.0.")
+        existing = self.fee_config_repository.find_by_id(config_id)
+        if not existing:
+            return None
+        return self.fee_config_repository.update(
+            config_id,
+            {"surge_enabled": enabled, "surge_multiplier": multiplier},
+        )
+
     def delete_config(self, config_id: int) -> bool:
         """
         Soft-delete a fee config (sets is_active = False).
