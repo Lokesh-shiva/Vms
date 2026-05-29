@@ -214,15 +214,21 @@ class BookingService(BaseService):
             booking["timeslot_label"] = None
 
         assigned = booking.get("assigned_cart_id")
-        booking["cart_label"] = f"CART-{assigned}" if assigned is not None else None
+        if assigned is not None:
+            cart = self.cart_repository.find_by_id(assigned)
+            booking["cart_label"] = (
+                cart.get("label") if cart and cart.get("label") else f"Ground {assigned}"
+            )
+        else:
+            booking["cart_label"] = None
 
         return booking
 
     def _enrich_bookings_batch(self, bookings: list[dict]) -> list[dict]:
         """Batch-enrich a list of bookings with display names.
 
-        Fetches all locations, cart types, and timeslots in 3 queries total
-        (instead of 3 per booking) to avoid N+1 round-trips to Neon.
+        Fetches all locations, cart types, timeslots, and carts in 4 queries
+        total (instead of 4 per booking) to avoid N+1 round-trips to Neon.
         """
         if not bookings:
             return bookings
@@ -230,6 +236,7 @@ class BookingService(BaseService):
         locations = {r["id"]: r for r in self.location_repository.find_all()}
         cart_types = {ct["id"]: ct for ct in self.cart_type_repository.find_all()}
         timeslots = {ts["id"]: ts for ts in self.timeslot_repository.find_all()}
+        carts = {c["id"]: c for c in self.cart_repository.find_all()}
 
         for booking in bookings:
             region = locations.get(booking.get("region_id"))
@@ -247,7 +254,13 @@ class BookingService(BaseService):
                 booking["timeslot_label"] = None
 
             assigned = booking.get("assigned_cart_id")
-            booking["cart_label"] = f"CART-{assigned}" if assigned is not None else None
+            if assigned is not None:
+                cart = carts.get(assigned)
+                booking["cart_label"] = (
+                    cart.get("label") if cart and cart.get("label") else f"Ground {assigned}"
+                )
+            else:
+                booking["cart_label"] = None
 
         return bookings
 
@@ -500,6 +513,12 @@ class BookingService(BaseService):
         bookings = [self._check_and_expire(b) for b in bookings]
         return self._enrich_bookings_batch(bookings)
 
+    def list_bookings_by_region(self, region_id: int) -> list[dict]:
+        """Retrieve all bookings for a specific region (ground_owner isolation)."""
+        bookings = self.booking_repository.find_by_region_id(region_id)
+        bookings = [self._check_and_expire(b) for b in bookings]
+        return self._enrich_bookings_batch(bookings)
+
     def cancel_booking(self, booking_id: int) -> dict:
         """
         Cancel an existing booking.
@@ -625,3 +644,124 @@ class BookingService(BaseService):
                 "status": "COMPLETED",
             },
         )
+
+    def start_session(self, booking_id: int) -> dict:
+        """Captain/admin starts the session timer.
+
+        Allowed only from CONFIRMED. Sets session_started_at and moves to IN_PROGRESS.
+        """
+        booking = self.booking_repository.find_by_id(booking_id)
+        if not booking:
+            raise ValueError("Booking not found.")
+        if booking["status"] != "CONFIRMED":
+            raise ValueError(
+                f"Cannot start session for a booking in {booking['status']} status. "
+                "Only CONFIRMED bookings can start."
+            )
+        return self.booking_repository.update(
+            booking_id,
+            {
+                "status": "IN_PROGRESS",
+                "session_started_at": datetime.utcnow(),
+            },
+        )
+
+    def end_session(self, booking_id: int) -> dict:
+        """Captain/admin ends the session. Computes the time bill and moves to
+        AWAITING_TIME_PAYMENT.
+        """
+        from modules.billing.billing_calculator import compute_session_bill
+
+        booking = self.booking_repository.find_by_id(booking_id)
+        if not booking:
+            raise ValueError("Booking not found.")
+        if booking["status"] != "IN_PROGRESS":
+            raise ValueError(
+                f"Cannot end session for a booking in {booking['status']} status. "
+                "Only IN_PROGRESS bookings can end."
+            )
+        if not booking.get("session_started_at"):
+            raise ValueError("Booking has no session start time.")
+
+        config = self.fee_config_repository.find_by_region_and_cart_type(
+            booking["region_id"], booking["cart_type_id"]
+        )
+        if not config:
+            raise ValueError("No pricing config found for this region + sport.")
+
+        started_at = booking["session_started_at"]
+        if isinstance(started_at, str):
+            started_at = datetime.fromisoformat(started_at)
+
+        surge = (
+            float(config["surge_multiplier"])
+            if config.get("surge_enabled")
+            else 1.0
+        )
+        breakdown = compute_session_bill(
+            started_at=started_at,
+            ended_at=datetime.utcnow(),
+            rate_per_block=float(config["rate_per_block"]),
+            block_duration_minutes=int(config["block_duration_minutes"]),
+            max_duration_minutes=int(config["max_duration_minutes"]),
+            surge_multiplier=surge,
+        )
+
+        update = {
+            "status": "AWAITING_TIME_PAYMENT",
+            "session_ended_at": datetime.utcnow(),
+            **breakdown,
+        }
+        updated = self.booking_repository.update(booking_id, update)
+
+        # Create the TIME_BILL payment record for the user to pay.
+        # NOTE: create_time_bill_payment is added in Task 7 (forward reference).
+        self.payment_service.create_time_bill_payment(
+            booking_id, breakdown["time_bill_amount"]
+        )
+        return updated
+
+    def session_status(self, booking_id: int) -> dict:
+        """Return a live billing estimate for an in-progress session."""
+        from modules.billing.billing_calculator import compute_session_bill
+
+        booking = self.booking_repository.find_by_id(booking_id)
+        if not booking:
+            raise ValueError("Booking not found.")
+        if booking["status"] != "IN_PROGRESS" or not booking.get("session_started_at"):
+            return {
+                "booking_id": booking_id,
+                "status": booking["status"],
+                "running": False,
+                "elapsed_minutes": 0,
+                "current_blocks": 0,
+                "estimated_time_bill": 0.0,
+            }
+
+        config = self.fee_config_repository.find_by_region_and_cart_type(
+            booking["region_id"], booking["cart_type_id"]
+        )
+        started_at = booking["session_started_at"]
+        if isinstance(started_at, str):
+            started_at = datetime.fromisoformat(started_at)
+        surge = (
+            float(config["surge_multiplier"])
+            if config and config.get("surge_enabled")
+            else 1.0
+        )
+        breakdown = compute_session_bill(
+            started_at=started_at,
+            ended_at=datetime.utcnow(),
+            rate_per_block=float(config["rate_per_block"]) if config else 0.0,
+            block_duration_minutes=int(config["block_duration_minutes"]) if config else 45,
+            max_duration_minutes=int(config["max_duration_minutes"]) if config else 180,
+            surge_multiplier=surge,
+        )
+        return {
+            "booking_id": booking_id,
+            "status": booking["status"],
+            "running": True,
+            "elapsed_minutes": breakdown["session_minutes"],
+            "current_blocks": breakdown["session_blocks"],
+            "estimated_time_bill": breakdown["time_bill_amount"],
+        }

@@ -1,6 +1,7 @@
 """Pure billing math for time-based sessions. No DB, no side effects."""
 
 import math
+from datetime import datetime
 
 
 class BillingError(ValueError):
@@ -38,3 +39,33 @@ def calculate_time_bill(
         raise BillingError("surge_multiplier cannot be below 1.0.")
     blocks = calculate_blocks(session_minutes, block_duration_minutes)
     return round(blocks * rate_per_block * surge_multiplier, 2)
+
+
+def compute_session_bill(
+    started_at: datetime,
+    ended_at: datetime,
+    rate_per_block: float,
+    block_duration_minutes: int,
+    max_duration_minutes: int,
+    surge_multiplier: float = 1.0,
+) -> dict:
+    """Compute full session billing breakdown from start/end timestamps.
+
+    Caps session_minutes at max_duration_minutes. Returns a dict ready to
+    merge into a booking update.
+    """
+    if ended_at < started_at:
+        raise BillingError("ended_at cannot be before started_at.")
+
+    raw_minutes = int((ended_at - started_at).total_seconds() // 60)
+    session_minutes = min(raw_minutes, max_duration_minutes)
+    blocks = calculate_blocks(session_minutes, block_duration_minutes)
+    time_bill = calculate_time_bill(
+        session_minutes, rate_per_block, block_duration_minutes, surge_multiplier
+    )
+    return {
+        "session_minutes": session_minutes,
+        "session_blocks": blocks,
+        "time_bill_amount": time_bill,
+        "surge_multiplier_snapshot": surge_multiplier,
+    }
