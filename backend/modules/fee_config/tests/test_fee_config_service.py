@@ -198,6 +198,36 @@ class TestFeeConfigService(unittest.TestCase):
         result = self.service.update_config(999, {"booking_fee": 10.0})
         self.assertIsNone(result)
 
+    # ── Time-rate / surge round-trip at creation ──────────────────────
+
+    def test_create_config_with_time_rate_and_surge_fields(self):
+        """Time-rate and surge fields set at creation are persisted without an update."""
+        data = self._valid_data(
+            matching_fee=25.0,
+            rate_per_block=15.0,
+            block_duration_minutes=30,
+            max_duration_minutes=120,
+            surge_enabled=True,
+            surge_multiplier=1.8,
+        )
+        result = self.service.create_config(data)
+        self.assertEqual(result["matching_fee"], 25.0)
+        self.assertEqual(result["rate_per_block"], 15.0)
+        self.assertEqual(result["block_duration_minutes"], 30)
+        self.assertEqual(result["max_duration_minutes"], 120)
+        self.assertIs(result["surge_enabled"], True)
+        self.assertEqual(result["surge_multiplier"], 1.8)
+
+    def test_create_config_time_rate_defaults(self):
+        """Omitting time-rate fields at creation yields model defaults."""
+        result = self.service.create_config(self._valid_data())
+        self.assertEqual(result["matching_fee"], 0)
+        self.assertEqual(result["rate_per_block"], 0)
+        self.assertEqual(result["block_duration_minutes"], 45)
+        self.assertEqual(result["max_duration_minutes"], 180)
+        self.assertIs(result["surge_enabled"], False)
+        self.assertEqual(result["surge_multiplier"], 1.0)
+
     # ── Surge ─────────────────────────────────────────────────────────
 
     def test_set_surge_updates_multiplier(self):

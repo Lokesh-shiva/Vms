@@ -30,6 +30,12 @@ class FeeConfigRepository:
                 cancellation_fee_pct=config_data.get("cancellation_fee_pct", 0),
                 platform_fee_pct=config_data.get("platform_fee_pct", 0),
                 is_active=config_data.get("is_active", True),
+                matching_fee=config_data.get("matching_fee", 0),
+                rate_per_block=config_data.get("rate_per_block", 0),
+                block_duration_minutes=config_data.get("block_duration_minutes", 45),
+                max_duration_minutes=config_data.get("max_duration_minutes", 180),
+                surge_enabled=config_data.get("surge_enabled", False),
+                surge_multiplier=config_data.get("surge_multiplier", 1.0),
             )
             session.add(config)
             session.commit()

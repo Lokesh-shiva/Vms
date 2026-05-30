@@ -7,9 +7,11 @@ Internal field names (label, cart_type_id, region_id) are mapped
 to domain names (name, sport_id, location_id) at the boundary.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
 
-from modules.auth.dependencies.auth_dependencies import require_admin
+from fastapi import APIRouter, Depends, HTTPException, Query
+
+from modules.auth.dependencies.auth_dependencies import get_current_user, require_admin
 from modules.cart.service.cart_service import CartService
 from modules.cart.schemas.ground_schema import (
     CreateGroundSchema,
@@ -58,10 +60,28 @@ def create_ground(request_data: dict):
 
 
 @router.get("")
-def list_grounds():
-    """List all grounds."""
+def list_grounds(
+    region_id: Optional[int] = Query(None, description="Filter by region ID"),
+    current_user: dict = Depends(get_current_user),
+):
+    """List grounds.
+
+    - ground_owner: forced to their assigned region (query param ignored).
+    - Other roles: optional region_id filter.
+    """
+    effective_region = region_id
+    if current_user["role"] == "ground_owner":
+        effective_region = current_user.get("region_id")
+        if effective_region is None:
+            return _success([])
+
     carts = _cart_service.list_carts()
-    return _success([_to_ground(c) for c in carts])
+    grounds = [_to_ground(c) for c in carts]
+
+    if effective_region is not None:
+        grounds = [g for g in grounds if g.get("location_id") == effective_region]
+
+    return _success(grounds)
 
 
 @router.get("/{ground_id}")

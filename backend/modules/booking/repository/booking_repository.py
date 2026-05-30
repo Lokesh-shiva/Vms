@@ -97,6 +97,21 @@ class BookingRepository:
             if own_session:
                 session.close()
 
+    def find_by_region_id(self, region_id: int, session=None) -> list[dict]:
+        """Retrieve all bookings for a specific region (used by ground_owner)."""
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            bookings = (
+                session.query(Booking)
+                .filter(Booking.region_id == region_id)
+                .all()
+            )
+            return [b.to_dict() for b in bookings]
+        finally:
+            if own_session:
+                session.close()
+
     def find_by_user_and_date(
         self, user_id: int, date: str, session=None
     ) -> list[dict]:
