@@ -205,6 +205,9 @@ private fun BookingCard(
             booking.time_bill_amount?.let {
                 InfoRow(label = "Time Bill", value = "₹%.2f".format(it))
             }
+            booking.surge_multiplier_snapshot?.let {
+                if (it > 1.0) InfoRow(label = "Surge Applied", value = "%.1fx".format(it))
+            }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "⏳ Awaiting time bill payment approval in Payments tab",

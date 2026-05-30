@@ -75,6 +75,7 @@ interface ApiService {
     @POST("/api/v1/bookings/{booking_id}/end-session")
     suspend fun endSession(@Path("booking_id") bookingId: Int): ApiResponse<JsonElement>
 
+    // Scaffolding for future server-sync (clock-drift correction); client timer is sufficient for now
     @GET("/api/v1/bookings/{booking_id}/session-status")
     suspend fun getSessionStatus(@Path("booking_id") bookingId: Int): ApiResponse<SessionStatus>
 
