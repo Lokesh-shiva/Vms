@@ -1,5 +1,8 @@
 from modules.location.service.location_service import LocationService
-from modules.location.schemas.location_schema import CreateLocationSchema, UpdateLocationSchema
+from modules.location.schemas.location_schema import (
+    CreateLocationSchema,
+    UpdateLocationSchema,
+)
 
 
 class LocationController:
@@ -57,7 +60,9 @@ class LocationController:
             return self._error_response(schema.errors)
 
         try:
-            location = self.location_service.update_location(location_id, schema.validated_data)
+            location = self.location_service.update_location(
+                location_id, schema.validated_data
+            )
             if not location:
                 return self._error_response("Location not found.")
             return self._success_response(location, "Location updated successfully.")

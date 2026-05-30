@@ -26,7 +26,9 @@ class CreateTimeslotSchema:
         # location_id — required, positive int
         location_id = self._data.get("location_id")
         if location_id is None or not isinstance(location_id, int) or location_id <= 0:
-            self.errors.append("'location_id' is required and must be a positive integer.")
+            self.errors.append(
+                "'location_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["location_id"] = location_id
 
@@ -39,14 +41,22 @@ class CreateTimeslotSchema:
 
         # start_time — required, HH:MM
         start_time = self._data.get("start_time")
-        if not start_time or not isinstance(start_time, str) or not _TIME_RE.match(start_time.strip()):
+        if (
+            not start_time
+            or not isinstance(start_time, str)
+            or not _TIME_RE.match(start_time.strip())
+        ):
             self.errors.append("'start_time' is required and must be in HH:MM format.")
         else:
             self.validated_data["start_time"] = start_time.strip()
 
         # end_time — required, HH:MM
         end_time = self._data.get("end_time")
-        if not end_time or not isinstance(end_time, str) or not _TIME_RE.match(end_time.strip()):
+        if (
+            not end_time
+            or not isinstance(end_time, str)
+            or not _TIME_RE.match(end_time.strip())
+        ):
             self.errors.append("'end_time' is required and must be in HH:MM format.")
         else:
             self.validated_data["end_time"] = end_time.strip()
@@ -93,7 +103,9 @@ class UpdateTimeslotSchema:
 
         if "start_time" in self._data:
             start_time = self._data["start_time"]
-            if not isinstance(start_time, str) or not _TIME_RE.match(start_time.strip()):
+            if not isinstance(start_time, str) or not _TIME_RE.match(
+                start_time.strip()
+            ):
                 self.errors.append("'start_time' must be in HH:MM format.")
             else:
                 self.validated_data["start_time"] = start_time.strip()
@@ -111,5 +123,12 @@ class UpdateTimeslotSchema:
                 self.errors.append("'capacity' must be a positive integer.")
             else:
                 self.validated_data["capacity"] = capacity
+
+        if "is_active" in self._data:
+            is_active = self._data["is_active"]
+            if not isinstance(is_active, bool):
+                self.errors.append("'is_active' must be a boolean.")
+            else:
+                self.validated_data["is_active"] = is_active
 
         return len(self.errors) == 0

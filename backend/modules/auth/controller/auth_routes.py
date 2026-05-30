@@ -11,21 +11,26 @@ auth_service = AuthService()
 
 # ── Response helper ───────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
 
+
 @router.get("/me")
 def get_me(current_user: dict = Depends(get_current_user)):
     """Return the currently authenticated user's profile. Token validation."""
-    return _success({
-        "id": current_user.get("id"),
-        "name": current_user.get("name"),
-        "phone": current_user.get("phone"),
-        "role": current_user.get("role"),
-    }, "Authenticated user retrieved.")
+    return _success(
+        {
+            "id": current_user.get("id"),
+            "name": current_user.get("name"),
+            "phone": current_user.get("phone"),
+            "role": current_user.get("role"),
+        },
+        "Authenticated user retrieved.",
+    )
 
 
 @router.post("/register", status_code=201)
@@ -51,6 +56,13 @@ def login(request_data: dict):
 
     try:
         token_data = auth_service.login_user(schema.validated_data)
-        return _success(token_data, "Login successful.")
+        return _success(
+            {
+                "access_token": token_data["access_token"],
+                "token_type": token_data["token_type"],
+                "role": token_data["role"],
+            },
+            "Login successful.",
+        )
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))

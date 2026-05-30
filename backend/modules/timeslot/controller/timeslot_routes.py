@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from modules.timeslot.service.timeslot_service import TimeslotService
-from modules.timeslot.schemas.timeslot_schema import CreateTimeslotSchema, UpdateTimeslotSchema
+from modules.timeslot.schemas.timeslot_schema import (
+    CreateTimeslotSchema,
+    UpdateTimeslotSchema,
+)
 
 
 router = APIRouter(prefix="/api/v1/timeslots", tags=["Timeslots"])
@@ -10,11 +13,13 @@ timeslot_service = TimeslotService()
 
 # ── Response helper ───────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
 
 @router.post("", status_code=201)
 def create_timeslot(request_data: dict):
@@ -65,7 +70,10 @@ def update_timeslot(timeslot_id: int, request_data: dict):
 @router.delete("/{timeslot_id}")
 def delete_timeslot(timeslot_id: int):
     """Delete a timeslot by ID."""
-    deleted = timeslot_service.delete_timeslot(timeslot_id)
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Timeslot not found.")
-    return _success(None, "Timeslot deleted successfully.")
+    try:
+        deleted = timeslot_service.delete_timeslot(timeslot_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Timeslot not found.")
+        return _success(None, "Timeslot deleted successfully.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

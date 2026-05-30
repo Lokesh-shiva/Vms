@@ -11,18 +11,35 @@ from modules.user.controller.user_routes import router as user_router
 # ── Test fixtures ─────────────────────────────────────────────────────
 
 ADMIN_USER = {
-    "id": 1, "name": "Admin", "phone": "+1111111111",
-    "role": "admin", "is_active": True,
+    "id": 1,
+    "name": "Admin",
+    "phone": "+1111111111",
+    "role": "super_admin",
+    "is_active": True,
+}
+
+OPS_MANAGER_USER = {
+    "id": 4,
+    "name": "Ops",
+    "phone": "+4444444444",
+    "role": "ops_manager",
+    "is_active": True,
 }
 
 REGULAR_USER = {
-    "id": 2, "name": "User", "phone": "+2222222222",
-    "role": "user", "is_active": True,
+    "id": 2,
+    "name": "User",
+    "phone": "+2222222222",
+    "role": "user",
+    "is_active": True,
 }
 
 OTHER_USER = {
-    "id": 3, "name": "Other", "phone": "+3333333333",
-    "role": "user", "is_active": True,
+    "id": 3,
+    "name": "Other",
+    "phone": "+3333333333",
+    "role": "user",
+    "is_active": True,
 }
 
 
@@ -51,9 +68,13 @@ class TestUserRBAC(unittest.TestCase):
     def test_user_cannot_create_user(self):
         """Regular user gets 403 on POST /users."""
         self._set_user(REGULAR_USER)
-        resp = self.client.post("/api/v1/users", json={
-            "name": "New", "phone": "+4444444444",
-        })
+        resp = self.client.post(
+            "/api/v1/users",
+            json={
+                "name": "New",
+                "phone": "+4444444444",
+            },
+        )
         self.assertEqual(resp.status_code, 403)
 
     @patch("modules.user.controller.user_routes.user_service")
@@ -61,12 +82,19 @@ class TestUserRBAC(unittest.TestCase):
         """Admin can create a user via POST /users."""
         self._set_user(ADMIN_USER)
         mock_svc.create_user.return_value = {
-            "id": 10, "name": "New", "phone": "+4444444444",
-            "role": "user", "is_active": True,
+            "id": 10,
+            "name": "New",
+            "phone": "+4444444444",
+            "role": "user",
+            "is_active": True,
         }
-        resp = self.client.post("/api/v1/users", json={
-            "name": "New", "phone": "+4444444444",
-        })
+        resp = self.client.post(
+            "/api/v1/users",
+            json={
+                "name": "New",
+                "phone": "+4444444444",
+            },
+        )
         self.assertEqual(resp.status_code, 201)
         mock_svc.create_user.assert_called_once()
 
@@ -86,7 +114,7 @@ class TestUserRBAC(unittest.TestCase):
         self._set_user(REGULAR_USER)
         resp = self.client.put(
             f"/api/v1/users/{REGULAR_USER['id']}",
-            json={"role": "admin"},
+            json={"role": "super_admin"},
         )
         self.assertEqual(resp.status_code, 403)
 
@@ -95,8 +123,11 @@ class TestUserRBAC(unittest.TestCase):
         """Regular user can update their own name."""
         self._set_user(REGULAR_USER)
         mock_svc.update_user.return_value = {
-            "id": REGULAR_USER["id"], "name": "Updated",
-            "phone": REGULAR_USER["phone"], "role": "user", "is_active": True,
+            "id": REGULAR_USER["id"],
+            "name": "Updated",
+            "phone": REGULAR_USER["phone"],
+            "role": "user",
+            "is_active": True,
         }
         resp = self.client.put(
             f"/api/v1/users/{REGULAR_USER['id']}",
@@ -110,12 +141,15 @@ class TestUserRBAC(unittest.TestCase):
         """Admin can change another user's role."""
         self._set_user(ADMIN_USER)
         mock_svc.update_user.return_value = {
-            "id": REGULAR_USER["id"], "name": "User",
-            "phone": "+2222222222", "role": "admin", "is_active": True,
+            "id": REGULAR_USER["id"],
+            "name": "User",
+            "phone": "+2222222222",
+            "role": "super_admin",
+            "is_active": True,
         }
         resp = self.client.put(
             f"/api/v1/users/{REGULAR_USER['id']}",
-            json={"role": "admin"},
+            json={"role": "super_admin"},
         )
         self.assertEqual(resp.status_code, 200)
         mock_svc.update_user.assert_called_once()
@@ -141,9 +175,7 @@ class TestUserRBAC(unittest.TestCase):
     def test_admin_cannot_delete_self(self, mock_svc):
         """Admin gets 400 trying to delete their own account."""
         self._set_user(ADMIN_USER)
-        mock_svc.delete_user.side_effect = ValueError(
-            "Cannot delete your own account."
-        )
+        mock_svc.delete_user.side_effect = ValueError("Cannot delete your own account.")
         resp = self.client.delete(f"/api/v1/users/{ADMIN_USER['id']}")
         self.assertEqual(resp.status_code, 400)
 
@@ -154,8 +186,11 @@ class TestUserRBAC(unittest.TestCase):
         """Regular user can view their own profile."""
         self._set_user(REGULAR_USER)
         mock_svc.get_user.return_value = {
-            "id": REGULAR_USER["id"], "name": "User",
-            "phone": "+2222222222", "role": "user", "is_active": True,
+            "id": REGULAR_USER["id"],
+            "name": "User",
+            "phone": "+2222222222",
+            "role": "user",
+            "is_active": True,
         }
         resp = self.client.get(f"/api/v1/users/{REGULAR_USER['id']}")
         self.assertEqual(resp.status_code, 200)
@@ -165,6 +200,100 @@ class TestUserRBAC(unittest.TestCase):
         self._set_user(REGULAR_USER)
         resp = self.client.get(f"/api/v1/users/{OTHER_USER['id']}")
         self.assertEqual(resp.status_code, 403)
+
+    # ── SUPER_ADMIN-only role/deactivate guards ──────────────────────
+
+    @patch("modules.user.controller.user_routes.user_service")
+    def test_super_admin_can_change_role(self, mock_svc):
+        """SUPER_ADMIN can change another user's role."""
+        self._set_user(ADMIN_USER)
+        mock_svc.update_user.return_value = {
+            "id": REGULAR_USER["id"],
+            "name": "User",
+            "phone": "+2222222222",
+            "role": "ops_manager",
+            "is_active": True,
+        }
+        resp = self.client.put(
+            f"/api/v1/users/{REGULAR_USER['id']}",
+            json={"role": "ops_manager"},
+        )
+        self.assertEqual(resp.status_code, 200)
+        mock_svc.update_user.assert_called_once()
+
+    @patch("modules.user.controller.user_routes.user_service")
+    def test_ops_manager_cannot_change_role(self, mock_svc):
+        """OPS_MANAGER gets 403 trying to change another user's role."""
+        self._set_user(OPS_MANAGER_USER)
+        resp = self.client.put(
+            f"/api/v1/users/{REGULAR_USER['id']}",
+            json={"role": "user"},
+        )
+        self.assertEqual(resp.status_code, 403)
+        mock_svc.update_user.assert_not_called()
+
+    def test_super_admin_cannot_change_own_role(self):
+        """SUPER_ADMIN gets 403 trying to change their own role (self-lockout)."""
+        self._set_user(ADMIN_USER)
+        resp = self.client.put(
+            f"/api/v1/users/{ADMIN_USER['id']}",
+            json={"role": "ops_manager"},
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_super_admin_cannot_deactivate_self(self):
+        """SUPER_ADMIN gets 403 trying to deactivate their own account (self-lockout)."""
+        self._set_user(ADMIN_USER)
+        resp = self.client.put(
+            f"/api/v1/users/{ADMIN_USER['id']}",
+            json={"is_active": False},
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    @patch("modules.user.controller.user_routes.user_service")
+    def test_super_admin_can_deactivate_other_user(self, mock_svc):
+        """SUPER_ADMIN can deactivate another user."""
+        self._set_user(ADMIN_USER)
+        mock_svc.update_user.return_value = {
+            "id": REGULAR_USER["id"],
+            "name": "User",
+            "phone": "+2222222222",
+            "role": "user",
+            "is_active": False,
+        }
+        resp = self.client.put(
+            f"/api/v1/users/{REGULAR_USER['id']}",
+            json={"is_active": False},
+        )
+        self.assertEqual(resp.status_code, 200)
+        mock_svc.update_user.assert_called_once()
+
+    @patch("modules.user.controller.user_routes.user_service")
+    def test_super_admin_can_reactivate_user(self, mock_svc):
+        """SUPER_ADMIN can reactivate (set is_active=True) another user."""
+        self._set_user(ADMIN_USER)
+        mock_svc.update_user.return_value = {
+            "id": REGULAR_USER["id"],
+            "name": "User",
+            "phone": "+2222222222",
+            "role": "user",
+            "is_active": True,
+        }
+        resp = self.client.put(
+            f"/api/v1/users/{REGULAR_USER['id']}",
+            json={"is_active": True},
+        )
+        self.assertEqual(resp.status_code, 200)
+        mock_svc.update_user.assert_called_once()
+
+    def test_invalid_role_value_rejected(self):
+        """SUPER_ADMIN gets 400 when specifying an invalid role value."""
+        self._set_user(ADMIN_USER)
+        resp = self.client.put(
+            f"/api/v1/users/{REGULAR_USER['id']}",
+            json={"role": "warlord"},
+        )
+        self.assertEqual(resp.status_code, 400)
 
 
 if __name__ == "__main__":

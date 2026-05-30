@@ -26,4 +26,11 @@ class PaymentRepository(private val apiService: ApiService) {
             throw Exception(response.message ?: "Failed to reject payment")
         }
     }
+
+    suspend fun refundPayment(paymentId: Int) {
+        val response = apiService.refundPayment(paymentId)
+        if (!response.success) {
+            throw Exception(response.message ?: "Failed to refund payment")
+        }
+    }
 }

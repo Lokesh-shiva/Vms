@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from modules.auth.dependencies.auth_dependencies import (
+    _ADMIN_ROLES,
     get_current_user,
     require_admin,
+    require_role,
     require_user,
 )
 from modules.booking.service.booking_service import BookingService
 from modules.booking.schemas.booking_schema import CreateBookingSchema
+from modules.user.model.user_model import UserRole
 
 
 router = APIRouter(prefix="/api/v1/bookings", tags=["Bookings"])
@@ -15,11 +18,13 @@ booking_service = BookingService()
 
 # ── Response helper ───────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
 
 @router.post("", status_code=201)
 def create_booking(request_data: dict, current_user: dict = Depends(require_user)):
@@ -39,8 +44,20 @@ def create_booking(request_data: dict, current_user: dict = Depends(require_user
 
 @router.get("")
 def list_bookings(current_user: dict = Depends(get_current_user)):
-    """Retrieve bookings. Admins see all; users see only their own."""
-    if current_user["role"] == "admin":
+    """Retrieve bookings.
+
+    - ground_owner: sees only bookings in their assigned region.
+    - Other admins: see all bookings.
+    - Regular users: see only their own bookings.
+    """
+    role = current_user["role"]
+    if role == "ground_owner":
+        region_id = current_user.get("region_id")
+        if region_id is None:
+            # ground_owner without an assigned region sees nothing
+            return _success([])
+        bookings = booking_service.list_bookings_by_region(region_id)
+    elif role in _ADMIN_ROLES:
         bookings = booking_service.list_bookings()
     else:
         bookings = booking_service.list_bookings_by_user(current_user["id"])
@@ -54,8 +71,13 @@ def get_booking(booking_id: int, current_user: dict = Depends(get_current_user))
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")
 
-    if current_user["role"] != "admin" and booking["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="You can only view your own bookings.")
+    if (
+        current_user["role"] not in _ADMIN_ROLES
+        and booking["user_id"] != current_user["id"]
+    ):
+        raise HTTPException(
+            status_code=403, detail="You can only view your own bookings."
+        )
 
     return _success(booking)
 
@@ -67,8 +89,13 @@ def cancel_booking(booking_id: int, current_user: dict = Depends(get_current_use
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found.")
 
-    if current_user["role"] != "admin" and booking["user_id"] != current_user["id"]:
-        raise HTTPException(status_code=403, detail="You can only cancel your own bookings.")
+    if (
+        current_user["role"] not in _ADMIN_ROLES
+        and booking["user_id"] != current_user["id"]
+    ):
+        raise HTTPException(
+            status_code=403, detail="You can only cancel your own bookings."
+        )
 
     try:
         updated = booking_service.cancel_booking(booking_id)
@@ -105,3 +132,43 @@ def complete_booking(booking_id: int):
         return _success(booking, "Booking completed successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{booking_id}/start-session")
+def start_session(
+    booking_id: int,
+    current_user: dict = require_role(
+        UserRole.SUPER_ADMIN, UserRole.OPS_MANAGER, UserRole.GROUND_OWNER
+    ),
+):
+    """Captain/admin starts the session timer (CONFIRMED -> IN_PROGRESS)."""
+    try:
+        booking = booking_service.start_session(booking_id)
+        return _success(booking, "Session started.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{booking_id}/end-session")
+def end_session(
+    booking_id: int,
+    current_user: dict = require_role(
+        UserRole.SUPER_ADMIN, UserRole.OPS_MANAGER, UserRole.GROUND_OWNER
+    ),
+):
+    """Captain/admin ends the session, computes the time bill
+    (IN_PROGRESS -> AWAITING_TIME_PAYMENT)."""
+    try:
+        booking = booking_service.end_session(booking_id)
+        return _success(booking, "Session ended. Time bill generated.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{booking_id}/session-status")
+def session_status(booking_id: int, current_user: dict = Depends(get_current_user)):
+    """Live elapsed time + running bill estimate for an in-progress session."""
+    try:
+        return _success(booking_service.session_status(booking_id))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

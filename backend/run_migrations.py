@@ -1,0 +1,89 @@
+"""
+One-time migration script — run from the backend/ directory:
+    python run_migrations.py
+
+Applies:
+  1. ALTER TABLE timeslots ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE
+  2. CREATE TABLE IF NOT EXISTS captains (...)
+"""
+
+import os
+from pathlib import Path
+
+import psycopg2
+from dotenv import load_dotenv
+
+# Load .env from the backend directory
+load_dotenv(Path(__file__).parent / ".env")
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL not set — check backend/.env")
+
+conn = psycopg2.connect(DATABASE_URL)
+cur = conn.cursor()
+
+print("Running migration 1: add timeslots.is_active ...")
+cur.execute(
+    "ALTER TABLE timeslots ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;"
+)
+
+print("Running migration 2: create captains table ...")
+cur.execute(
+    """
+    CREATE TABLE IF NOT EXISTS captains (
+        id          SERIAL PRIMARY KEY,
+        user_id     INT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        region_id   INT REFERENCES locations(id) ON DELETE SET NULL,
+        status      VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+        rating      FLOAT NOT NULL DEFAULT 0.0,
+        total_trips INT NOT NULL DEFAULT 0,
+        bio         TEXT,
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+    """
+)
+
+print("Running migration 3: add time-rate + surge columns to region_cart_type_configs ...")
+cur.execute("""
+    ALTER TABLE region_cart_type_configs
+        ADD COLUMN IF NOT EXISTS matching_fee NUMERIC(10,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS rate_per_block NUMERIC(10,2) NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS block_duration_minutes INT NOT NULL DEFAULT 45,
+        ADD COLUMN IF NOT EXISTS max_duration_minutes INT NOT NULL DEFAULT 180,
+        ADD COLUMN IF NOT EXISTS surge_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS surge_multiplier NUMERIC(4,2) NOT NULL DEFAULT 1.0;
+""")
+
+print("Running migration 4: add session columns to bookings ...")
+cur.execute("""
+    ALTER TABLE bookings
+        ADD COLUMN IF NOT EXISTS session_started_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS session_ended_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS session_minutes INT,
+        ADD COLUMN IF NOT EXISTS session_blocks INT,
+        ADD COLUMN IF NOT EXISTS time_bill_amount NUMERIC(10,2),
+        ADD COLUMN IF NOT EXISTS surge_multiplier_snapshot NUMERIC(4,2);
+""")
+
+print("Running migration 5: add payment_type to payments ...")
+cur.execute("""
+    ALTER TABLE payments
+        ADD COLUMN IF NOT EXISTS payment_type VARCHAR(50) NOT NULL DEFAULT 'MATCHING_FEE';
+""")
+
+print("Running migration 6: fix payments unique constraint for two-payment model ...")
+cur.execute("""
+    ALTER TABLE payments DROP CONSTRAINT IF EXISTS uq_payment_booking_user;
+""")
+cur.execute("""
+    ALTER TABLE payments
+        ADD CONSTRAINT uq_payment_booking_user_type
+        UNIQUE (booking_id, user_id, payment_type);
+""")
+
+conn.commit()
+cur.close()
+conn.close()
+print("All migrations completed successfully.")

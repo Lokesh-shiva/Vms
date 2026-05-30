@@ -19,8 +19,12 @@ class FeeConfigService(BaseService):
     structural / type validation via schemas.
     """
 
-    def __init__(self, fee_config_repository=None, location_repository=None,
-                 cart_type_repository=None):
+    def __init__(
+        self,
+        fee_config_repository=None,
+        location_repository=None,
+        cart_type_repository=None,
+    ):
         super().__init__()
         self.fee_config_repository = fee_config_repository or _default_repo
         self.location_repository = location_repository or _default_location_repo
@@ -121,6 +125,23 @@ class FeeConfigService(BaseService):
         self._validate_fee_values(merged)
 
         return self.fee_config_repository.update(config_id, update_data)
+
+    def set_surge(self, config_id: int, enabled: bool, multiplier: float) -> dict | None:
+        """Set surge state + multiplier for a pricing config.
+
+        multiplier must be within [1.0, 3.0].
+        """
+        if not isinstance(multiplier, (int, float)) or isinstance(multiplier, bool):
+            raise ValueError("surge_multiplier must be a number.")
+        if multiplier < 1.0 or multiplier > 3.0:
+            raise ValueError("surge_multiplier must be between 1.0 and 3.0.")
+        existing = self.fee_config_repository.find_by_id(config_id)
+        if not existing:
+            return None
+        return self.fee_config_repository.update(
+            config_id,
+            {"surge_enabled": enabled, "surge_multiplier": multiplier},
+        )
 
     def delete_config(self, config_id: int) -> bool:
         """

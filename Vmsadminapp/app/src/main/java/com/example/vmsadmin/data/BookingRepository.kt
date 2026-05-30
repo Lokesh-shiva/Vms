@@ -33,4 +33,18 @@ class BookingRepository(private val apiService: ApiService) {
             throw Exception(response.message ?: "Failed to cancel booking")
         }
     }
+
+    suspend fun startSession(bookingId: Int) {
+        val response = apiService.startSession(bookingId)
+        if (!response.success) {
+            throw Exception(response.message ?: "Failed to start session")
+        }
+    }
+
+    suspend fun endSession(bookingId: Int) {
+        val response = apiService.endSession(bookingId)
+        if (!response.success) {
+            throw Exception(response.message ?: "Failed to end session")
+        }
+    }
 }

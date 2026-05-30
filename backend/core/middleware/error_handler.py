@@ -18,7 +18,7 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
         try:
             response = await call_next(request)
             return response
-        except Exception as exc:
+        except Exception:
             traceback.print_exc()
             return JSONResponse(
                 status_code=500,

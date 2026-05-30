@@ -2,9 +2,9 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import bcrypt
 from dotenv import load_dotenv
 from jose import jwt
-from passlib.context import CryptContext
 
 from modules.user.repository.user_repository import user_repository as _default_repo
 
@@ -20,7 +20,15 @@ if not SECRET_KEY:
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def _hash_password(password: str) -> str:
+    """Hash a password using bcrypt."""
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def _verify_password(plain: str, hashed: str) -> bool:
+    """Verify a password against a bcrypt hash."""
+    return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
 
 
 class AuthService:
@@ -49,14 +57,16 @@ class AuthService:
         if existing:
             raise ValueError("A user with this phone number already exists.")
 
-        hashed = pwd_context.hash(data["password"])
+        hashed = _hash_password(data["password"])
 
-        user = self.user_repository.create({
-            "name": data["name"],
-            "phone": data["phone"],
-            "password_hash": hashed,
-            "role": "user",
-        })
+        user = self.user_repository.create(
+            {
+                "name": data["name"],
+                "phone": data["phone"],
+                "password_hash": hashed,
+                "role": "user",
+            }
+        )
 
         return user
 
@@ -76,10 +86,12 @@ class AuthService:
         if not user:
             raise ValueError("Invalid phone number or password.")
 
-        if not pwd_context.verify(data["password"], user["password_hash"]):
+        if not _verify_password(data["password"], user["password_hash"]):
             raise ValueError("Invalid phone number or password.")
 
-        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(
+            minutes=ACCESS_TOKEN_EXPIRE_MINUTES
+        )
         payload = {
             "sub": str(user["id"]),
             "role": user["role"],
@@ -87,4 +99,4 @@ class AuthService:
         }
         token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-        return {"access_token": token, "token_type": "bearer"}
+        return {"access_token": token, "token_type": "bearer", "role": user["role"]}

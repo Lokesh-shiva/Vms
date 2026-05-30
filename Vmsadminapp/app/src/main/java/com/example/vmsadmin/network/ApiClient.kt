@@ -12,11 +12,19 @@ import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import java.util.concurrent.TimeUnit
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 object ApiClient {
-    private const val BASE_URL = "http://192.168.1.4:8000"
+    // private const val BASE_URL = "http://10.0.2.2:8000" // Emulator
+    // private const val BASE_URL = "http://192.168.1.4:8000"
+    // private const val BASE_URL = "http://192.168.0.105:8000"
+    // private const val BASE_URL = "http://192.168.1.3:8000"
+    // private const val BASE_URL = "http://192.168.1.6:8000"
+    // private const val BASE_URL = "http://192.168.1.5:8000"
+    private const val BASE_URL = "http://192.168.9.148:8000"
+    // private const val BASE_URL = "https://vms-tx1c.onrender.com"
 
     private val json = Json {
         ignoreUnknownKeys = true
@@ -34,6 +42,9 @@ object ApiClient {
         val authInterceptor = AuthInterceptor(tokenManager)
 
         val okHttpClient = OkHttpClient.Builder()
+            .connectTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
             .addInterceptor(loggingInterceptor)
             .addInterceptor(authInterceptor)
             .addInterceptor { chain ->
@@ -41,7 +52,7 @@ object ApiClient {
                 if (response.code == 401 && !chain.request().url.encodedPath.contains("/auth/login")) {
                     Log.e("AUTH", "401 Unauthorized — forcing logout")
                     CoroutineScope(Dispatchers.IO).launch {
-                        tokenManager.clearToken()
+                        tokenManager.clearSession()
                         _logoutEvent.emit(Unit)
                     }
                 }

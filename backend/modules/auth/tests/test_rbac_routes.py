@@ -15,18 +15,27 @@ from modules.booking.controller.booking_routes import router as booking_router
 # ── Test fixtures ─────────────────────────────────────────────────────
 
 ADMIN_USER = {
-    "id": 1, "name": "Admin", "phone": "+1111111111",
-    "role": "admin", "is_active": True,
+    "id": 1,
+    "name": "Admin",
+    "phone": "+1111111111",
+    "role": "super_admin",
+    "is_active": True,
 }
 
 REGULAR_USER = {
-    "id": 2, "name": "User", "phone": "+2222222222",
-    "role": "user", "is_active": True,
+    "id": 2,
+    "name": "User",
+    "phone": "+2222222222",
+    "role": "user",
+    "is_active": True,
 }
 
 OTHER_USER = {
-    "id": 3, "name": "Other", "phone": "+3333333333",
-    "role": "user", "is_active": True,
+    "id": 3,
+    "name": "Other",
+    "phone": "+3333333333",
+    "role": "user",
+    "is_active": True,
 }
 
 
@@ -111,9 +120,14 @@ class TestAdminRouteProtection(unittest.TestCase):
 
     def test_user_cannot_create_item(self):
         self._set_user(REGULAR_USER)
-        resp = self.client.post("/api/v1/items", json={
-            "name": "Widget", "cart_type_id": 1, "price": 10.0,
-        })
+        resp = self.client.post(
+            "/api/v1/items",
+            json={
+                "name": "Widget",
+                "cart_type_id": 1,
+                "price": 10.0,
+            },
+        )
         self.assertEqual(resp.status_code, 403)
 
     def test_user_cannot_update_item(self):
@@ -130,11 +144,19 @@ class TestAdminRouteProtection(unittest.TestCase):
     def test_admin_can_create_item(self, mock_svc):
         self._set_user(ADMIN_USER)
         mock_svc.create_item.return_value = {
-            "id": 1, "name": "Widget", "cart_type_id": 1, "price": 10.0,
+            "id": 1,
+            "name": "Widget",
+            "cart_type_id": 1,
+            "price": 10.0,
         }
-        resp = self.client.post("/api/v1/items", json={
-            "name": "Widget", "cart_type_id": 1, "price": 10.0,
-        })
+        resp = self.client.post(
+            "/api/v1/items",
+            json={
+                "name": "Widget",
+                "cart_type_id": 1,
+                "price": 10.0,
+            },
+        )
         self.assertNotEqual(resp.status_code, 403)
         mock_svc.create_item.assert_called_once()
 
@@ -142,9 +164,14 @@ class TestAdminRouteProtection(unittest.TestCase):
 
     def test_user_cannot_create_cart(self):
         self._set_user(REGULAR_USER)
-        resp = self.client.post("/api/v1/carts", json={
-            "region_id": 1, "cart_type_id": 1, "status": "AVAILABLE",
-        })
+        resp = self.client.post(
+            "/api/v1/carts",
+            json={
+                "region_id": 1,
+                "cart_type_id": 1,
+                "status": "AVAILABLE",
+            },
+        )
         self.assertEqual(resp.status_code, 403)
 
     def test_user_cannot_update_cart(self):
@@ -161,11 +188,19 @@ class TestAdminRouteProtection(unittest.TestCase):
     def test_admin_can_create_cart(self, mock_svc):
         self._set_user(ADMIN_USER)
         mock_svc.create_cart.return_value = {
-            "id": 1, "region_id": 1, "cart_type_id": 1, "status": "AVAILABLE",
+            "id": 1,
+            "region_id": 1,
+            "cart_type_id": 1,
+            "status": "AVAILABLE",
         }
-        resp = self.client.post("/api/v1/carts", json={
-            "region_id": 1, "cart_type_id": 1, "status": "AVAILABLE",
-        })
+        # Note: 'status' must NOT be in the body — CreateCartSchema rejects it.
+        resp = self.client.post(
+            "/api/v1/carts",
+            json={
+                "region_id": 1,
+                "cart_type_id": 1,
+            },
+        )
         self.assertNotEqual(resp.status_code, 403)
         mock_svc.create_cart.assert_called_once()
 
@@ -193,25 +228,50 @@ class TestBookingRBAC(unittest.TestCase):
         """Client-provided user_id is overridden by authenticated user's id."""
         self._set_user(REGULAR_USER)
         mock_svc.create_booking.return_value = {
-            "id": 1, "user_id": REGULAR_USER["id"], "status": "CONFIRMED",
+            "id": 1,
+            "user_id": REGULAR_USER["id"],
+            "status": "CONFIRMED",
         }
-        resp = self.client.post("/api/v1/bookings", json={
-            "user_id": 999,
-            "region_id": 1, "cart_type_id": 1, "timeslot_id": 1,
-            "address": "123 Main St", "booking_fee": 50.0,
-        })
+        resp = self.client.post(
+            "/api/v1/bookings",
+            json={
+                "user_id": 999,
+                "region_id": 1,
+                "cart_type_id": 1,
+                "timeslot_id": 1,
+                "address": "123 Main St",
+                "booking_fee": 50.0,
+            },
+        )
         self.assertNotEqual(resp.status_code, 403)
         call_data = mock_svc.create_booking.call_args[0][0]
         self.assertEqual(call_data["user_id"], REGULAR_USER["id"])
 
-    def test_admin_cannot_create_booking(self):
-        """Admin role is rejected by require_user (booking creation is user-only)."""
+    @patch("modules.booking.controller.booking_routes.booking_service")
+    def test_admin_can_also_create_booking(self, mock_svc):
+        """Admin roles are in _ALL_AUTHENTICATED_ROLES and pass require_user."""
         self._set_user(ADMIN_USER)
-        resp = self.client.post("/api/v1/bookings", json={
-            "user_id": 1, "region_id": 1, "cart_type_id": 1,
-            "timeslot_id": 1, "address": "123 Main St", "booking_fee": 50.0,
-        })
-        self.assertEqual(resp.status_code, 403)
+        mock_svc.create_booking.return_value = {
+            "id": 1,
+            "user_id": ADMIN_USER["id"],
+            "status": "PENDING_PAYMENT",
+        }
+        resp = self.client.post(
+            "/api/v1/bookings",
+            json={
+                "user_id": 1,
+                "region_id": 1,
+                "cart_type_id": 1,
+                "timeslot_id": 1,
+                "address": "123 Main St",
+                "booking_fee": 50.0,
+            },
+        )
+        # Admin is an authenticated user — booking creation is allowed
+        self.assertNotEqual(resp.status_code, 403)
+        # Verify user_id is overridden to the authenticated user's id
+        call_data = mock_svc.create_booking.call_args[0][0]
+        self.assertEqual(call_data["user_id"], ADMIN_USER["id"])
 
     # ── Booking Cancellation ──────────────────────────────────────────
 
@@ -220,10 +280,14 @@ class TestBookingRBAC(unittest.TestCase):
         """User can cancel their own confirmed booking."""
         self._set_user(REGULAR_USER)
         mock_svc.get_booking.return_value = {
-            "id": 1, "user_id": REGULAR_USER["id"], "status": "CONFIRMED",
+            "id": 1,
+            "user_id": REGULAR_USER["id"],
+            "status": "CONFIRMED",
         }
         mock_svc.cancel_booking.return_value = {
-            "id": 1, "user_id": REGULAR_USER["id"], "status": "CANCELLED",
+            "id": 1,
+            "user_id": REGULAR_USER["id"],
+            "status": "CANCELLED",
         }
         resp = self.client.post("/api/v1/bookings/1/cancel")
         self.assertEqual(resp.status_code, 200)
@@ -233,7 +297,9 @@ class TestBookingRBAC(unittest.TestCase):
         """User gets 403 when trying to cancel another user's booking."""
         self._set_user(REGULAR_USER)
         mock_svc.get_booking.return_value = {
-            "id": 1, "user_id": OTHER_USER["id"], "status": "CONFIRMED",
+            "id": 1,
+            "user_id": OTHER_USER["id"],
+            "status": "CONFIRMED",
         }
         resp = self.client.post("/api/v1/bookings/1/cancel")
         self.assertEqual(resp.status_code, 403)
@@ -244,10 +310,14 @@ class TestBookingRBAC(unittest.TestCase):
         """Admin can cancel any user's booking."""
         self._set_user(ADMIN_USER)
         mock_svc.get_booking.return_value = {
-            "id": 1, "user_id": REGULAR_USER["id"], "status": "CONFIRMED",
+            "id": 1,
+            "user_id": REGULAR_USER["id"],
+            "status": "CONFIRMED",
         }
         mock_svc.cancel_booking.return_value = {
-            "id": 1, "user_id": REGULAR_USER["id"], "status": "CANCELLED",
+            "id": 1,
+            "user_id": REGULAR_USER["id"],
+            "status": "CANCELLED",
         }
         resp = self.client.post("/api/v1/bookings/1/cancel")
         self.assertEqual(resp.status_code, 200)
@@ -257,7 +327,9 @@ class TestBookingRBAC(unittest.TestCase):
         """Cannot cancel a booking that is already CANCELLED."""
         self._set_user(REGULAR_USER)
         mock_svc.get_booking.return_value = {
-            "id": 1, "user_id": REGULAR_USER["id"], "status": "CANCELLED",
+            "id": 1,
+            "user_id": REGULAR_USER["id"],
+            "status": "CANCELLED",
         }
         mock_svc.cancel_booking.side_effect = ValueError(
             "Cannot cancel booking in CANCELLED status."
@@ -286,7 +358,9 @@ class TestBookingRBAC(unittest.TestCase):
         """Admin can complete a confirmed booking."""
         self._set_user(ADMIN_USER)
         mock_svc.complete_booking.return_value = {
-            "id": 1, "user_id": REGULAR_USER["id"], "status": "COMPLETED",
+            "id": 1,
+            "user_id": REGULAR_USER["id"],
+            "status": "COMPLETED",
         }
         resp = self.client.post("/api/v1/bookings/1/complete")
         self.assertEqual(resp.status_code, 200)
@@ -308,7 +382,9 @@ class TestBookingRBAC(unittest.TestCase):
         """User can retrieve their own booking by ID."""
         self._set_user(REGULAR_USER)
         mock_svc.get_booking.return_value = {
-            "id": 1, "user_id": REGULAR_USER["id"], "status": "CONFIRMED",
+            "id": 1,
+            "user_id": REGULAR_USER["id"],
+            "status": "CONFIRMED",
         }
         resp = self.client.get("/api/v1/bookings/1")
         self.assertEqual(resp.status_code, 200)
@@ -318,7 +394,9 @@ class TestBookingRBAC(unittest.TestCase):
         """User gets 403 when trying to view another user's booking."""
         self._set_user(REGULAR_USER)
         mock_svc.get_booking.return_value = {
-            "id": 1, "user_id": OTHER_USER["id"], "status": "CONFIRMED",
+            "id": 1,
+            "user_id": OTHER_USER["id"],
+            "status": "CONFIRMED",
         }
         resp = self.client.get("/api/v1/bookings/1")
         self.assertEqual(resp.status_code, 403)
@@ -328,7 +406,9 @@ class TestBookingRBAC(unittest.TestCase):
         """Admin can retrieve any user's booking by ID."""
         self._set_user(ADMIN_USER)
         mock_svc.get_booking.return_value = {
-            "id": 1, "user_id": REGULAR_USER["id"], "status": "CONFIRMED",
+            "id": 1,
+            "user_id": REGULAR_USER["id"],
+            "status": "CONFIRMED",
         }
         resp = self.client.get("/api/v1/bookings/1")
         self.assertEqual(resp.status_code, 200)

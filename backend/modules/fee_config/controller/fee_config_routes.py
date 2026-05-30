@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
-from modules.auth.dependencies.auth_dependencies import require_admin
+from modules.auth.dependencies.auth_dependencies import require_admin, require_role
 from modules.fee_config.service.fee_config_service import FeeConfigService
 from modules.fee_config.schemas.fee_config_schema import (
     CreateFeeConfigSchema,
     UpdateFeeConfigSchema,
 )
+from modules.user.model.user_model import UserRole
 
 
 router = APIRouter(prefix="/api/v1/fee-config", tags=["Fee Config"])
@@ -14,11 +15,13 @@ fee_config_service = FeeConfigService()
 
 # ── Response helper ───────────────────────────────────────────────────
 
+
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
 
 @router.post("/create", status_code=201, dependencies=[Depends(require_admin)])
 def create_fee_config(request_data: dict):
@@ -78,3 +81,21 @@ def delete_fee_config(config_id: int):
     if not deleted:
         raise HTTPException(status_code=404, detail="Fee config not found.")
     return _success(None, "Fee config deactivated successfully.")
+
+
+@router.put("/{config_id}/surge")
+def set_surge(
+    config_id: int,
+    request_data: dict,
+    current_user: dict = require_role(UserRole.SUPER_ADMIN, UserRole.OPS_MANAGER),
+):
+    """Set surge state + multiplier for a pricing config (OPS_MANAGER, SUPER_ADMIN)."""
+    enabled = request_data.get("surge_enabled", False)
+    multiplier = request_data.get("surge_multiplier", 1.0)
+    try:
+        updated = fee_config_service.set_surge(config_id, enabled, multiplier)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Config not found.")
+        return _success(updated, "Surge updated.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

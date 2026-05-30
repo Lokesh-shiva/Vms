@@ -25,8 +25,10 @@ class TestTimeslotService(unittest.TestCase):
         # Shared session factory for all repos (SQLite-backed, no Neon).
         session_factory = _make_test_session_factory()
         self.location_repo = LocationRepository(session_factory=session_factory)
-        self.location_repo.create({"name": "Downtown", "is_serviceable": True})   # id=1
-        self.location_repo.create({"name": "Closed Area", "is_serviceable": False})  # id=2
+        self.location_repo.create({"name": "Downtown", "is_serviceable": True})  # id=1
+        self.location_repo.create(
+            {"name": "Closed Area", "is_serviceable": False}
+        )  # id=2
 
         self.service = TimeslotService(
             timeslot_repository=TimeslotRepository(session_factory=session_factory),

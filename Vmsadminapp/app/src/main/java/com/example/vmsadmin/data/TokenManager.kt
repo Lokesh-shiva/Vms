@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -15,10 +16,20 @@ class TokenManager(private val context: Context) {
 
     companion object {
         private val JWT_TOKEN_KEY = stringPreferencesKey("jwt_token")
+        private val ROLE_KEY = stringPreferencesKey("user_role")
+        private val USER_ID_KEY = intPreferencesKey("user_id")
     }
 
     val tokenFlow: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[JWT_TOKEN_KEY]
+    }
+
+    val roleFlow: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[ROLE_KEY]
+    }
+
+    val userIdFlow: Flow<Int?> = context.dataStore.data.map { preferences ->
+        preferences[USER_ID_KEY]
     }
 
     suspend fun saveToken(token: String) {
@@ -27,9 +38,24 @@ class TokenManager(private val context: Context) {
         }
     }
 
-    suspend fun clearToken() {
+    suspend fun saveRole(role: String) {
         context.dataStore.edit { preferences ->
-            preferences.remove(JWT_TOKEN_KEY)
+            preferences[ROLE_KEY] = role
         }
     }
+
+    suspend fun saveUserId(id: Int) {
+        context.dataStore.edit { preferences ->
+            preferences[USER_ID_KEY] = id
+        }
+    }
+
+    suspend fun clearSession() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(JWT_TOKEN_KEY)
+            preferences.remove(ROLE_KEY)
+            preferences.remove(USER_ID_KEY)
+        }
+    }
+
 }

@@ -87,7 +87,9 @@ class UpdateUserSchema:
             if not isinstance(phone, str):
                 self.errors.append("'phone' must be a string.")
             elif not re.match(r"^\+?[\d\s\-]{7,15}$", phone.strip()):
-                self.errors.append("'phone' must be a valid phone number (7-15 digits).")
+                self.errors.append(
+                    "'phone' must be a valid phone number (7-15 digits)."
+                )
             else:
                 self.validated_data["phone"] = phone.strip()
 
@@ -106,5 +108,12 @@ class UpdateUserSchema:
                 self.errors.append("'is_active' must be a boolean.")
             else:
                 self.validated_data["is_active"] = is_active
+
+        if "region_id" in self._data:
+            region_id = self._data["region_id"]
+            if region_id is not None and not isinstance(region_id, int):
+                self.errors.append("'region_id' must be an integer or null.")
+            else:
+                self.validated_data["region_id"] = region_id
 
         return len(self.errors) == 0

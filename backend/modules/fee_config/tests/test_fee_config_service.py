@@ -13,6 +13,8 @@ from modules.item.model.item_model import Item  # noqa: F401
 from modules.booking.model.booking_model import Booking  # noqa: F401
 from modules.booking_item.model.booking_item_model import BookingItem  # noqa: F401
 from modules.payment.model.payment_model import Payment  # noqa: F401
+from modules.sport.model.sport_model import Sport  # noqa: F401
+from modules.match.model.match_model import Match  # noqa: F401
 from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401
 
 from modules.location.repository.location_repository import LocationRepository
@@ -36,11 +38,11 @@ class TestFeeConfigService(unittest.TestCase):
 
         self.location_repo = LocationRepository(session_factory=test_session_factory)
         self.location_repo.create({"name": "Downtown", "is_serviceable": True})  # id=1
-        self.location_repo.create({"name": "Suburbs", "is_serviceable": True})   # id=2
+        self.location_repo.create({"name": "Suburbs", "is_serviceable": True})  # id=2
 
         self.cart_type_repo = CartTypeRepository(session_factory=test_session_factory)
         self.cart_type_repo.create({"name": "Standard"})  # id=1
-        self.cart_type_repo.create({"name": "Premium"})    # id=2
+        self.cart_type_repo.create({"name": "Premium"})  # id=2
 
         self.fee_config_repo = FeeConfigRepository(session_factory=test_session_factory)
 
@@ -109,10 +111,12 @@ class TestFeeConfigService(unittest.TestCase):
     def test_create_config_pct_sum_exceeds_100(self):
         """Sum of cancellation + platform pct > 100 is blocked."""
         with self.assertRaises(ValueError) as ctx:
-            self.service.create_config(self._valid_data(
-                cancellation_fee_pct=60.0,
-                platform_fee_pct=50.0,
-            ))
+            self.service.create_config(
+                self._valid_data(
+                    cancellation_fee_pct=60.0,
+                    platform_fee_pct=50.0,
+                )
+            )
         self.assertIn("cannot exceed 100", str(ctx.exception))
 
     def test_create_config_negative_cancellation_pct(self):
@@ -135,10 +139,12 @@ class TestFeeConfigService(unittest.TestCase):
 
     def test_create_config_pct_sum_exactly_100(self):
         """Sum of cancellation + platform pct == 100 is allowed."""
-        result = self.service.create_config(self._valid_data(
-            cancellation_fee_pct=60.0,
-            platform_fee_pct=40.0,
-        ))
+        result = self.service.create_config(
+            self._valid_data(
+                cancellation_fee_pct=60.0,
+                platform_fee_pct=40.0,
+            )
+        )
         self.assertEqual(result["cancellation_fee_pct"], 60.0)
         self.assertEqual(result["platform_fee_pct"], 40.0)
 
@@ -180,9 +186,9 @@ class TestFeeConfigService(unittest.TestCase):
 
     def test_update_config_pct_sum_exceeds_100_blocked(self):
         """Update that causes pct sum > 100 is blocked."""
-        created = self.service.create_config(self._valid_data(
-            cancellation_fee_pct=30.0, platform_fee_pct=30.0
-        ))
+        created = self.service.create_config(
+            self._valid_data(cancellation_fee_pct=30.0, platform_fee_pct=30.0)
+        )
         with self.assertRaises(ValueError) as ctx:
             self.service.update_config(created["id"], {"cancellation_fee_pct": 80.0})
         self.assertIn("cannot exceed 100", str(ctx.exception))
@@ -191,6 +197,52 @@ class TestFeeConfigService(unittest.TestCase):
         """Updating non-existent config returns None."""
         result = self.service.update_config(999, {"booking_fee": 10.0})
         self.assertIsNone(result)
+
+    # ── Time-rate / surge round-trip at creation ──────────────────────
+
+    def test_create_config_with_time_rate_and_surge_fields(self):
+        """Time-rate and surge fields set at creation are persisted without an update."""
+        data = self._valid_data(
+            matching_fee=25.0,
+            rate_per_block=15.0,
+            block_duration_minutes=30,
+            max_duration_minutes=120,
+            surge_enabled=True,
+            surge_multiplier=1.8,
+        )
+        result = self.service.create_config(data)
+        self.assertEqual(result["matching_fee"], 25.0)
+        self.assertEqual(result["rate_per_block"], 15.0)
+        self.assertEqual(result["block_duration_minutes"], 30)
+        self.assertEqual(result["max_duration_minutes"], 120)
+        self.assertIs(result["surge_enabled"], True)
+        self.assertEqual(result["surge_multiplier"], 1.8)
+
+    def test_create_config_time_rate_defaults(self):
+        """Omitting time-rate fields at creation yields model defaults."""
+        result = self.service.create_config(self._valid_data())
+        self.assertEqual(result["matching_fee"], 0)
+        self.assertEqual(result["rate_per_block"], 0)
+        self.assertEqual(result["block_duration_minutes"], 45)
+        self.assertEqual(result["max_duration_minutes"], 180)
+        self.assertIs(result["surge_enabled"], False)
+        self.assertEqual(result["surge_multiplier"], 1.0)
+
+    # ── Surge ─────────────────────────────────────────────────────────
+
+    def test_set_surge_updates_multiplier(self):
+        """set_surge enables surge and sets the multiplier."""
+        created = self.service.create_config(self._valid_data())
+        result = self.service.set_surge(created["id"], enabled=True, multiplier=1.5)
+        self.assertIsNotNone(result)
+        self.assertIs(result["surge_enabled"], True)
+        self.assertEqual(result["surge_multiplier"], 1.5)
+
+    def test_set_surge_rejects_out_of_range(self):
+        """set_surge rejects a multiplier outside [1.0, 3.0]."""
+        created = self.service.create_config(self._valid_data())
+        with self.assertRaises(ValueError):
+            self.service.set_surge(created["id"], enabled=True, multiplier=5.0)
 
     # ── Soft-Delete ───────────────────────────────────────────────────
 

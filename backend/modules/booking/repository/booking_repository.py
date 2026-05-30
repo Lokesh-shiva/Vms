@@ -91,9 +91,20 @@ class BookingRepository:
         own_session = session is None
         session = session or self._session_factory()
         try:
+            bookings = session.query(Booking).filter(Booking.user_id == user_id).all()
+            return [b.to_dict() for b in bookings]
+        finally:
+            if own_session:
+                session.close()
+
+    def find_by_region_id(self, region_id: int, session=None) -> list[dict]:
+        """Retrieve all bookings for a specific region (used by ground_owner)."""
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
             bookings = (
                 session.query(Booking)
-                .filter(Booking.user_id == user_id)
+                .filter(Booking.region_id == region_id)
                 .all()
             )
             return [b.to_dict() for b in bookings]
@@ -101,7 +112,9 @@ class BookingRepository:
             if own_session:
                 session.close()
 
-    def find_by_user_and_date(self, user_id: int, date: str, session=None) -> list[dict]:
+    def find_by_user_and_date(
+        self, user_id: int, date: str, session=None
+    ) -> list[dict]:
         """Retrieve bookings for a specific user on a specific date."""
         own_session = session is None
         session = session or self._session_factory()
@@ -148,7 +161,9 @@ class BookingRepository:
                 return None
 
             for key, value in update_data.items():
-                if key not in ("id", "created_at", "updated_at") and hasattr(booking, key):
+                if key not in ("id", "created_at", "updated_at") and hasattr(
+                    booking, key
+                ):
                     setattr(booking, key, value)
 
             booking.updated_at = datetime.utcnow()

@@ -1,7 +1,13 @@
 from datetime import datetime
 
 from sqlalchemy import (
-    Boolean, Column, DateTime, ForeignKey, Integer, Numeric, UniqueConstraint,
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Numeric,
+    UniqueConstraint,
 )
 
 from core.database.db_connection import Base
@@ -37,10 +43,19 @@ class RegionCartTypeConfig(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     region_id = Column(Integer, ForeignKey("locations.id"), nullable=False, index=True)
-    cart_type_id = Column(Integer, ForeignKey("cart_types.id"), nullable=False, index=True)
+    cart_type_id = Column(
+        Integer, ForeignKey("cart_types.id"), nullable=False, index=True
+    )
     booking_fee = Column(Numeric(10, 2), nullable=False)
     cancellation_fee_pct = Column(Numeric(5, 2), nullable=False, default=0)
     platform_fee_pct = Column(Numeric(5, 2), nullable=False, default=0)
+    # ── Time-based billing ──────────────────────────────────────────
+    matching_fee = Column(Numeric(10, 2), nullable=False, default=0)
+    rate_per_block = Column(Numeric(10, 2), nullable=False, default=0)
+    block_duration_minutes = Column(Integer, nullable=False, default=45)
+    max_duration_minutes = Column(Integer, nullable=False, default=180)
+    surge_enabled = Column(Boolean, nullable=False, default=False)
+    surge_multiplier = Column(Numeric(4, 2), nullable=False, default=1.0)
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
@@ -53,15 +68,25 @@ class RegionCartTypeConfig(Base):
             "id": self.id,
             "region_id": self.region_id,
             "cart_type_id": self.cart_type_id,
-            "booking_fee": float(self.booking_fee) if self.booking_fee is not None else 0.0,
+            "booking_fee": float(self.booking_fee)
+            if self.booking_fee is not None
+            else 0.0,
             "cancellation_fee_pct": (
                 float(self.cancellation_fee_pct)
-                if self.cancellation_fee_pct is not None else 0.0
+                if self.cancellation_fee_pct is not None
+                else 0.0
             ),
             "platform_fee_pct": (
                 float(self.platform_fee_pct)
-                if self.platform_fee_pct is not None else 0.0
+                if self.platform_fee_pct is not None
+                else 0.0
             ),
+            "matching_fee": float(self.matching_fee) if self.matching_fee is not None else 0.0,
+            "rate_per_block": float(self.rate_per_block) if self.rate_per_block is not None else 0.0,
+            "block_duration_minutes": self.block_duration_minutes,
+            "max_duration_minutes": self.max_duration_minutes,
+            "surge_enabled": self.surge_enabled,
+            "surge_multiplier": float(self.surge_multiplier) if self.surge_multiplier is not None else 1.0,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

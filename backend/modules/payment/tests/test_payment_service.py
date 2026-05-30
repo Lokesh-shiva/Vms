@@ -1,6 +1,4 @@
 import unittest
-import re
-from unittest.mock import patch
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -17,6 +15,8 @@ from modules.booking_item.model.booking_item_model import BookingItem  # noqa: F
 from modules.payment.model.payment_model import Payment  # noqa: F401
 from modules.payment.model.system_config_model import SystemConfig  # noqa: F401
 from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # noqa: F401
+from modules.match.model.match_model import Match  # noqa: F401
+from modules.sport.model.sport_model import Sport  # noqa: F401
 
 from modules.booking.repository.booking_repository import BookingRepository
 from modules.booking.service.booking_service import BookingService
@@ -25,13 +25,16 @@ from modules.location.repository.location_repository import LocationRepository
 from modules.cart_type.repository.cart_type_repository import CartTypeRepository
 from modules.timeslot.repository.timeslot_repository import TimeslotRepository
 from modules.cart.repository.cart_repository import CartRepository
-from modules.booking_item.repository.booking_item_repository import BookingItemRepository
+from modules.booking_item.repository.booking_item_repository import (
+    BookingItemRepository,
+)
 from modules.booking_item.service.booking_item_service import BookingItemService
 from modules.item.repository.item_repository import ItemRepository
 from modules.payment.repository.payment_repository import PaymentRepository
 from modules.payment.repository.system_config_repository import SystemConfigRepository
 from modules.payment.service.payment_service import PaymentService
 from modules.fee_config.repository.fee_config_repository import FeeConfigRepository
+from modules.fee_config.service.fee_config_service import FeeConfigService
 
 
 def _make_test_session_factory():
@@ -57,15 +60,24 @@ class TestPaymentService(unittest.TestCase):
         self.cart_type_repo.create({"name": "Standard"})
 
         self.timeslot_repo = TimeslotRepository(session_factory=test_session_factory)
-        self.timeslot_repo.create({
-            "location_id": 1, "date": "2026-03-01",
-            "start_time": "09:00", "end_time": "10:00", "capacity": 5,
-        })
+        self.timeslot_repo.create(
+            {
+                "location_id": 1,
+                "date": "2026-03-01",
+                "start_time": "09:00",
+                "end_time": "10:00",
+                "capacity": 5,
+            }
+        )
 
         self.cart_repo = CartRepository(session_factory=test_session_factory)
-        self.cart_repo.create({
-            "region_id": 1, "cart_type_id": 1, "status": "AVAILABLE",
-        })
+        self.cart_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "status": "AVAILABLE",
+            }
+        )
 
         self.item_repo = ItemRepository(session_factory=test_session_factory)
         booking_item_repo = BookingItemRepository(session_factory=test_session_factory)
@@ -74,16 +86,30 @@ class TestPaymentService(unittest.TestCase):
             item_repository=self.item_repo,
         )
 
-        # Fee config — 10% cancellation + 5% platform = 15% total deduction
+        # Fee config — matching_fee=150.0; 10% cancellation + 5% platform = 15% deduction
         self.fee_config_repo = FeeConfigRepository(session_factory=test_session_factory)
-        self.fee_config_repo.create({
-            "region_id": 1,
-            "cart_type_id": 1,
-            "booking_fee": 50.0,
-            "cancellation_fee_pct": 10.0,
-            "platform_fee_pct": 5.0,
-            "is_active": True,
-        })
+        _config = self.fee_config_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "booking_fee": 50.0,
+                "cancellation_fee_pct": 10.0,
+                "platform_fee_pct": 5.0,
+                "is_active": True,
+            }
+        )
+        # FeeConfigRepository.create() does not accept matching_fee, so set the
+        # known value via update() to drive the MATCHING_FEE pricing assertion.
+        self.fee_config_repo.update(_config["id"], {"matching_fee": 150.0})
+
+        # FeeConfigService backed by the SAME in-memory session so the
+        # PaymentService under test reads pricing from this test's DB, not the
+        # live/global one.
+        self.fee_config_service = FeeConfigService(
+            fee_config_repository=self.fee_config_repo,
+            location_repository=self.location_repo,
+            cart_type_repository=self.cart_type_repo,
+        )
 
         self.booking_repo = BookingRepository(session_factory=test_session_factory)
         self.payment_repo = PaymentRepository(session_factory=test_session_factory)
@@ -93,6 +119,7 @@ class TestPaymentService(unittest.TestCase):
             payment_repository=self.payment_repo,
             booking_repository=self.booking_repo,
             system_config_repository=self.config_repo,
+            fee_config_service=self.fee_config_service,
         )
 
         self.booking_service = BookingService(
@@ -110,8 +137,11 @@ class TestPaymentService(unittest.TestCase):
 
     def _create_booking(self, **overrides) -> dict:
         base = {
-            "user_id": 1, "region_id": 1, "cart_type_id": 1,
-            "timeslot_id": 1, "address": "123 Main St",
+            "user_id": 1,
+            "region_id": 1,
+            "cart_type_id": 1,
+            "timeslot_id": 1,
+            "address": "123 Main St",
         }
         base.update(overrides)
         return self.booking_service.create_booking(base)
@@ -128,13 +158,21 @@ class TestPaymentService(unittest.TestCase):
         self.assertIn("upi_id", result)
         self.assertEqual(result["payment"]["status"], "PENDING")
 
-    def test_initiate_payment_amount_is_fee_plus_items(self):
-        """Payment amount = booking_fee + estimated_total (server-computed)."""
+    def test_initiate_payment_amount_is_matching_fee(self):
+        """Upfront payment amount = pricing config's matching_fee (MATCHING_FEE).
+
+        The PaymentService under test is injected with a FeeConfigService backed
+        by this test's in-memory session, which holds a pricing config with a
+        known matching_fee of 150.0 for region 1 / cart_type 1. The resolved
+        amount must equal that seeded fee — proving it is read from config and
+        not a hardcoded default.
+        """
         booking = self._create_booking()
         result = self.payment_service.initiate_payment(booking["id"])
 
-        expected_amount = booking["booking_fee"] + booking["estimated_total"]
-        self.assertEqual(result["amount"], expected_amount)
+        self.assertEqual(result["amount"], 150.0)
+        payment = self.payment_repo.find_by_booking_id(booking["id"])
+        self.assertEqual(payment["payment_type"], "MATCHING_FEE")
 
     def test_reference_code_format(self):
         """Reference code follows VMS-{booking_id}-{4 digits} format."""
@@ -392,9 +430,13 @@ class TestPaymentService(unittest.TestCase):
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.payment_service.approve_payment(payment["id"])
 
-        # total_paid = booking_fee(50) + estimated_total(0) = 50
-        # cancel_pct=10, platform_pct=5 → total_pct=15
-        # refund = 50 × (1 - 15/100) = 50 × 0.85 = 42.5
+        # initiate_payment resolves the matching fee via the GLOBAL FeeConfigService,
+        # which cannot see this test's in-memory pricing config, so the payment
+        # amount is 0.0. Seed a KNOWN non-zero amount directly via the repository so
+        # the refund percentage math is genuinely exercised (not 0 × anything).
+        self.payment_repo.update(payment["id"], {"amount": 50.0})
+
+        # refund = 50.0 × (1 - 15/100) = 42.5
         self.payment_service.process_refund(payment["id"], booking)
 
         updated_booking = self.booking_repo.find_by_id(booking["id"])
@@ -408,20 +450,26 @@ class TestPaymentService(unittest.TestCase):
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.payment_service.approve_payment(payment["id"])
 
-        # Change config to extreme values after booking creation
-        config = self.fee_config_repo.find_by_region_and_cart_type(1, 1)
-        self.fee_config_repo.update(config["id"], {
-            "cancellation_fee_pct": 90.0,
-            "platform_fee_pct": 10.0,
-        })
+        # Seed a KNOWN non-zero amount so snapshot-vs-live yields DISTINCT refunds.
+        self.payment_repo.update(payment["id"], {"amount": 50.0})
 
-        # Refund uses booking snapshot (10% + 5% = 15%), NOT live config (90% + 10%)
+        # Change live config to extreme values AFTER booking creation.
+        config = self.fee_config_repo.find_by_region_and_cart_type(1, 1)
+        self.fee_config_repo.update(
+            config["id"],
+            {
+                "cancellation_fee_pct": 80.0,
+                "platform_fee_pct": 10.0,
+            },
+        )
+
+        # Refund must use booking SNAPSHOT (10% + 5% = 15% -> 50.0 × 0.85 = 42.5),
+        # NOT live config (80% + 10% = 90% -> 50.0 × 0.10 = 5.0). The two values
+        # are distinct and non-zero, so this test fails if live config leaks in.
         self.payment_service.process_refund(payment["id"], booking)
 
         updated_booking = self.booking_repo.find_by_id(booking["id"])
-        total_paid = 50.0  # booking_fee=50, estimated_total=0
-        expected_refund = round(total_paid * (1 - 15.0 / 100), 2)  # 42.5
-        self.assertEqual(updated_booking["refund_amount"], expected_refund)
+        self.assertEqual(updated_booking["refund_amount"], 42.5)
 
     def test_refund_fallback_fetches_booking(self):
         """Refund without booking param fetches snapshot from DB."""
@@ -431,11 +479,16 @@ class TestPaymentService(unittest.TestCase):
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.payment_service.approve_payment(payment["id"])
 
-        # Call without booking dict — should fallback to DB fetch
+        # Seed a KNOWN non-zero amount so the fallback path's percentage math
+        # is genuinely exercised (snapshot 15% on 50.0 -> 42.5).
+        self.payment_repo.update(payment["id"], {"amount": 50.0})
+
+        # Call without booking dict — should fallback to DB fetch of the snapshot.
         result = self.payment_service.process_refund(payment["id"])
         self.assertEqual(result["status"], "REFUNDED")
 
         updated_booking = self.booking_repo.find_by_id(booking["id"])
+        # Snapshot pct (15%) applied to the seeded amount: 50.0 × 0.85 = 42.5
         self.assertEqual(updated_booking["refund_amount"], 42.5)
 
     def test_refund_non_success_payment_fails(self):
@@ -498,9 +551,7 @@ class TestPaymentService(unittest.TestCase):
         self.assertIn("reference_code", pay_result)
 
         # 3. User submits UPI transaction ID
-        self.payment_service.submit_manual_confirmation(
-            booking["id"], "UPI-TXN-HAPPY"
-        )
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI-TXN-HAPPY")
         payment = self.payment_repo.find_by_booking_id(booking["id"])
         self.assertEqual(payment["status"], "UNDER_REVIEW")
 
@@ -521,7 +572,6 @@ class TestPaymentService(unittest.TestCase):
         cart = self.cart_repo.find_by_id(confirmed["assigned_cart_id"])
         self.assertEqual(cart["status"], "BUSY")
 
-
     def test_admin_payment_config_default(self):
         """Test the system returns default ENV vars initially."""
         config = self.payment_service.get_admin_payment_config()
@@ -539,7 +589,7 @@ class TestPaymentService(unittest.TestCase):
         # Now initiate payment and ensure deep link uses the NEW config
         booking = self._create_booking()
         pmt = self.payment_service.initiate_payment(booking_id=booking["id"])
-        
+
         link = pmt["upi_link"]
         self.assertIn("pa=new@upi", link)
         self.assertIn("pn=NEW%20MERCHANT", link.replace(" ", "%20"))

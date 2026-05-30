@@ -45,3 +45,36 @@ backend/booking_test_out.txt
 backend/cart_test_out.txt
 backend/timeslot_test_out.txt
 backend/full_test_out.txt
+
+# MCP / IDE config (local environment)
+.gemini/
+.claude/
+
+# Tool results and temp files
+tool-results/
+*.tmp
+*.temp
+*_temp.*
+
+# Antigravity AI IDE config
+mcp_config.json
+.mcp_config.local.json
+
+# Custom Debug & Temp files
+debug_*.json
+temp_*.json
+engine_debug.json
+testsprite_debug.log
+verify_*.txt
+verify_*.py
+phase*.json
+get_init.js
+init*.json
+state.json
+progress.txt
+roadmap.json
+testsprite_tests/tmp/
+
+# Claude Code
+.claude/rag-index/
+.claude/bash-audit.log

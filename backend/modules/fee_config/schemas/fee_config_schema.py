@@ -21,14 +21,22 @@ class CreateFeeConfigSchema:
         # region_id — required, positive int
         region_id = self._data.get("region_id")
         if region_id is None or not isinstance(region_id, int) or region_id <= 0:
-            self.errors.append("'region_id' is required and must be a positive integer.")
+            self.errors.append(
+                "'region_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["region_id"] = region_id
 
         # cart_type_id — required, positive int
         cart_type_id = self._data.get("cart_type_id")
-        if cart_type_id is None or not isinstance(cart_type_id, int) or cart_type_id <= 0:
-            self.errors.append("'cart_type_id' is required and must be a positive integer.")
+        if (
+            cart_type_id is None
+            or not isinstance(cart_type_id, int)
+            or cart_type_id <= 0
+        ):
+            self.errors.append(
+                "'cart_type_id' is required and must be a positive integer."
+            )
         else:
             self.validated_data["cart_type_id"] = cart_type_id
 
@@ -41,8 +49,12 @@ class CreateFeeConfigSchema:
 
         # cancellation_fee_pct — required, number
         cancellation_fee_pct = self._data.get("cancellation_fee_pct")
-        if cancellation_fee_pct is None or not isinstance(cancellation_fee_pct, (int, float)):
-            self.errors.append("'cancellation_fee_pct' is required and must be a number.")
+        if cancellation_fee_pct is None or not isinstance(
+            cancellation_fee_pct, (int, float)
+        ):
+            self.errors.append(
+                "'cancellation_fee_pct' is required and must be a number."
+            )
         else:
             self.validated_data["cancellation_fee_pct"] = float(cancellation_fee_pct)
 
@@ -52,6 +64,37 @@ class CreateFeeConfigSchema:
             self.errors.append("'platform_fee_pct' is required and must be a number.")
         else:
             self.validated_data["platform_fee_pct"] = float(platform_fee_pct)
+
+        # ── Time-based billing fields (all optional, defaulted in DB) ──
+        for num_field in ("matching_fee", "rate_per_block"):
+            if num_field in self._data:
+                val = self._data[num_field]
+                if not isinstance(val, (int, float)) or isinstance(val, bool) or val < 0:
+                    self.errors.append(f"'{num_field}' must be a non-negative number.")
+                else:
+                    self.validated_data[num_field] = val
+
+        for int_field in ("block_duration_minutes", "max_duration_minutes"):
+            if int_field in self._data:
+                val = self._data[int_field]
+                if not isinstance(val, int) or isinstance(val, bool) or val <= 0:
+                    self.errors.append(f"'{int_field}' must be a positive integer.")
+                else:
+                    self.validated_data[int_field] = val
+
+        if "surge_enabled" in self._data:
+            val = self._data["surge_enabled"]
+            if not isinstance(val, bool):
+                self.errors.append("'surge_enabled' must be a boolean.")
+            else:
+                self.validated_data["surge_enabled"] = val
+
+        if "surge_multiplier" in self._data:
+            val = self._data["surge_multiplier"]
+            if not isinstance(val, (int, float)) or isinstance(val, bool) or val < 1.0 or val > 3.0:
+                self.errors.append("'surge_multiplier' must be between 1.0 and 3.0.")
+            else:
+                self.validated_data["surge_multiplier"] = val
 
         return len(self.errors) == 0
 
@@ -65,7 +108,10 @@ class UpdateFeeConfigSchema:
     """
 
     ALLOWED_FIELDS = {
-        "booking_fee", "cancellation_fee_pct", "platform_fee_pct", "is_active",
+        "booking_fee",
+        "cancellation_fee_pct",
+        "platform_fee_pct",
+        "is_active",
     }
 
     def __init__(self, data: dict):
@@ -91,7 +137,9 @@ class UpdateFeeConfigSchema:
             if not isinstance(cancellation_fee_pct, (int, float)):
                 self.errors.append("'cancellation_fee_pct' must be a number.")
             else:
-                self.validated_data["cancellation_fee_pct"] = float(cancellation_fee_pct)
+                self.validated_data["cancellation_fee_pct"] = float(
+                    cancellation_fee_pct
+                )
 
         # platform_fee_pct — optional, number
         platform_fee_pct = self._data.get("platform_fee_pct")
@@ -108,6 +156,37 @@ class UpdateFeeConfigSchema:
                 self.errors.append("'is_active' must be a boolean.")
             else:
                 self.validated_data["is_active"] = is_active
+
+        # ── Time-based billing fields (all optional, defaulted in DB) ──
+        for num_field in ("matching_fee", "rate_per_block"):
+            if num_field in self._data:
+                val = self._data[num_field]
+                if not isinstance(val, (int, float)) or isinstance(val, bool) or val < 0:
+                    self.errors.append(f"'{num_field}' must be a non-negative number.")
+                else:
+                    self.validated_data[num_field] = val
+
+        for int_field in ("block_duration_minutes", "max_duration_minutes"):
+            if int_field in self._data:
+                val = self._data[int_field]
+                if not isinstance(val, int) or isinstance(val, bool) or val <= 0:
+                    self.errors.append(f"'{int_field}' must be a positive integer.")
+                else:
+                    self.validated_data[int_field] = val
+
+        if "surge_enabled" in self._data:
+            val = self._data["surge_enabled"]
+            if not isinstance(val, bool):
+                self.errors.append("'surge_enabled' must be a boolean.")
+            else:
+                self.validated_data["surge_enabled"] = val
+
+        if "surge_multiplier" in self._data:
+            val = self._data["surge_multiplier"]
+            if not isinstance(val, (int, float)) or isinstance(val, bool) or val < 1.0 or val > 3.0:
+                self.errors.append("'surge_multiplier' must be between 1.0 and 3.0.")
+            else:
+                self.validated_data["surge_multiplier"] = val
 
         if not self.validated_data and not self.errors:
             self.errors.append("At least one field must be provided for update.")

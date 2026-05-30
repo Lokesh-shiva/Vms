@@ -1,5 +1,4 @@
 import unittest
-from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -23,7 +22,9 @@ from modules.location.repository.location_repository import LocationRepository
 from modules.cart_type.repository.cart_type_repository import CartTypeRepository
 from modules.timeslot.repository.timeslot_repository import TimeslotRepository
 from modules.cart.repository.cart_repository import CartRepository
-from modules.booking_item.repository.booking_item_repository import BookingItemRepository
+from modules.booking_item.repository.booking_item_repository import (
+    BookingItemRepository,
+)
 from modules.booking_item.service.booking_item_service import BookingItemService
 from modules.item.repository.item_repository import ItemRepository
 from modules.payment.repository.payment_repository import PaymentRepository
@@ -55,30 +56,38 @@ class TestBookingService(unittest.TestCase):
         self.cart_type_repo.create({"name": "Standard"})  # id=1
 
         self.timeslot_repo = TimeslotRepository(session_factory=test_session_factory)
-        self.timeslot_repo.create({
-            "location_id": 1,
-            "date": "2026-03-01",
-            "start_time": "09:00",
-            "end_time": "10:00",
-            "capacity": 5,
-        })  # id=1
+        self.timeslot_repo.create(
+            {
+                "location_id": 1,
+                "date": "2026-03-01",
+                "start_time": "09:00",
+                "end_time": "10:00",
+                "capacity": 5,
+            }
+        )  # id=1
 
         self.cart_repo = CartRepository(session_factory=test_session_factory)
-        self.cart_repo.create({
-            "region_id": 1,
-            "cart_type_id": 1,
-            "status": "AVAILABLE",
-        })  # id=1
-        self.cart_repo.create({
-            "region_id": 1,
-            "cart_type_id": 1,
-            "status": "AVAILABLE",
-        })  # id=2
-        self.cart_repo.create({
-            "region_id": 1,
-            "cart_type_id": 1,
-            "status": "AVAILABLE",
-        })  # id=3
+        self.cart_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "status": "AVAILABLE",
+            }
+        )  # id=1
+        self.cart_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "status": "AVAILABLE",
+            }
+        )  # id=2
+        self.cart_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "status": "AVAILABLE",
+            }
+        )  # id=3
 
         self.item_repo = ItemRepository(session_factory=test_session_factory)
 
@@ -93,14 +102,16 @@ class TestBookingService(unittest.TestCase):
 
         # Fee config — active for region=1, cart_type=1
         self.fee_config_repo = FeeConfigRepository(session_factory=test_session_factory)
-        self.fee_config_repo.create({
-            "region_id": 1,
-            "cart_type_id": 1,
-            "booking_fee": 50.0,
-            "cancellation_fee_pct": 10.0,
-            "platform_fee_pct": 5.0,
-            "is_active": True,
-        })
+        self.fee_config_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "booking_fee": 50.0,
+                "cancellation_fee_pct": 10.0,
+                "platform_fee_pct": 5.0,
+                "is_active": True,
+            }
+        )
 
         self.payment_service = PaymentService(
             payment_repository=self.payment_repo,
@@ -170,7 +181,7 @@ class TestBookingService(unittest.TestCase):
         """Booking fee is always from config, never from client input."""
         # Pass a fake booking_fee — it should be ignored
         result = self.service.create_booking(self._valid_data(booking_fee=999.99))
-        self.assertEqual(result["booking_fee"], 50.0)   # config value, not 999.99
+        self.assertEqual(result["booking_fee"], 50.0)  # config value, not 999.99
 
     def test_create_booking_snapshots_pct_from_config(self):
         """Snapshot fields must match config values at booking creation time."""
@@ -333,6 +344,33 @@ class TestBookingService(unittest.TestCase):
             self.service.confirm_booking(booking["id"])
         self.assertIn("No cart available", str(ctx.exception))
 
+    def test_confirm_skips_inactive_carts(self):
+        """Inactive carts are never selected during booking confirmation."""
+        self.cart_repo.update(1, {"is_active": False})
+        self.cart_repo.update(2, {"is_active": False})
+        self.cart_repo.update(3, {"is_active": False})
+
+        booking = self.service.create_booking(self._valid_data())
+        self.payment_service.initiate_payment(booking["id"])
+        self.payment_service.submit_manual_confirmation(booking["id"], "UPI123")
+        payment = self.payment_repo.find_by_booking_id(booking["id"])
+        self.payment_service.approve_payment(payment["id"])
+
+        with self.assertRaises(ValueError) as ctx:
+            self.service.confirm_booking(booking["id"])
+        self.assertIn("No cart available", str(ctx.exception))
+
+    def test_confirm_two_bookings_get_different_carts(self):
+        """Two sequential confirmations must assign two different carts."""
+        b1 = self._create_and_pay()
+        b2 = self._create_and_pay()
+        self.assertNotEqual(b1["assigned_cart_id"], b2["assigned_cart_id"])
+
+        c1 = self.cart_repo.find_by_id(b1["assigned_cart_id"])
+        c2 = self.cart_repo.find_by_id(b2["assigned_cart_id"])
+        self.assertEqual(c1["status"], "BUSY")
+        self.assertEqual(c2["status"], "BUSY")
+
     def test_confirm_expired_booking_fails(self):
         """Cannot confirm an expired booking."""
         booking = self.service.create_booking(self._valid_data())
@@ -348,9 +386,13 @@ class TestBookingService(unittest.TestCase):
 
     def test_capacity_does_not_count_pending_payment(self):
         """PENDING_PAYMENT bookings do NOT consume slot capacity."""
-        self.cart_repo.create({
-            "region_id": 1, "cart_type_id": 1, "status": "AVAILABLE",
-        })
+        self.cart_repo.create(
+            {
+                "region_id": 1,
+                "cart_type_id": 1,
+                "status": "AVAILABLE",
+            }
+        )
 
         # Create 2 PENDING_PAYMENT bookings (capacity=5, doesn't matter)
         self.service.create_booking(self._valid_data())
@@ -399,10 +441,13 @@ class TestBookingService(unittest.TestCase):
 
         # Change config to extreme values — should NOT affect existing booking
         config = self.fee_config_repo.find_by_region_and_cart_type(1, 1)
-        self.fee_config_repo.update(config["id"], {
-            "cancellation_fee_pct": 90.0,
-            "platform_fee_pct": 10.0,
-        })
+        self.fee_config_repo.update(
+            config["id"],
+            {
+                "cancellation_fee_pct": 90.0,
+                "platform_fee_pct": 10.0,
+            },
+        )
 
         self.service.cancel_booking(confirmed["id"])
 
@@ -431,6 +476,7 @@ class TestBookingService(unittest.TestCase):
     def test_cancel_completed_booking_blocked(self):
         """Cannot cancel a completed booking."""
         confirmed = self._create_and_pay()
+        self.service.start_booking(confirmed["id"])
         self.service.complete_booking(confirmed["id"])
 
         with self.assertRaises(ValueError) as ctx:
@@ -446,6 +492,7 @@ class TestBookingService(unittest.TestCase):
         cart = self.cart_repo.find_by_id(confirmed["assigned_cart_id"])
         self.assertEqual(cart["status"], "BUSY")
 
+        self.service.start_booking(confirmed["id"])
         completed = self.service.complete_booking(confirmed["id"])
         self.assertEqual(completed["status"], "COMPLETED")
 
@@ -461,11 +508,12 @@ class TestBookingService(unittest.TestCase):
     def test_complete_booking_already_completed(self):
         """Cannot complete an already completed booking."""
         confirmed = self._create_and_pay()
+        self.service.start_booking(confirmed["id"])
         self.service.complete_booking(confirmed["id"])
 
         with self.assertRaises(ValueError) as ctx:
             self.service.complete_booking(confirmed["id"])
-        self.assertIn("Only confirmed", str(ctx.exception))
+        self.assertIn("Only IN_PROGRESS", str(ctx.exception))
 
     # ── Read ─────────────────────────────────────────────────────────
 

@@ -1,5 +1,7 @@
 from core.base.base_service import BaseService
-from modules.cart_type.repository.cart_type_repository import cart_type_repository as _default_repo
+from modules.cart_type.repository.cart_type_repository import (
+    cart_type_repository as _default_repo,
+)
 
 
 class CartTypeService(BaseService):

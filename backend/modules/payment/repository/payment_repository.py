@@ -27,7 +27,10 @@ class PaymentRepository:
         try:
             payment = Payment(
                 booking_id=payment_data.get("booking_id"),
+                user_id=payment_data.get("user_id"),
+                match_id=payment_data.get("match_id"),
                 provider=payment_data.get("provider", "MANUAL_UPI"),
+                payment_type=payment_data.get("payment_type", "MATCHING_FEE"),
                 amount=payment_data.get("amount", 0.0),
                 reference_code=payment_data.get("reference_code"),
                 transaction_id=payment_data.get("transaction_id"),
@@ -63,8 +66,10 @@ class PaymentRepository:
     def find_by_booking_id(self, booking_id: int, session=None) -> dict | None:
         """Retrieve the **latest** payment associated with a booking.
 
-        Multiple payments may exist for one booking (FAILED → retry).
+        Multiple payments may exist for one booking (FAILED → retry, or split payments).
         Always returns the most recent one (highest id).
+
+        For split payment records use find_by_booking_id_all() or find_by_user_and_booking().
         """
         own_session = session is None
         session = session or self._session_factory()
@@ -72,6 +77,43 @@ class PaymentRepository:
             payment = (
                 session.query(Payment)
                 .filter(Payment.booking_id == booking_id)
+                .order_by(Payment.id.desc())
+                .first()
+            )
+            return payment.to_dict() if payment else None
+        finally:
+            if own_session:
+                session.close()
+
+    def find_by_booking_id_all(self, booking_id: int, session=None) -> list[dict]:
+        """Retrieve all payment records associated with a booking, ordered by id DESC."""
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            payments = (
+                session.query(Payment)
+                .filter(Payment.booking_id == booking_id)
+                .order_by(Payment.id.desc())
+                .all()
+            )
+            return [p.to_dict() for p in payments]
+        finally:
+            if own_session:
+                session.close()
+
+    def find_by_user_and_booking(
+        self, user_id: int, booking_id: int, session=None
+    ) -> dict | None:
+        """Retrieve the payment record for a specific user and booking combination."""
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            payment = (
+                session.query(Payment)
+                .filter(
+                    Payment.user_id == user_id,
+                    Payment.booking_id == booking_id,
+                )
                 .order_by(Payment.id.desc())
                 .first()
             )
@@ -104,7 +146,9 @@ class PaymentRepository:
                 return None
 
             for key, value in update_data.items():
-                if key not in ("id", "created_at", "updated_at") and hasattr(payment, key):
+                if key not in ("id", "created_at", "updated_at") and hasattr(
+                    payment, key
+                ):
                     setattr(payment, key, value)
 
             payment.updated_at = datetime.utcnow()

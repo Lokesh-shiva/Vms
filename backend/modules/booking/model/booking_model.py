@@ -34,6 +34,7 @@ class Booking(Base):
         "PENDING_PAYMENT",
         "CONFIRMED",
         "IN_PROGRESS",
+        "AWAITING_TIME_PAYMENT",
         "COMPLETED",
         "CANCELLED",
         "EXPIRED",
@@ -44,9 +45,15 @@ class Booking(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     region_id = Column(Integer, ForeignKey("locations.id"), nullable=False, index=True)
-    cart_type_id = Column(Integer, ForeignKey("cart_types.id"), nullable=False, index=True)
-    timeslot_id = Column(Integer, ForeignKey("timeslots.id"), nullable=False, index=True)
-    assigned_cart_id = Column(Integer, ForeignKey("carts.id"), nullable=True, index=True)
+    cart_type_id = Column(
+        Integer, ForeignKey("cart_types.id"), nullable=False, index=True
+    )
+    timeslot_id = Column(
+        Integer, ForeignKey("timeslots.id"), nullable=False, index=True
+    )
+    assigned_cart_id = Column(
+        Integer, ForeignKey("carts.id"), nullable=True, index=True
+    )
     address = Column(String, nullable=False)
     booking_fee = Column(Numeric(10, 2), nullable=False)
     estimated_total = Column(Numeric(10, 2), nullable=False)
@@ -56,6 +63,13 @@ class Booking(Base):
     refund_amount = Column(Numeric(10, 2), nullable=False, default=0)
     cancellation_fee_pct_snapshot = Column(Numeric(5, 2), nullable=False, default=0)
     platform_fee_pct_snapshot = Column(Numeric(5, 2), nullable=False, default=0)
+    # ── Time-based session tracking ─────────────────────────────────
+    session_started_at = Column(DateTime, nullable=True)
+    session_ended_at = Column(DateTime, nullable=True)
+    session_minutes = Column(Integer, nullable=True)
+    session_blocks = Column(Integer, nullable=True)
+    time_bill_amount = Column(Numeric(10, 2), nullable=True)
+    surge_multiplier_snapshot = Column(Numeric(4, 2), nullable=True)
     date = Column(String, nullable=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
@@ -72,7 +86,9 @@ class Booking(Base):
             "timeslot_id": self.timeslot_id,
             "assigned_cart_id": self.assigned_cart_id,
             "address": self.address,
-            "booking_fee": float(self.booking_fee) if self.booking_fee is not None else 0.0,
+            "booking_fee": float(self.booking_fee)
+            if self.booking_fee is not None
+            else 0.0,
             "estimated_total": (
                 float(self.estimated_total) if self.estimated_total is not None else 0.0
             ),
@@ -84,12 +100,20 @@ class Booking(Base):
             ),
             "cancellation_fee_pct_snapshot": (
                 float(self.cancellation_fee_pct_snapshot)
-                if self.cancellation_fee_pct_snapshot is not None else 0.0
+                if self.cancellation_fee_pct_snapshot is not None
+                else 0.0
             ),
             "platform_fee_pct_snapshot": (
                 float(self.platform_fee_pct_snapshot)
-                if self.platform_fee_pct_snapshot is not None else 0.0
+                if self.platform_fee_pct_snapshot is not None
+                else 0.0
             ),
+            "session_started_at": self.session_started_at.isoformat() if self.session_started_at else None,
+            "session_ended_at": self.session_ended_at.isoformat() if self.session_ended_at else None,
+            "session_minutes": self.session_minutes,
+            "session_blocks": self.session_blocks,
+            "time_bill_amount": float(self.time_bill_amount) if self.time_bill_amount is not None else None,
+            "surge_multiplier_snapshot": float(self.surge_multiplier_snapshot) if self.surge_multiplier_snapshot is not None else None,
             "date": self.date,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

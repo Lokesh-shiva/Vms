@@ -43,7 +43,9 @@ class CartTypeRepository:
         """Retrieve a cart type by ID."""
         session = self._session_factory()
         try:
-            cart_type = session.query(CartType).filter(CartType.id == cart_type_id).first()
+            cart_type = (
+                session.query(CartType).filter(CartType.id == cart_type_id).first()
+            )
             return cart_type.to_dict() if cart_type else None
         finally:
             session.close()
@@ -70,12 +72,16 @@ class CartTypeRepository:
         """Update an existing cart type record. Automatically refreshes updated_at."""
         session = self._session_factory()
         try:
-            cart_type = session.query(CartType).filter(CartType.id == cart_type_id).first()
+            cart_type = (
+                session.query(CartType).filter(CartType.id == cart_type_id).first()
+            )
             if not cart_type:
                 return None
 
             for key, value in update_data.items():
-                if key not in ("id", "created_at", "updated_at") and hasattr(cart_type, key):
+                if key not in ("id", "created_at", "updated_at") and hasattr(
+                    cart_type, key
+                ):
                     setattr(cart_type, key, value)
 
             cart_type.updated_at = datetime.utcnow()
@@ -92,7 +98,9 @@ class CartTypeRepository:
         """Delete a cart type record by ID."""
         session = self._session_factory()
         try:
-            cart_type = session.query(CartType).filter(CartType.id == cart_type_id).first()
+            cart_type = (
+                session.query(CartType).filter(CartType.id == cart_type_id).first()
+            )
             if not cart_type:
                 return False
             session.delete(cart_type)

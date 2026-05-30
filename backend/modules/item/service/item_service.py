@@ -1,6 +1,10 @@
 from core.base.base_service import BaseService
-from modules.item.repository.item_repository import item_repository as _default_item_repo
-from modules.cart_type.repository.cart_type_repository import cart_type_repository as _default_cart_type_repo
+from modules.item.repository.item_repository import (
+    item_repository as _default_item_repo,
+)
+from modules.cart_type.repository.cart_type_repository import (
+    cart_type_repository as _default_cart_type_repo,
+)
 
 
 class ItemService(BaseService):
@@ -27,12 +31,15 @@ class ItemService(BaseService):
         if not cart_type:
             raise ValueError("Referenced cart type does not exist.")
 
-    def _validate_unique_name(self, name: str, cart_type_id: int,
-                              exclude_item_id: int | None = None) -> None:
+    def _validate_unique_name(
+        self, name: str, cart_type_id: int, exclude_item_id: int | None = None
+    ) -> None:
         """Ensure item name is unique within the given cart type."""
         existing = self.item_repository.find_by_name_and_cart_type(name, cart_type_id)
         if existing and existing["id"] != exclude_item_id:
-            raise ValueError("An item with this name already exists for this cart type.")
+            raise ValueError(
+                "An item with this name already exists for this cart type."
+            )
 
     # ── CRUD ──────────────────────────────────────────────────────────
 
@@ -95,9 +102,13 @@ class ItemService(BaseService):
         # Determine effective cart_type_id and name for uniqueness check
         effective_cart_type_id = new_cart_type_id or existing["cart_type_id"]
         new_name = update_data.get("name")
-        if new_name and (new_name != existing["name"]
-                         or effective_cart_type_id != existing["cart_type_id"]):
-            self._validate_unique_name(new_name, effective_cart_type_id, exclude_item_id=item_id)
+        if new_name and (
+            new_name != existing["name"]
+            or effective_cart_type_id != existing["cart_type_id"]
+        ):
+            self._validate_unique_name(
+                new_name, effective_cart_type_id, exclude_item_id=item_id
+            )
 
         return self.item_repository.update(item_id, update_data)
 
