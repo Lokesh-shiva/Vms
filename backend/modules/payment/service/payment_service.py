@@ -450,7 +450,7 @@ class PaymentService(BaseService):
                         "payment_type": "TIME_BILL",
                         "amount": amount,
                         "reference_code": reference_code,
-                        "status": "PENDING",
+                        "status": "UNDER_REVIEW",
                     }
                 )
             except Exception:
