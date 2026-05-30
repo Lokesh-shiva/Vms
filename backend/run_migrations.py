@@ -73,6 +73,16 @@ cur.execute("""
         ADD COLUMN IF NOT EXISTS payment_type VARCHAR(50) NOT NULL DEFAULT 'MATCHING_FEE';
 """)
 
+print("Running migration 6: fix payments unique constraint for two-payment model ...")
+cur.execute("""
+    ALTER TABLE payments DROP CONSTRAINT IF EXISTS uq_payment_booking_user;
+""")
+cur.execute("""
+    ALTER TABLE payments
+        ADD CONSTRAINT uq_payment_booking_user_type
+        UNIQUE (booking_id, user_id, payment_type);
+""")
+
 conn.commit()
 cur.close()
 conn.close()

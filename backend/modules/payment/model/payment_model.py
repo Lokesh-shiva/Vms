@@ -42,7 +42,7 @@ class Payment(Base):
     VALID_STATUSES = ["PENDING", "UNDER_REVIEW", "SUCCESS", "FAILED", "REFUNDED"]
 
     __table_args__ = (
-        UniqueConstraint("booking_id", "user_id", name="uq_payment_booking_user"),
+        UniqueConstraint("booking_id", "user_id", "payment_type", name="uq_payment_booking_user_type"),
     )
 
     id = Column(Integer, primary_key=True, autoincrement=True)

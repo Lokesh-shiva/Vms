@@ -30,6 +30,7 @@ class PaymentRepository:
                 user_id=payment_data.get("user_id"),
                 match_id=payment_data.get("match_id"),
                 provider=payment_data.get("provider", "MANUAL_UPI"),
+                payment_type=payment_data.get("payment_type", "MATCHING_FEE"),
                 amount=payment_data.get("amount", 0.0),
                 reference_code=payment_data.get("reference_code"),
                 transaction_id=payment_data.get("transaction_id"),
