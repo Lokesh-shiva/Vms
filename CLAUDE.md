@@ -23,7 +23,7 @@ Project pivot: the existing **VMS Admin App** is being restructured into the **P
 ## Commands
 - Run backend: `venv\Scripts\python.exe -m uvicorn backend.main:app --reload --port 8000` (**venv launcher broken** — use python.exe directly)
 - Test backend: `venv\Scripts\python.exe -m pytest`
-- Admin app build: needs `JAVA_HOME=C:\Program Files\Android\Android Studio\jbr` then `gradlew assembleDebug`
+- Admin app build: **DO NOT build the APK** — user builds and installs via Android Studio directly. Never run `gradlew assembleDebug` unless explicitly verifying a compile error.
 - DB migrations: `venv\Scripts\python.exe backend/run_migrations.py`
 
 ## Current focus — Phase 02
