@@ -1,5 +1,33 @@
 # Development Log
 
+---
+
+## 2026-05-30 — Phase 02: Admin App — Time-Based Billing UI
+
+### Summary
+Wired the admin app to the time-based billing backend. Session start/end now uses the `/start-session` and `/end-session` endpoints (metered billing flow). `IN_PROGRESS` booking cards show a live elapsed-time timer (`LiveSessionTimer` composable, 1-second tick, `isActive`-guarded loop, API-24-safe `SimpleDateFormat`). `AWAITING_TIME_PAYMENT` cards display session duration, block count, and time bill amount with a note to approve in the Payments tab. Pricing (FeeConfig) edit dialog gains matching_fee, rate_per_block, block_duration_minutes, max_duration_minutes fields plus a surge enabled toggle and multiplier (edit-only). Duration fields only required when rate_per_block > 0.
+
+### Admin App — Modified Files
+
+| File | Change |
+|------|--------|
+| `models/Models.kt` | Added session fields to `Booking` (session_started_at, session_ended_at, session_minutes, session_blocks, time_bill_amount, surge_multiplier_snapshot); `payment_type` to `Payment`; time-rate + surge fields to `FeeConfig`; extended `CreateFeeConfigRequest` + `UpdateFeeConfigRequest`; added `SessionStatus` model |
+| `network/ApiService.kt` | Added `startSession`, `endSession`, `getSessionStatus` endpoints |
+| `data/BookingRepository.kt` | Added `startSession()`, `endSession()` |
+| `data/FeeConfigRepository.kt` | Extended `createFeeConfig()` + `updateFeeConfig()` with time-rate + surge params |
+| `viewmodel/BookingViewModel.kt` | Added `startSession()`, `endSession()` methods |
+| `viewmodel/FeeConfigViewModel.kt` | Extended `addConfig()` + `updateConfig()` signatures for all time-rate + surge params |
+| `ui/screens/BookingsScreen.kt` | Live `LiveSessionTimer` composable on IN_PROGRESS cards; AWAITING_TIME_PAYMENT info section; wired to `startSession`/`endSession` ViewModel methods |
+| `ui/screens/FeeConfigScreen.kt` | `FeeConfigFormDialog` extended with 6 new fields + surge toggle; card shows time-rate info; both Add + Edit call sites updated; `toBigDecimal().stripTrailingZeros().toPlainString()` for numeric pre-fills |
+
+### Architectural Decisions
+- **API-24-safe timer**: Uses `java.text.SimpleDateFormat` (not `java.time`) since `minSdk = 24` and `coreLibraryDesugaring` is not configured.
+- **`isActive`-guarded coroutine loop**: `LiveSessionTimer` uses `while (isActive)` inside `LaunchedEffect` — loop respects coroutine cancellation when composable leaves composition.
+- **Surge edit-only**: Surge is an operational control (flip live), not a config-time setting; Add dialog does not show surge fields.
+- **AWAITING_TIME_PAYMENT is display-only**: No action button from BookingsScreen — the TIME_BILL payment appears in Payments tab where Finance/Admin approves it.
+- **Conditional duration validation**: Block/max duration fields only required when rate_per_block > 0, allowing basic configs without time-billing.
+- **Old `/start` + `/complete` endpoints kept**: Backward compatibility; new metered-billing session endpoints are `/start-session` and `/end-session`.
+
 ## 2026-05-29 — Phase 02: Time-based billing backend (Tasks 1-9)
 
 ### Summary
