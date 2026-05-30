@@ -15,8 +15,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.SupportAgent
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -57,6 +60,9 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
     object Payments  : BottomNavItem("payments",  "Payments",  Icons.Outlined.ShoppingCart)
     object Manage    : BottomNavItem("manage",    "Manage",    Icons.Outlined.Settings)
     object Support   : BottomNavItem("support",   "Support",   Icons.Outlined.SupportAgent)
+    object MyGrounds : BottomNavItem("my-grounds", "My Grounds", Icons.Outlined.LocationOn)
+    object Matches   : BottomNavItem("matches",   "Matches",   Icons.Outlined.Star)
+    object Csr       : BottomNavItem("csr",       "CSR",       Icons.Outlined.Info)
 }
 
 // ── Role permission sets ─────────────────────────────────────────────
@@ -103,12 +109,20 @@ fun MainScreen(
         BottomNavItem.Bookings,
         BottomNavItem.Payments,
         BottomNavItem.Support,
+        BottomNavItem.MyGrounds,
+        BottomNavItem.Matches,
+        BottomNavItem.Csr,
         BottomNavItem.Manage,
     ).filter { item ->
         when (item) {
             BottomNavItem.Payments -> role in PAYMENT_ROLES
             BottomNavItem.Manage   -> role in MANAGE_ROLES
             BottomNavItem.Support  -> role in SUPPORT_ROLES
+            BottomNavItem.MyGrounds -> role == "ground_owner"
+            // Matches as a dedicated tab only for tournament_manager
+            // (ops_manager / super_admin reach Matches via the Manage screen)
+            BottomNavItem.Matches  -> role == "tournament_manager"
+            BottomNavItem.Csr      -> role == "csr_partner"
             else -> true
         }
     }
@@ -208,6 +222,30 @@ fun MainScreen(
                             userManagementViewModel = userManagementViewModel,
                             bookingViewModel = bookingViewModel
                         )
+                    }
+                }
+                composable(BottomNavItem.MyGrounds.route) {
+                    if (role !in GROUND_OWNER_ROLES) {
+                        LaunchedEffect(Unit) { onForbidden() }
+                    } else {
+                        GroundOwnerScreen(
+                            groundViewModel = groundViewModel,
+                            bookingViewModel = bookingViewModel
+                        )
+                    }
+                }
+                composable(BottomNavItem.Matches.route) {
+                    if (role !in (MANAGE_ROLES + TOURNAMENT_ROLES)) {
+                        LaunchedEffect(Unit) { onForbidden() }
+                    } else {
+                        MatchesScreen(viewModel = matchViewModel, onBack = null)
+                    }
+                }
+                composable(BottomNavItem.Csr.route) {
+                    if (role !in CSR_ROLES) {
+                        LaunchedEffect(Unit) { onForbidden() }
+                    } else {
+                        CsrScreen(matchViewModel = matchViewModel)
                     }
                 }
                 composable(BottomNavItem.Manage.route) {

@@ -1,9 +1,11 @@
 package com.example.vmsadmin.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -11,6 +13,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -118,6 +121,21 @@ fun UsersScreen(
 
                 currentState is UserManagementState.Success -> {
                     val users = currentState.users
+
+                    // Roles present in the data, ordered by ROLE_ORDER
+                    val rolesPresent = ROLE_ORDER.filter { role -> users.any { it.role == role } } +
+                            users.map { it.role }.filter { it !in ROLE_ORDER }.distinct()
+
+                    var selectedRole by rememberSaveable { mutableStateOf<String?>(null) }
+                    // Reset filter if the selected role disappears from the data
+                    LaunchedEffect(rolesPresent) {
+                        if (selectedRole != null && selectedRole !in rolesPresent) selectedRole = null
+                    }
+
+                    val visibleUsers = remember(users, selectedRole) {
+                        if (selectedRole == null) users else users.filter { it.role == selectedRole }
+                    }
+
                     PullToRefreshBox(
                         isRefreshing = isRefreshing,
                         onRefresh = { viewModel.refreshUsers() },
@@ -128,14 +146,46 @@ fun UsersScreen(
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(users, key = { it.id }) { user ->
-                                UserRow(
-                                    user = user,
-                                    isCurrentUser = user.id == currentUserId,
-                                    isPending = pendingIds.contains(user.id),
-                                    onChangeRole = { newRole -> viewModel.changeRole(user.id, newRole) },
-                                    onToggleActive = { viewModel.toggleActive(user.id, user.is_active) }
+                            // ── Filter chips ───────────────────────────────
+                            item {
+                                RoleFilterRow(
+                                    rolesPresent = rolesPresent,
+                                    selectedRole = selectedRole,
+                                    totalCount = users.size,
+                                    countFor = { role -> users.count { it.role == role } },
+                                    onSelect = { selectedRole = it }
                                 )
+                            }
+
+                            if (selectedRole == null) {
+                                // Grouped by role with section headers
+                                rolesPresent.forEach { role ->
+                                    val group = visibleUsers.filter { it.role == role }
+                                    if (group.isNotEmpty()) {
+                                        item(key = "header_$role") {
+                                            RoleSectionHeader(role = role, count = group.size)
+                                        }
+                                        items(group, key = { it.id }) { user ->
+                                            UserRow(
+                                                user = user,
+                                                isCurrentUser = user.id == currentUserId,
+                                                isPending = pendingIds.contains(user.id),
+                                                onChangeRole = { newRole -> viewModel.changeRole(user.id, newRole) },
+                                                onToggleActive = { viewModel.toggleActive(user.id, user.is_active) }
+                                            )
+                                        }
+                                    }
+                                }
+                            } else {
+                                items(visibleUsers, key = { it.id }) { user ->
+                                    UserRow(
+                                        user = user,
+                                        isCurrentUser = user.id == currentUserId,
+                                        isPending = pendingIds.contains(user.id),
+                                        onChangeRole = { newRole -> viewModel.changeRole(user.id, newRole) },
+                                        onToggleActive = { viewModel.toggleActive(user.id, user.is_active) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -143,6 +193,62 @@ fun UsersScreen(
             }
         }
     }
+}
+
+// Canonical display order for role grouping/filtering
+private val ROLE_ORDER = listOf(
+    "super_admin",
+    "ops_manager",
+    "ground_owner",
+    "tournament_manager",
+    "support",
+    "finance",
+    "csr_partner",
+    "user"
+)
+
+private fun roleLabel(role: String): String =
+    role.split("_").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+
+@Composable
+private fun RoleFilterRow(
+    rolesPresent: List<String>,
+    selectedRole: String?,
+    totalCount: Int,
+    countFor: (String) -> Int,
+    onSelect: (String?) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            selected = selectedRole == null,
+            onClick = { onSelect(null) },
+            label = { Text("All ($totalCount)") }
+        )
+        rolesPresent.forEach { role ->
+            FilterChip(
+                selected = selectedRole == role,
+                onClick = { onSelect(role) },
+                label = { Text("${roleLabel(role)} (${countFor(role)})") }
+            )
+        }
+    }
+}
+
+@Composable
+private fun RoleSectionHeader(role: String, count: Int) {
+    Text(
+        text = "${roleLabel(role).uppercase()}  ·  $count",
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+    )
 }
 
 @Composable

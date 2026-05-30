@@ -23,7 +23,7 @@ import com.example.vmsadmin.viewmodel.MatchViewModel
 @Composable
 fun MatchesScreen(
     viewModel: MatchViewModel,
-    onBack: () -> Unit
+    onBack: (() -> Unit)? = null
 ) {
     val matches by viewModel.matches.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -76,8 +76,10 @@ fun MatchesScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Outlined.ArrowBack, contentDescription = "Back")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
