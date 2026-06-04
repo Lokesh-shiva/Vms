@@ -96,6 +96,23 @@ cur.execute("""
         ADD COLUMN IF NOT EXISTS owner_user_id INT REFERENCES users(id) ON DELETE SET NULL;
 """)
 
+print("Running migration 8: create tournaments table ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS tournaments (
+        id          SERIAL PRIMARY KEY,
+        name        VARCHAR NOT NULL,
+        sport_id    INT REFERENCES sports(id) ON DELETE SET NULL,
+        region_id   INT REFERENCES locations(id) ON DELETE SET NULL,
+        organizer   VARCHAR NOT NULL,
+        start_date  DATE NOT NULL,
+        end_date    DATE NOT NULL,
+        max_teams   INT NOT NULL DEFAULT 8,
+        status      VARCHAR(50) NOT NULL DEFAULT 'UPCOMING',
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+
 conn.commit()
 cur.close()
 conn.close()
