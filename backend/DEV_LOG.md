@@ -1,6 +1,36 @@
 # Development Log
 
 ---
+## [2026-06-04] Phase 02 — Tournament module
+
+### Backend
+**Added:**
+- Migration 8: `tournaments` table (name, sport_id, region_id, organizer, start_date, end_date, max_teams, status)
+- Full CRUD module: `backend/modules/tournament/` (model, repository, service, schemas, routes)
+- `GET/POST /api/v1/tournaments`, `GET/PUT/DELETE /api/v1/tournaments/{id}`
+- Role guards: list (TOURNAMENT_MANAGER/OPS_MANAGER/SUPER_ADMIN), create/update (TOURNAMENT_MANAGER/SUPER_ADMIN), delete (SUPER_ADMIN)
+- `backend/modules/tournament/tests/test_tournament_service.py` — 5 tests
+
+**Modified:**
+- `backend/main.py` — registered tournament router + model
+- `backend/run_migrations.py` — Migration 8
+
+### Admin App
+**Added:**
+- `Tournament`, `CreateTournamentRequest`, `UpdateTournamentRequest` in Models.kt
+- `TournamentRepository.kt`
+- `TournamentViewModel.kt` — list, create, updateStatus
+- `TournamentsScreen.kt` — list + create dialog + status change per card
+
+**Modified:**
+- `ApiService.kt` — tournament CRUD endpoints
+- `AppNavigation.kt` + `MainScreen.kt` — tournaments route (TOURNAMENT_MANAGER/OPS_MANAGER/SUPER_ADMIN)
+
+### Architecture decisions
+- Minimal CRUD only — no brackets, no automation, no scheduling
+- start_date > end_date rejected at schema validation layer
+- 4-layer RBAC: endpoint, ViewModel, navigation, UI
+---
 ## [2026-06-04] Phase 02 — Finance reporting
 
 ### Backend
