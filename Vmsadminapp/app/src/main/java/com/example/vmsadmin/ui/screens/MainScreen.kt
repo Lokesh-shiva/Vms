@@ -301,7 +301,7 @@ fun MainScreen(
                 }
                 composable("manage/grounds") {
                     if (role !in MANAGE_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
-                    else GroundsScreen(viewModel = groundViewModel, onBack = { navController.popBackStack() })
+                    else GroundsScreen(viewModel = groundViewModel, currentUserRole = role, onBack = { navController.popBackStack() })
                 }
                 composable("manage/users") {
                     if (role !in USERS_ROLES) { LaunchedEffect(Unit) { onForbidden() } }

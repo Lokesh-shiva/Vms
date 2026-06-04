@@ -6,6 +6,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.vmsadmin.models.AppUser
 import com.example.vmsadmin.models.Ground
 import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.ui.components.StatusBadge
@@ -23,6 +27,7 @@ import com.example.vmsadmin.viewmodel.GroundViewModel
 @Composable
 fun GroundsScreen(
     viewModel: GroundViewModel,
+    currentUserRole: String,
     onBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -117,7 +122,13 @@ fun GroundsScreen(
                                 GroundCard(
                                     ground = ground,
                                     isUpdating = uiState.updatingIds.contains(ground.id),
-                                    onToggle = { isActive -> viewModel.toggleGround(ground.id, isActive) }
+                                    currentUserRole = currentUserRole,
+                                    foundOwner = uiState.ownerSearchResult,
+                                    ownerSearchLoading = uiState.ownerSearchLoading,
+                                    ownerSearchError = uiState.ownerSearchError,
+                                    onToggle = { isActive -> viewModel.toggleGround(ground.id, isActive) },
+                                    onSearchOwner = { phone -> viewModel.searchOwnerByPhone(phone) },
+                                    onAssignOwner = { gId, uId -> viewModel.assignOwner(gId, uId) }
                                 )
                             }
                         }
@@ -132,7 +143,13 @@ fun GroundsScreen(
 private fun GroundCard(
     ground: Ground,
     isUpdating: Boolean,
-    onToggle: (Boolean) -> Unit
+    currentUserRole: String,
+    foundOwner: AppUser?,
+    ownerSearchLoading: Boolean,
+    ownerSearchError: String?,
+    onToggle: (Boolean) -> Unit,
+    onSearchOwner: (String) -> Unit,
+    onAssignOwner: (Int, Int) -> Unit,
 ) {
     AppCard {
         Row(
@@ -166,5 +183,62 @@ private fun GroundCard(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (currentUserRole.lowercase() == "super_admin") {
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider()
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Assign Owner",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(4.dp))
+            ground.owner_user_id?.let {
+                Text(
+                    "Current owner ID: $it",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(4.dp))
+            }
+            var ownerPhone by remember { mutableStateOf("") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = ownerPhone,
+                    onValueChange = { ownerPhone = it },
+                    label = { Text("Phone number") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = { onSearchOwner(ownerPhone) },
+                    enabled = ownerPhone.isNotBlank() && !isUpdating && !ownerSearchLoading
+                ) {
+                    if (ownerSearchLoading) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Search")
+                    }
+                }
+            }
+            ownerSearchError?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            }
+            foundOwner?.let { user ->
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Found: ${user.name}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(4.dp))
+                Button(
+                    onClick = { onAssignOwner(ground.id, user.id) },
+                    enabled = !isUpdating
+                ) {
+                    Text("Assign as Owner")
+                }
+            }
+        }
     }
 }

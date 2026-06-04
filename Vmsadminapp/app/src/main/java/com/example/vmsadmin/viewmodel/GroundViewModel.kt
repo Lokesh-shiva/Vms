@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.GroundRepository
+import com.example.vmsadmin.models.AppUser
 import com.example.vmsadmin.models.Ground
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class GroundUiState(
@@ -15,7 +17,10 @@ data class GroundUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val error: String? = null,
-    val updatingIds: Set<Int> = emptySet()
+    val updatingIds: Set<Int> = emptySet(),
+    val ownerSearchResult: AppUser? = null,
+    val ownerSearchLoading: Boolean = false,
+    val ownerSearchError: String? = null,
 )
 
 class GroundViewModel(private val repository: GroundRepository) : ViewModel() {
@@ -55,6 +60,48 @@ class GroundViewModel(private val repository: GroundRepository) : ViewModel() {
                 )
             }
         }
+    }
+
+    fun searchOwnerByPhone(phone: String) {
+        if (phone.isBlank()) return
+        viewModelScope.launch {
+            _uiState.update { it.copy(ownerSearchLoading = true, ownerSearchError = null, ownerSearchResult = null) }
+            try {
+                val user = repository.searchUserByPhone(phone)
+                _uiState.update {
+                    it.copy(
+                        ownerSearchLoading = false,
+                        ownerSearchResult = user,
+                        ownerSearchError = if (user == null) "User not found" else null
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(ownerSearchLoading = false, ownerSearchError = e.message ?: "Search failed") }
+            }
+        }
+    }
+
+    fun assignOwner(groundId: Int, ownerUserId: Int) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(updatingIds = it.updatingIds + groundId) }
+            try {
+                val updated = repository.assignOwner(groundId, ownerUserId)
+                _uiState.update { state ->
+                    state.copy(
+                        grounds = state.grounds.map { if (it.id == groundId) updated else it },
+                        updatingIds = state.updatingIds - groundId,
+                        ownerSearchResult = null,
+                        ownerSearchError = null,
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(updatingIds = it.updatingIds - groundId, error = e.message ?: "Failed to assign owner") }
+            }
+        }
+    }
+
+    fun clearOwnerSearch() {
+        _uiState.update { it.copy(ownerSearchResult = null, ownerSearchError = null) }
     }
 
     fun toggleGround(id: Int, isActive: Boolean) {
