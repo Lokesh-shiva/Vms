@@ -113,6 +113,22 @@ cur.execute("""
     );
 """)
 
+print("Running migration 9: create disputes table ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS disputes (
+        id               SERIAL PRIMARY KEY,
+        booking_id       INT REFERENCES bookings(id) ON DELETE SET NULL,
+        user_id          INT REFERENCES users(id) ON DELETE SET NULL,
+        raised_by        INT REFERENCES users(id) ON DELETE SET NULL,
+        title            VARCHAR NOT NULL,
+        description      TEXT NOT NULL,
+        status           VARCHAR(50) NOT NULL DEFAULT 'OPEN',
+        resolution_note  TEXT,
+        created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at       TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+
 conn.commit()
 cur.close()
 conn.close()

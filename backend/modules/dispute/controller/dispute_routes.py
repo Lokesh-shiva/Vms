@@ -1,0 +1,62 @@
+from fastapi import APIRouter, Depends, HTTPException
+from modules.auth.dependencies.auth_dependencies import require_role
+from modules.dispute.schemas.dispute_schema import CreateDisputeSchema, UpdateDisputeSchema
+from modules.dispute.service.dispute_service import DisputeService
+from modules.user.model.user_model import UserRole
+
+router = APIRouter(prefix="/api/v1/disputes", tags=["Disputes"])
+dispute_service = DisputeService()
+
+
+def _success(data, message: str = "Success") -> dict:
+    return {"success": True, "data": data, "message": message}
+
+
+@router.get("")
+def list_disputes(
+    current_user: dict = require_role(UserRole.SUPPORT, UserRole.OPS_MANAGER, UserRole.SUPER_ADMIN),
+):
+    return _success(dispute_service.list_disputes())
+
+
+@router.post("", status_code=201)
+def create_dispute(
+    request_data: dict,
+    current_user: dict = require_role(UserRole.SUPPORT, UserRole.OPS_MANAGER, UserRole.SUPER_ADMIN),
+):
+    request_data["raised_by"] = current_user["id"]
+    schema = CreateDisputeSchema(request_data)
+    if not schema.is_valid():
+        raise HTTPException(status_code=400, detail=schema.errors)
+    try:
+        d = dispute_service.create_dispute(schema.validated_data)
+        return _success(d, "Dispute raised successfully.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/{dispute_id}")
+def get_dispute(
+    dispute_id: int,
+    current_user: dict = require_role(UserRole.SUPPORT, UserRole.OPS_MANAGER, UserRole.SUPER_ADMIN),
+):
+    d = dispute_service.get_dispute(dispute_id)
+    if not d:
+        raise HTTPException(status_code=404, detail="Dispute not found.")
+    return _success(d)
+
+
+@router.put("/{dispute_id}")
+def update_dispute(
+    dispute_id: int,
+    request_data: dict,
+    current_user: dict = require_role(UserRole.SUPPORT, UserRole.OPS_MANAGER, UserRole.SUPER_ADMIN),
+):
+    schema = UpdateDisputeSchema(request_data)
+    if not schema.is_valid():
+        raise HTTPException(status_code=400, detail=schema.errors)
+    try:
+        d = dispute_service.update_dispute(dispute_id, schema.validated_data)
+        return _success(d, "Dispute updated successfully.")
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
