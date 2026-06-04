@@ -7,6 +7,9 @@ from modules.user.model.user_model import User  # noqa: F401 — registers users
 from modules.location.model.location_model import Location  # noqa: F401 — registers locations table
 from modules.cart_type.model.cart_type_model import CartType  # noqa: F401 — registers cart_types table
 from modules.cart.model.cart_model import Cart  # noqa: F401
+# Import all models referenced by FK chains so SQLite can create all tables
+import modules.timeslot.model.timeslot_model  # noqa: F401
+import modules.booking.model.booking_model  # noqa: F401
 from modules.cart.repository.cart_repository import CartRepository
 
 
