@@ -413,6 +413,41 @@ data class UpdateCaptainRequest(
     val bio: String? = null
 )
 
+// --- Tournament Models ---
+
+@Serializable
+data class Tournament(
+    val id: Int,
+    val name: String,
+    val sport_id: Int? = null,
+    val region_id: Int? = null,
+    val organizer: String,
+    val start_date: String,
+    val end_date: String,
+    val max_teams: Int = 8,
+    val status: String = "UPCOMING",
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class CreateTournamentRequest(
+    val name: String,
+    val organizer: String,
+    val start_date: String,
+    val end_date: String,
+    val max_teams: Int = 8,
+    val sport_id: Int? = null,
+    val region_id: Int? = null
+)
+
+@Serializable
+data class UpdateTournamentRequest(
+    val status: String? = null,
+    val name: String? = null,
+    val organizer: String? = null
+)
+
 @Serializable
 data class SessionStatus(
     val booking_id: Int,

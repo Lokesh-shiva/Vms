@@ -51,6 +51,7 @@ import com.example.vmsadmin.viewmodel.UserManagementViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.QueueOverviewViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
+import com.example.vmsadmin.viewmodel.TournamentViewModel
 import com.example.vmsadmin.viewmodel.SystemConfigViewModel
 import com.example.vmsadmin.viewmodel.TimeslotViewModel
 
@@ -95,6 +96,7 @@ fun MainScreen(
     systemConfigViewModel: SystemConfigViewModel,
     queueOverviewViewModel: QueueOverviewViewModel,
     captainViewModel: CaptainViewModel,
+    tournamentViewModel: TournamentViewModel,
     currentUserId: Int? = null,
     role: String = "",
     isDebugMode: Boolean = false,
@@ -264,6 +266,7 @@ fun MainScreen(
                             onNavigateToSystemConfig = { navController.navigate("manage/system-config") },
                             onNavigateToQueue        = { navController.navigate("manage/queue") },
                             onNavigateToCaptains     = { navController.navigate("manage/captains") },
+                            onNavigateToTournaments  = { navController.navigate("manage/tournaments") },
                             role = role
                         )
                     }
@@ -334,6 +337,13 @@ fun MainScreen(
                         userManagementViewModel = userManagementViewModel,
                         regionViewModel = regionViewModel,
                         currentUserRole = role,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("manage/tournaments") {
+                    if (role !in TOURNAMENT_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else TournamentsScreen(
+                        viewModel = tournamentViewModel,
                         onBack = { navController.popBackStack() }
                     )
                 }

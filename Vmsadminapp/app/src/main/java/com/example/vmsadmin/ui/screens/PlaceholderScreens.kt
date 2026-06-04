@@ -34,6 +34,7 @@ fun ManageScreen(
     onNavigateToSystemConfig: () -> Unit = {},
     onNavigateToQueue: () -> Unit = {},
     onNavigateToCaptains: () -> Unit = {},
+    onNavigateToTournaments: () -> Unit = {},
     role: String = ""
 ) {
     val isOpsOrAbove = role == "super_admin" || role == "ops_manager"
@@ -71,6 +72,7 @@ fun ManageScreen(
             item { SectionHeader("Venues & Matches") }
             item { ManageCard("Grounds", "Sports grounds and facilities", Icons.Outlined.LocationOn, onNavigateToGrounds) }
             item { ManageCard("Matches", "Scheduled and past matches", Icons.Outlined.DateRange, onNavigateToMatches) }
+            item { ManageCard("Tournaments", "Tournament scheduling and status", Icons.Outlined.Star, onNavigateToTournaments) }
 
             // ── Admin ──────────────────────────────────────────────────
             if (role == "super_admin") {

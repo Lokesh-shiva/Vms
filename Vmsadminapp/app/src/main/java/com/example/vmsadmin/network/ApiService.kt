@@ -41,6 +41,9 @@ import com.example.vmsadmin.models.CreateCaptainRequest
 import com.example.vmsadmin.models.UpdateCaptainRequest
 import com.example.vmsadmin.models.SessionStatus
 import com.example.vmsadmin.models.AssignableRolesResponse
+import com.example.vmsadmin.models.Tournament
+import com.example.vmsadmin.models.CreateTournamentRequest
+import com.example.vmsadmin.models.UpdateTournamentRequest
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -284,4 +287,20 @@ interface ApiService {
 
     @DELETE("/api/v1/captains/{id}")
     suspend fun deleteCaptain(@Path("id") id: Int): ApiResponse<Unit>
+
+    // ── Tournament endpoints ───────────────────────────────────────────
+    @GET("/api/v1/tournaments")
+    suspend fun getTournaments(): ApiResponse<List<Tournament>>
+
+    @POST("/api/v1/tournaments")
+    suspend fun createTournament(@Body request: CreateTournamentRequest): ApiResponse<Tournament>
+
+    @PUT("/api/v1/tournaments/{id}")
+    suspend fun updateTournament(
+        @Path("id") id: Int,
+        @Body request: UpdateTournamentRequest
+    ): ApiResponse<Tournament>
+
+    @DELETE("/api/v1/tournaments/{id}")
+    suspend fun deleteTournament(@Path("id") id: Int): ApiResponse<JsonElement>
 }
