@@ -1,6 +1,35 @@
 # Development Log
 
 ---
+## [2026-06-04] Phase 02 — Dispute/ticket system
+
+### Backend
+**Added:**
+- Migration 9: `disputes` table (booking_id, user_id, raised_by, title, description, status, resolution_note)
+- Full CRUD module: `backend/modules/dispute/` (OPEN/IN_PROGRESS/RESOLVED/CLOSED)
+- `GET/POST /api/v1/disputes`, `GET/PUT /api/v1/disputes/{id}`
+- Role guards: SUPPORT, OPS_MANAGER, SUPER_ADMIN
+- `raised_by` auto-populated from JWT on create (not trusted from client)
+- 4 tests passing
+
+**Modified:**
+- `backend/main.py`, `backend/run_migrations.py`
+
+### Admin App
+**Added:**
+- Dispute, CreateDisputeRequest, UpdateDisputeRequest models
+- DisputeRepository, DisputeViewModel (loadDisputes, createDispute, resolve), DisputesScreen
+- "Raise Ticket" button in SupportScreen per booking row
+
+**Modified:**
+- ApiService.kt — dispute endpoints
+- AppNavigation + MainScreen + MainActivity — disputes route (SUPPORT/OPS_MANAGER/SUPER_ADMIN)
+- SupportScreen — disputeViewModel param + raise ticket dialog per booking
+
+### Architecture decisions
+- raised_by set server-side from JWT, not trusted from client
+- Disputes navigable from Support panel and Manage screen
+---
 ## [2026-06-04] Phase 02 — Tournament module
 
 ### Backend
