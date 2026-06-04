@@ -39,8 +39,12 @@ class UserManagementViewModel(
     private val _pendingIds = MutableStateFlow<Set<Int>>(emptySet())
     val pendingIds: StateFlow<Set<Int>> = _pendingIds.asStateFlow()
 
+    private val _assignableRoles = MutableStateFlow<List<String>>(emptyList())
+    val assignableRoles: StateFlow<List<String>> = _assignableRoles.asStateFlow()
+
     init {
         loadUsers()
+        loadAssignableRoles()
     }
 
     fun loadUsers() {
@@ -52,6 +56,12 @@ class UserManagementViewModel(
             } catch (e: Exception) {
                 _state.value = UserManagementState.Error(e.message ?: "Failed to load users")
             }
+        }
+    }
+
+    private fun loadAssignableRoles() {
+        viewModelScope.launch {
+            _assignableRoles.value = repository.getAssignableRoles()
         }
     }
 

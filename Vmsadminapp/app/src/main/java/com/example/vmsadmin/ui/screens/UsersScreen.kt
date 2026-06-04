@@ -121,6 +121,7 @@ fun UsersScreen(
 
                 currentState is UserManagementState.Success -> {
                     val users = currentState.users
+                    val assignableRoles by viewModel.assignableRoles.collectAsState()
 
                     // Roles present in the data, ordered by ROLE_ORDER
                     val rolesPresent = ROLE_ORDER.filter { role -> users.any { it.role == role } } +
@@ -170,6 +171,7 @@ fun UsersScreen(
                                                 user = user,
                                                 isCurrentUser = user.id == currentUserId,
                                                 isPending = pendingIds.contains(user.id),
+                                                assignableRoles = assignableRoles,
                                                 onChangeRole = { newRole -> viewModel.changeRole(user.id, newRole) },
                                                 onToggleActive = { viewModel.toggleActive(user.id, user.is_active) }
                                             )
@@ -182,6 +184,7 @@ fun UsersScreen(
                                         user = user,
                                         isCurrentUser = user.id == currentUserId,
                                         isPending = pendingIds.contains(user.id),
+                                        assignableRoles = assignableRoles,
                                         onChangeRole = { newRole -> viewModel.changeRole(user.id, newRole) },
                                         onToggleActive = { viewModel.toggleActive(user.id, user.is_active) }
                                     )
@@ -256,6 +259,7 @@ private fun UserRow(
     user: AppUser,
     isCurrentUser: Boolean,
     isPending: Boolean,
+    assignableRoles: List<String>,
     onChangeRole: (String) -> Unit,
     onToggleActive: () -> Unit
 ) {
@@ -362,37 +366,36 @@ private fun UserRow(
     }
 
     if (showRoleDialog) {
-        val roles = listOf(
-            "super_admin",
-            "ops_manager",
-            "ground_owner",
-            "tournament_manager",
-            "support",
-            "finance",
-            "csr_partner",
-            "user"
-        )
+        val roles = assignableRoles
         var selectedRole by remember(user.role) { mutableStateOf(user.role) }
 
         AlertDialog(
             onDismissRequest = { showRoleDialog = false },
             title = { Text("Change Role") },
             text = {
-                Column {
-                    roles.forEach { role ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { selectedRole = role }
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = selectedRole == role,
-                                onClick = null
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(text = role, style = MaterialTheme.typography.bodyMedium)
+                if (roles.isEmpty()) {
+                    Text(
+                        "No roles available",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Column {
+                        roles.forEach { role ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectedRole = role }
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = selectedRole == role,
+                                    onClick = null
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(text = role, style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
                     }
                 }
