@@ -43,6 +43,23 @@ def search_user_by_phone(
     return _success(user.to_dict())
 
 
+_ALL_ROLES: list[str] = [r.value for r in UserRole]
+
+
+@router.get("/assignable-roles")
+def get_assignable_roles(
+    current_user: dict = Depends(get_current_user),
+):
+    """Return the list of roles this caller is allowed to assign.
+
+    SUPER_ADMIN → all 8 roles.
+    All other roles → empty list (screen is already blocked by 4-layer guard).
+    """
+    if current_user.get("role") == UserRole.SUPER_ADMIN.value:
+        return _success({"assignable_roles": _ALL_ROLES})
+    return _success({"assignable_roles": []})
+
+
 @router.post("", status_code=201, dependencies=[Depends(require_admin)])
 def create_user(request_data: dict):
     """Create a new user. Requires admin role."""
