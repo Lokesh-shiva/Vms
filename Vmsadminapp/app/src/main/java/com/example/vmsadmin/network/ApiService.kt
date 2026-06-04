@@ -16,6 +16,7 @@ import com.example.vmsadmin.models.LoginRequest
 import com.example.vmsadmin.models.LoginResponse
 import com.example.vmsadmin.models.Payment
 import com.example.vmsadmin.models.PaymentConfig
+import com.example.vmsadmin.models.PaymentSummary
 import com.example.vmsadmin.models.Region
 import com.example.vmsadmin.models.Timeslot
 import com.example.vmsadmin.models.UpdateCartRequest
@@ -85,6 +86,9 @@ interface ApiService {
 
     @GET("/api/v1/payments")
     suspend fun getPayments(): ApiResponse<List<Payment>>
+
+    @GET("payments/summary")
+    suspend fun getPaymentSummary(): ApiResponse<PaymentSummary>
 
     @POST("/api/v1/payments/approve/{payment_id}")
     suspend fun approvePayment(@Path("payment_id") paymentId: Int): ApiResponse<JsonElement>

@@ -67,7 +67,9 @@ fun PaymentsScreen(viewModel: PaymentViewModel) {
         // ── Revenue summary + filter tabs (always visible) ───────────────
         RevenueSummaryCard(
             totalRevenue = uiState.totalRevenue,
-            pendingReviewCount = uiState.pendingReviewCount
+            totalRefunded = uiState.totalRefunded,
+            pendingReviewCount = uiState.pendingReviewCount,
+            refundedCount = uiState.refundedCount
         )
         PaymentFilterTabs(
             selected = uiState.filter,
@@ -116,6 +118,7 @@ fun PaymentsScreen(viewModel: PaymentViewModel) {
                     Text(
                         text = when (uiState.filter) {
                             PaymentFilter.PENDING_REVIEW -> "No payments pending review"
+                            PaymentFilter.REFUNDED -> "No refunded payments"
                             PaymentFilter.ALL -> "No payments found"
                         },
                         modifier = Modifier.align(Alignment.Center),
@@ -166,39 +169,29 @@ fun PaymentsScreen(viewModel: PaymentViewModel) {
 }
 
 @Composable
-private fun RevenueSummaryCard(totalRevenue: Double, pendingReviewCount: Int) {
+private fun RevenueSummaryCard(
+    totalRevenue: Double,
+    totalRefunded: Double,
+    pendingReviewCount: Int,
+    refundedCount: Int
+) {
     AppCard {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Text("Revenue Summary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column {
-                Text(
-                    text = "Total Collected",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "₹${"%,.2f".format(totalRevenue)}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Text("Total Revenue", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("₹${String.format("%.2f", totalRevenue)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "Pending Review",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = "$pendingReviewCount",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (pendingReviewCount > 0) Color(0xFFE65100) else MaterialTheme.colorScheme.onSurface
-                )
+                Text("Total Refunded", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("₹${String.format("%.2f", totalRefunded)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
             }
+        }
+        Spacer(Modifier.height(8.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Pending Review: $pendingReviewCount", style = MaterialTheme.typography.bodySmall)
+            Text("Refunded: $refundedCount", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -210,7 +203,8 @@ private fun PaymentFilterTabs(
 ) {
     val tabs = listOf(
         PaymentFilter.PENDING_REVIEW to "Pending Review",
-        PaymentFilter.ALL to "All Payments"
+        PaymentFilter.ALL to "All Payments",
+        PaymentFilter.REFUNDED to "Refunded"
     )
     TabRow(selectedTabIndex = tabs.indexOfFirst { it.first == selected }) {
         tabs.forEach { (filter, label) ->

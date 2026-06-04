@@ -10,13 +10,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-enum class PaymentFilter { PENDING_REVIEW, ALL }
+enum class PaymentFilter { PENDING_REVIEW, ALL, REFUNDED }
 
 data class PaymentUiState(
-    val payments: List<Payment> = emptyList(),   // filtered view (what the UI renders)
+    val payments: List<Payment> = emptyList(),
     val filter: PaymentFilter = PaymentFilter.PENDING_REVIEW,
-    val totalRevenue: Double = 0.0,              // sum of SUCCESS payment amounts
+    val totalRevenue: Double = 0.0,
+    val totalRefunded: Double = 0.0,
     val pendingReviewCount: Int = 0,
+    val refundedCount: Int = 0,
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -37,6 +39,7 @@ class PaymentViewModel(
             try {
                 allPayments = paymentRepository.fetchPayments()
                 _uiState.value = applyFilter(_uiState.value.filter).copy(isLoading = false)
+                loadSummary()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -50,20 +53,31 @@ class PaymentViewModel(
         _uiState.value = applyFilter(filter)
     }
 
+    private fun loadSummary() {
+        viewModelScope.launch {
+            try {
+                val summary = paymentRepository.fetchSummary()
+                _uiState.value = _uiState.value.copy(
+                    totalRevenue = summary.total_revenue,
+                    totalRefunded = summary.total_refunded,
+                    pendingReviewCount = summary.pending_count,
+                    refundedCount = summary.refunded_count,
+                )
+            } catch (e: Exception) {
+                // Non-fatal — summary card shows 0s if endpoint fails
+            }
+        }
+    }
+
     private fun applyFilter(filter: PaymentFilter): PaymentUiState {
         val visible = when (filter) {
             PaymentFilter.PENDING_REVIEW -> allPayments.filter { it.status == "UNDER_REVIEW" }
+            PaymentFilter.REFUNDED -> allPayments.filter { it.status == "REFUNDED" }
             PaymentFilter.ALL -> allPayments
         }
-        val revenue = allPayments
-            .filter { it.status == "SUCCESS" }
-            .sumOf { it.amount ?: 0.0 }
-        val pendingCount = allPayments.count { it.status == "UNDER_REVIEW" }
         return _uiState.value.copy(
             payments = visible,
             filter = filter,
-            totalRevenue = revenue,
-            pendingReviewCount = pendingCount,
             error = null
         )
     }

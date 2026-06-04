@@ -73,6 +73,14 @@ data class Booking(
 )
 
 @Serializable
+data class PaymentSummary(
+    val total_revenue: Double,
+    val total_refunded: Double,
+    val pending_count: Int,
+    val refunded_count: Int
+)
+
+@Serializable
 data class Payment(
     val id: Int,
     val booking_id: Int? = null,
