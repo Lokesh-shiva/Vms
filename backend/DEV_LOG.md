@@ -1,6 +1,39 @@
 # Development Log
 
 ---
+## [2026-06-04] Phase 02 — Audit log finalization
+
+### Backend
+**Added:**
+- Migration 10: `audit_logs` table (action, actor_user_id, target_resource_type, target_resource_id, details, created_at)
+- `backend/modules/audit/` — model, repo, service (fire-and-forget log()), routes
+- `GET /api/v1/audit-logs` — SUPER_ADMIN only, newest first, default limit 200 (max 500)
+- AuditService.log() swallows all exceptions — audit failure never breaks audited operations
+- 4 tests passing
+
+**Modified (hooks):**
+- `user_routes.py` — ROLE_CHANGE audit on successful role update
+- `payment_service.py` — REFUND audit after process_refund
+- `captain_routes.py` — CAPTAIN_STATUS_CHANGE audit on captain status update
+- `dispute_routes.py` — DISPUTE_RESOLVED audit when status set to RESOLVED or CLOSED
+- `backend/main.py`, `backend/run_migrations.py`
+
+### Admin App
+**Added:**
+- AuditLogEntry model (Models.kt)
+- AuditLogRepository, AuditLogViewModel, AuditLogScreen (read-only)
+
+**Modified:**
+- ApiService.kt — getAuditLogs endpoint
+- AppNavigation + MainScreen + MainActivity — audit-logs route (SUPER_ADMIN only)
+- PlaceholderScreens.kt — "Audit Log" card under Admin section
+
+### Architecture decisions
+- AuditService.log() is fire-and-forget: exceptions silently swallowed, returns {}
+- Append-only table: no update or delete endpoints
+- Newest-first ordering, hard limit of 200 configurable up to 500 via query param
+
+---
 ## [2026-06-04] Phase 02 — Audit log module
 
 ### Backend
