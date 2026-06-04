@@ -1,0 +1,12 @@
+# Copy this file to local.properties and fill in your values.
+# local.properties is gitignored — never commit actual credentials.
+
+# Android SDK path (Android Studio fills this automatically)
+sdk.dir=C\:\\Users\\YourName\\AppData\\Local\\Android\\Sdk
+
+# Release signing — fill these in after you create your keystore
+# See KEYSTORE_SETUP.md for instructions
+KEYSTORE_PATH=../plixo-release.jks
+KEYSTORE_PASSWORD=your_keystore_password
+KEY_ALIAS=plixo-key
+KEY_PASSWORD=your_key_password
