@@ -43,6 +43,11 @@ data class UpdateUserRequest(
 )
 
 @Serializable
+data class AssignableRolesResponse(
+    val assignable_roles: List<String>
+)
+
+@Serializable
 data class Booking(
     val id: Int,
     val region_id: Int? = null,

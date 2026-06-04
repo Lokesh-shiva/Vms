@@ -20,6 +20,19 @@ class UserManagementRepository(private val apiService: ApiService) {
         throw Exception(response.message ?: "Failed to fetch users")
     }
 
+    suspend fun getAssignableRoles(): List<String> {
+        return try {
+            val response = apiService.getAssignableRoles()
+            if (response.success && response.data != null) {
+                response.data.assignable_roles
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()  // Non-fatal — ViewModel will show empty state
+        }
+    }
+
     suspend fun updateRole(id: Int, role: String): AppUser {
         try {
             val response = apiService.updateUser(id, UpdateUserRequest(role = role))

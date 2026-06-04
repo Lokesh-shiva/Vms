@@ -39,6 +39,7 @@ import com.example.vmsadmin.models.Captain
 import com.example.vmsadmin.models.CreateCaptainRequest
 import com.example.vmsadmin.models.UpdateCaptainRequest
 import com.example.vmsadmin.models.SessionStatus
+import com.example.vmsadmin.models.AssignableRolesResponse
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -236,6 +237,9 @@ interface ApiService {
     // ── User Management endpoints (super_admin only) ─────────────────
     @GET("/api/v1/users")
     suspend fun getUsers(): ApiResponse<List<AppUser>>
+
+    @GET("users/assignable-roles")
+    suspend fun getAssignableRoles(): ApiResponse<AssignableRolesResponse>
 
     @PUT("/api/v1/users/{id}")
     suspend fun updateUser(
