@@ -136,6 +136,38 @@ class PaymentRepository:
             if own_session:
                 session.close()
 
+    def get_summary(self, session=None) -> dict:
+        """Return aggregate payment statistics computed at DB level."""
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            from sqlalchemy import func as sql_func
+            total_revenue = session.query(
+                sql_func.coalesce(sql_func.sum(Payment.amount), 0)
+            ).filter(Payment.status == "SUCCESS").scalar()
+
+            total_refunded = session.query(
+                sql_func.coalesce(sql_func.sum(Payment.amount), 0)
+            ).filter(Payment.status == "REFUNDED").scalar()
+
+            pending_count = session.query(
+                sql_func.count(Payment.id)
+            ).filter(Payment.status == "UNDER_REVIEW").scalar()
+
+            refunded_count = session.query(
+                sql_func.count(Payment.id)
+            ).filter(Payment.status == "REFUNDED").scalar()
+
+            return {
+                "total_revenue": float(total_revenue),
+                "total_refunded": float(total_refunded),
+                "pending_count": int(pending_count),
+                "refunded_count": int(refunded_count),
+            }
+        finally:
+            if own_session:
+                session.close()
+
     def update(self, payment_id: int, update_data: dict, session=None) -> dict | None:
         """Update an existing payment record. Automatically refreshes updated_at."""
         own_session = session is None

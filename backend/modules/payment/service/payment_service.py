@@ -144,6 +144,10 @@ class PaymentService(BaseService):
         """Return all payments, optionally filtered by status."""
         return self.payment_repository.find_all(status=status)
 
+    def get_summary(self) -> dict:
+        """Return aggregate payment statistics."""
+        return self.payment_repository.get_summary()
+
     # ── Reference Code Generator ───────────────────────────────────────
 
     def _generate_reference_code(self, booking_id: int) -> str:

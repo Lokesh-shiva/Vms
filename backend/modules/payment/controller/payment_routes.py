@@ -35,6 +35,18 @@ def _assert_booking_owner(booking_id: int, current_user: dict) -> None:
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 
+@router.get("/summary")
+def get_payment_summary(
+    current_user: dict = require_role(UserRole.FINANCE, UserRole.SUPER_ADMIN),
+):
+    """Return aggregate payment statistics. Restricted to FINANCE and SUPER_ADMIN."""
+    try:
+        summary = payment_service.get_summary()
+        return _success(summary)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/")
 def list_payments(
     status: str = Query(
