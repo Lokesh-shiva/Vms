@@ -1,6 +1,41 @@
 # Development Log
 
 ---
+## [2026-06-04] Phase 02 — Ground Owner data isolation
+
+### Backend
+**Added:**
+- Migration 7: `owner_user_id INT REFERENCES users(id) ON DELETE SET NULL` on `carts` table
+- `CartRepository.find_by_owner(owner_user_id)` — SQL `WHERE owner_user_id = :uid`
+- `CartRepository.find_by_region(region_id)` — DB-level region filter
+- `CartService.list_carts_by_owner(owner_user_id)` and `list_carts_by_region(region_id)`
+- `BookingRepository.find_by_owner(owner_user_id)` — SQL subquery `WHERE assigned_cart_id IN (SELECT id FROM carts WHERE owner_user_id = :uid)`
+- `BookingService.list_bookings_by_owner(owner_user_id)`
+- `backend/modules/cart/tests/test_cart_owner_isolation.py` — 3 tests
+- `backend/modules/booking/tests/test_booking_owner_isolation.py` — 2 tests
+
+**Modified:**
+- `cart_model.py` — `owner_user_id` Column + `to_dict()`
+- `cart_repository.py` — `create()` accepts `owner_user_id`
+- `ground_schema.py` — `UpdateGroundSchema` allows `owner_user_id`; `_to_ground()` passes it through
+- `ground_routes.py` — GROUND_OWNER uses `list_carts_by_owner()` (DB-level); non-owner uses `list_carts_by_region()` (DB-level)
+- `booking_routes.py` — GROUND_OWNER uses `list_bookings_by_owner()` (replaces region-based filter)
+
+### Admin App
+**Modified:**
+- `Models.kt` — `Ground.owner_user_id: Int?`, `UpdateGroundRequest.owner_user_id: Int?`
+- `GroundRepository.kt` — `assignOwner()`, `searchUserByPhone()`
+- `GroundViewModel.kt` — owner search state in `GroundUiState`, `searchOwnerByPhone()`, `assignOwner()`, `clearOwnerSearch()`
+- `GroundsScreen.kt` — owner assignment section in `GroundCard` (SUPER_ADMIN only): phone search → found user → assign button
+- `MainScreen.kt` — `currentUserRole` wired into `GroundsScreen`
+
+### Architecture decisions
+- Isolation enforced at SQL `WHERE` clause — never in Python loops or route handlers
+- `owner_user_id` nullable: unowned grounds invisible to GROUND_OWNER by default (safe)
+- `ON DELETE SET NULL`: deleting a user releases their grounds rather than cascading
+- Phone search reuses existing `GET /api/v1/users/search?phone=` — no new endpoint
+- Role comparison normalised with `.lower()` for forward compatibility
+---
 ## [2026-06-04] Phase 02 — Role change dropdown (backend-driven)
 
 ### Backend
