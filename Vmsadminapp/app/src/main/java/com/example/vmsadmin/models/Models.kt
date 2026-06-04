@@ -199,13 +199,15 @@ data class Ground(
     val is_active: Boolean = true,
     val latitude: Double? = null,
     val longitude: Double? = null,
+    val owner_user_id: Int? = null,
     val created_at: String? = null,
     val updated_at: String? = null
 )
 
 @Serializable
 data class UpdateGroundRequest(
-    val is_active: Boolean? = null
+    val is_active: Boolean? = null,
+    val owner_user_id: Int? = null
 )
 
 @Serializable
