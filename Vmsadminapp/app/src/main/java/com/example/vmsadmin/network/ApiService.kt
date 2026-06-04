@@ -47,6 +47,7 @@ import com.example.vmsadmin.models.UpdateTournamentRequest
 import com.example.vmsadmin.models.Dispute
 import com.example.vmsadmin.models.CreateDisputeRequest
 import com.example.vmsadmin.models.UpdateDisputeRequest
+import com.example.vmsadmin.models.AuditLogEntry
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -319,4 +320,8 @@ interface ApiService {
         @Path("id") id: Int,
         @Body request: UpdateDisputeRequest
     ): ApiResponse<Dispute>
+
+    // ── Audit Log endpoints ────────────────────────────────────────────
+    @GET("audit-logs")
+    suspend fun getAuditLogs(): ApiResponse<List<AuditLogEntry>>
 }

@@ -37,6 +37,7 @@ fun ManageScreen(
     onNavigateToCaptains: () -> Unit = {},
     onNavigateToTournaments: () -> Unit = {},
     onNavigateToDisputes: () -> Unit = {},
+    onNavigateToAuditLog: () -> Unit = {},
     role: String = ""
 ) {
     val isOpsOrAbove = role == "super_admin" || role == "ops_manager"
@@ -82,6 +83,7 @@ fun ManageScreen(
                 item { SectionHeader("Admin") }
                 item { ManageCard("Users", "User roles and account access", Icons.Outlined.Person, onNavigateToUsers) }
                 item { ManageCard("System Settings", "Platform-wide configuration", Icons.Outlined.Settings, onNavigateToSystemConfig) }
+                item { ManageCard("Audit Log", "Full audit trail of admin actions", Icons.AutoMirrored.Outlined.List, onNavigateToAuditLog) }
             }
         }
     }

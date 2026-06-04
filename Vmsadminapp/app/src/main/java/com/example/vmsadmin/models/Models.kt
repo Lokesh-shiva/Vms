@@ -487,3 +487,16 @@ data class UpdateDisputeRequest(
     val status: String? = null,
     val resolution_note: String? = null
 )
+
+// --- Audit Log Models ---
+
+@Serializable
+data class AuditLogEntry(
+    val id: Int,
+    val action: String,
+    val actor_user_id: Int? = null,
+    val target_resource_type: String? = null,
+    val target_resource_id: Int? = null,
+    val details: String? = null,
+    val created_at: String? = null
+)

@@ -38,6 +38,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.vmsadmin.viewmodel.AuditLogViewModel
 import com.example.vmsadmin.viewmodel.BookingViewModel
 import com.example.vmsadmin.viewmodel.CaptainViewModel
 import com.example.vmsadmin.viewmodel.CartViewModel
@@ -79,6 +80,7 @@ private val GROUND_OWNER_ROLES  = setOf("ground_owner")
 private val TOURNAMENT_ROLES    = setOf("tournament_manager", "super_admin", "ops_manager")
 private val CSR_ROLES           = setOf("csr_partner", "super_admin")
 private val DISPUTE_ROLES       = setOf("support", "super_admin", "ops_manager")
+private val AUDIT_LOG_ROLES     = setOf("super_admin")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,6 +102,7 @@ fun MainScreen(
     captainViewModel: CaptainViewModel,
     tournamentViewModel: TournamentViewModel,
     disputeViewModel: DisputeViewModel,
+    auditLogViewModel: AuditLogViewModel,
     currentUserId: Int? = null,
     role: String = "",
     isDebugMode: Boolean = false,
@@ -272,6 +275,7 @@ fun MainScreen(
                             onNavigateToCaptains     = { navController.navigate("manage/captains") },
                             onNavigateToTournaments  = { navController.navigate("manage/tournaments") },
                             onNavigateToDisputes     = { navController.navigate("manage/disputes") },
+                            onNavigateToAuditLog     = { navController.navigate("manage/audit-logs") },
                             role = role
                         )
                     }
@@ -356,6 +360,13 @@ fun MainScreen(
                     if (role !in DISPUTE_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
                     else DisputesScreen(
                         viewModel = disputeViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("manage/audit-logs") {
+                    if (role !in AUDIT_LOG_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else AuditLogScreen(
+                        viewModel = auditLogViewModel,
                         onBack = { navController.popBackStack() }
                     )
                 }

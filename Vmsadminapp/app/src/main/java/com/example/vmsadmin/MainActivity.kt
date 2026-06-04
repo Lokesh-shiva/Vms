@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
+import com.example.vmsadmin.data.AuditLogRepository
 import com.example.vmsadmin.data.BookingRepository
 import com.example.vmsadmin.data.CartRepository
 import com.example.vmsadmin.data.CartTypeRepository
@@ -30,6 +31,8 @@ import com.example.vmsadmin.data.TokenManager
 import com.example.vmsadmin.navigation.AppNavigation
 import com.example.vmsadmin.network.ApiClient
 import com.example.vmsadmin.ui.theme.VmsAdminTheme
+import com.example.vmsadmin.viewmodel.AuditLogViewModel
+import com.example.vmsadmin.viewmodel.AuditLogViewModelFactory
 import com.example.vmsadmin.viewmodel.AuthViewModel
 import com.example.vmsadmin.viewmodel.AuthViewModelFactory
 import com.example.vmsadmin.viewmodel.BookingViewModel
@@ -149,6 +152,10 @@ class MainActivity : ComponentActivity() {
         val disputeViewModelFactory = DisputeViewModelFactory(disputeRepository)
         val disputeViewModel = ViewModelProvider(this, disputeViewModelFactory)[DisputeViewModel::class.java]
 
+        val auditLogRepository = AuditLogRepository(apiService)
+        val auditLogViewModelFactory = AuditLogViewModelFactory(auditLogRepository)
+        val auditLogViewModel = ViewModelProvider(this, auditLogViewModelFactory)[AuditLogViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -177,6 +184,7 @@ class MainActivity : ComponentActivity() {
                         captainViewModel = captainViewModel,
                         tournamentViewModel = tournamentViewModel,
                         disputeViewModel = disputeViewModel,
+                        auditLogViewModel = auditLogViewModel,
                         startDestination = startDestination
                     )
                 }
