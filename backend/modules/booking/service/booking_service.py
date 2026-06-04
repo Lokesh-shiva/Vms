@@ -513,6 +513,10 @@ class BookingService(BaseService):
         bookings = [self._check_and_expire(b) for b in bookings]
         return self._enrich_bookings_batch(bookings)
 
+    def list_bookings_by_owner(self, owner_user_id: int) -> list[dict]:
+        """Return all bookings for grounds owned by the given user."""
+        return self.booking_repository.find_by_owner(owner_user_id)
+
     def list_bookings_by_region(self, region_id: int) -> list[dict]:
         """Retrieve all bookings for a specific region (ground_owner isolation)."""
         bookings = self.booking_repository.find_by_region_id(region_id)

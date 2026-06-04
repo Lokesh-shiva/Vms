@@ -51,12 +51,8 @@ def list_bookings(current_user: dict = Depends(get_current_user)):
     - Regular users: see only their own bookings.
     """
     role = current_user["role"]
-    if role == "ground_owner":
-        region_id = current_user.get("region_id")
-        if region_id is None:
-            # ground_owner without an assigned region sees nothing
-            return _success([])
-        bookings = booking_service.list_bookings_by_region(region_id)
+    if role.lower() == "ground_owner":
+        bookings = booking_service.list_bookings_by_owner(current_user["id"])
     elif role in _ADMIN_ROLES:
         bookings = booking_service.list_bookings()
     else:

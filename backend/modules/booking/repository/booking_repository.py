@@ -112,6 +112,31 @@ class BookingRepository:
             if own_session:
                 session.close()
 
+    def find_by_owner(self, owner_user_id: int, session=None) -> list[dict]:
+        """Retrieve all bookings for grounds owned by a specific user.
+
+        Uses a SQL subquery — isolation enforced at DB level, not in Python.
+        """
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            from modules.cart.model.cart_model import Cart as CartModel
+            owned_cart_ids = (
+                session.query(CartModel.id)
+                .filter(CartModel.owner_user_id == owner_user_id)
+                .subquery()
+                .select()
+            )
+            bookings = (
+                session.query(Booking)
+                .filter(Booking.assigned_cart_id.in_(owned_cart_ids))
+                .all()
+            )
+            return [b.to_dict() for b in bookings]
+        finally:
+            if own_session:
+                session.close()
+
     def find_by_user_and_date(
         self, user_id: int, date: str, session=None
     ) -> list[dict]:
