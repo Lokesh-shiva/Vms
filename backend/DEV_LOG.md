@@ -1754,3 +1754,28 @@ System stable.
 - `is_active` on timeslots follows the same `server_default="true"` pattern as `Boolean` columns elsewhere to ensure DB-level default for rows inserted outside the ORM.
 - User phone search route placed at `/users/search` (before `/{user_id}`) so FastAPI's path matching doesn't shadow it with the int-param route.
 - `run_migrations.py` created as a standalone script (not Alembic) consistent with the no-Alembic project constraint; migrations are idempotent (`IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS`).
+
+---
+## [2026-06-04] Phase 02 — TournamentsScreen (admin app)
+
+### Backend
+No backend changes this session — tournament endpoints expected at `/api/v1/tournaments` (GET/POST/PUT/DELETE).
+
+### App
+**Added:**
+- `models/Models.kt` — `Tournament`, `CreateTournamentRequest`, `UpdateTournamentRequest` models
+- `network/ApiService.kt` — `getTournaments`, `createTournament`, `updateTournament`, `deleteTournament` endpoints
+- `data/TournamentRepository.kt` — repository wrapping ApiService tournament calls
+- `viewmodel/TournamentViewModel.kt` — `TournamentUiState`, `TournamentViewModel`, `TournamentViewModelFactory`; supports load, refresh, create, updateStatus
+- `ui/screens/TournamentsScreen.kt` — full screen: TopAppBar with back, FAB, PullToRefreshBox, LazyColumn of TournamentCards, CreateTournamentDialog, skeleton loading, empty and error states; status change via DropdownMenu (UPCOMING/ONGOING/COMPLETED/CANCELLED); TournamentStatusBadge with color coding
+
+**Modified:**
+- `ui/screens/PlaceholderScreens.kt` — added `onNavigateToTournaments` param to `ManageScreen`; added Tournaments entry under Venues & Matches section
+- `ui/screens/MainScreen.kt` — added `TournamentViewModel` import + param; wired `manage/tournaments` route (guarded by TOURNAMENT_ROLES); passed `onNavigateToTournaments` to `ManageScreen`
+- `navigation/AppNavigation.kt` — added `TournamentViewModel` import + param; passed to `MainScreen`
+- `MainActivity.kt` — instantiated `TournamentRepository` and `TournamentViewModel` via factory; passed to `AppNavigation`
+
+### Architectural decisions
+- Tournaments accessible to `tournament_manager`, `super_admin`, `ops_manager` (reuses existing `TOURNAMENT_ROLES` set).
+- Repository follows the same success/data-null guard pattern as `CaptainRepository`; throws `Exception` on failure so ViewModel catches it and surfaces via `error` state.
+- `TournamentViewModel` uses `updatingIds: Set<Int>` to show per-card progress spinner without blocking the entire list, consistent with `GroundViewModel` pattern.
