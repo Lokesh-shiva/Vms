@@ -33,11 +33,8 @@ fun TournamentsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showCreateDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.snackbar) {
-        uiState.snackbar?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearSnackbar()
-        }
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { snackbarHostState.showSnackbar(it) }
     }
 
     if (showCreateDialog) {
@@ -81,11 +78,9 @@ fun TournamentsScreen(
             )
             uiState.tournaments.isEmpty() -> EmptyTournaments(Modifier.padding(padding))
             else -> {
-                val pullRefreshState = rememberPullToRefreshState()
                 PullToRefreshBox(
                     isRefreshing = uiState.isRefreshing,
                     onRefresh = { viewModel.refreshTournaments() },
-                    state = pullRefreshState,
                     modifier = Modifier.padding(padding)
                 ) {
                     LazyColumn(

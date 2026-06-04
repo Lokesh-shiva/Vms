@@ -18,7 +18,6 @@ data class TournamentUiState(
     val isRefreshing: Boolean = false,
     val error: String? = null,
     val updatingIds: Set<Int> = emptySet(),
-    val snackbar: String? = null
 )
 
 class TournamentViewModel(private val repository: TournamentRepository) : ViewModel() {
