@@ -1,6 +1,27 @@
 # Development Log
 
 ---
+## [2026-06-04] Phase 02 — Finance reporting
+
+### Backend
+**Added:**
+- `GET /api/v1/payments/summary` — FINANCE + SUPER_ADMIN only; returns total_revenue, total_refunded, pending_count, refunded_count via DB-level SQL aggregates
+- `PaymentRepository.get_summary()` — uses sqlalchemy.func.sum/count with COALESCE
+- `PaymentService.get_summary()`
+- `backend/modules/payment/tests/test_payment_summary.py` — 2 tests
+
+### Admin App
+**Modified:**
+- `Models.kt` — added `PaymentSummary` data class
+- `ApiService.kt` — added `getPaymentSummary()`
+- `PaymentRepository.kt` — added `fetchSummary()`
+- `PaymentViewModel.kt` — added REFUNDED to PaymentFilter, totalRefunded/refundedCount to state, loadSummary() fetches backend aggregates (non-fatal)
+- `PaymentsScreen.kt` — RevenueSummaryCard shows total refunded + count; REFUNDED filter tab added; empty-state handles REFUNDED
+
+### Architecture decisions
+- Revenue computed at DB level via SQL aggregates — not client-side sum
+- loadSummary() is non-fatal: summary card shows 0s if endpoint fails, payments list still loads
+---
 ## [2026-06-04] Phase 02 — Ground Owner data isolation
 
 ### Backend
