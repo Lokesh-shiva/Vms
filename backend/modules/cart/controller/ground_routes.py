@@ -66,22 +66,18 @@ def list_grounds(
 ):
     """List grounds.
 
-    - ground_owner: forced to their assigned region (query param ignored).
+    - ground_owner: sees only their owned grounds (DB-level isolation).
     - Other roles: optional region_id filter.
     """
-    effective_region = region_id
-    if current_user["role"] == "ground_owner":
-        effective_region = current_user.get("region_id")
-        if effective_region is None:
-            return _success([])
+    if current_user["role"].lower() == "ground_owner":
+        carts = _cart_service.list_carts_by_owner(current_user["id"])
+        return _success([_to_ground(c) for c in carts])
 
-    carts = _cart_service.list_carts()
-    grounds = [_to_ground(c) for c in carts]
-
-    if effective_region is not None:
-        grounds = [g for g in grounds if g.get("location_id") == effective_region]
-
-    return _success(grounds)
+    if region_id is not None:
+        carts = _cart_service.list_carts_by_region(region_id)
+    else:
+        carts = _cart_service.list_carts()
+    return _success([_to_ground(c) for c in carts])
 
 
 @router.get("/{ground_id}")

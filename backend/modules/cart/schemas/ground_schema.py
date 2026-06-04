@@ -30,6 +30,7 @@ def _to_ground(cart: dict) -> dict:
         "longitude": cart.get("longitude"),
         "created_at": cart.get("created_at"),
         "updated_at": cart.get("updated_at"),
+        "owner_user_id": cart.get("owner_user_id"),
     }
 
 
@@ -155,5 +156,12 @@ class UpdateGroundSchema:
                     self.errors.append(f"'{coord}' must be a number when provided.")
                 else:
                     self.validated_data[coord] = val
+
+        if "owner_user_id" in self._data:
+            val = self._data["owner_user_id"]
+            if val is not None and (not isinstance(val, int) or val <= 0):
+                self.errors.append("'owner_user_id' must be a positive integer or null.")
+            else:
+                self.validated_data["owner_user_id"] = val
 
         return len(self.errors) == 0

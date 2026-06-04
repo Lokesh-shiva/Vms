@@ -82,6 +82,21 @@ class CartRepository:
             if own_session:
                 session.close()
 
+    def find_by_region(self, region_id: int, session=None) -> list[dict]:
+        """Retrieve all carts for a specific region. DB-level filter."""
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            carts = (
+                session.query(Cart)
+                .filter(Cart.region_id == region_id)
+                .all()
+            )
+            return [c.to_dict() for c in carts]
+        finally:
+            if own_session:
+                session.close()
+
     def update(self, cart_id: int, update_data: dict, session=None) -> dict | None:
         """Update an existing cart record. Automatically refreshes updated_at."""
         own_session = session is None

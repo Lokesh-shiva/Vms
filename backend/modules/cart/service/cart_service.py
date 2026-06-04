@@ -74,6 +74,14 @@ class CartService(BaseService):
         """Retrieve all carts."""
         return self.cart_repository.find_all()
 
+    def list_carts_by_owner(self, owner_user_id: int) -> list[dict]:
+        """Return all carts owned by the given user. Used for GROUND_OWNER isolation."""
+        return self.cart_repository.find_by_owner(owner_user_id)
+
+    def list_carts_by_region(self, region_id: int) -> list[dict]:
+        """Return all carts in a specific region. DB-level filter."""
+        return self.cart_repository.find_by_region(region_id)
+
     def update_cart(self, cart_id: int, update_data: dict) -> dict | None:
         """
         Update an existing cart.
