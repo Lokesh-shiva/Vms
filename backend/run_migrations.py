@@ -78,9 +78,22 @@ cur.execute("""
     ALTER TABLE payments DROP CONSTRAINT IF EXISTS uq_payment_booking_user;
 """)
 cur.execute("""
-    ALTER TABLE payments
-        ADD CONSTRAINT uq_payment_booking_user_type
-        UNIQUE (booking_id, user_id, payment_type);
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'uq_payment_booking_user_type'
+        ) THEN
+            ALTER TABLE payments
+                ADD CONSTRAINT uq_payment_booking_user_type
+                UNIQUE (booking_id, user_id, payment_type);
+        END IF;
+    END $$;
+""")
+
+print("Running migration 7: add owner_user_id to carts ...")
+cur.execute("""
+    ALTER TABLE carts
+        ADD COLUMN IF NOT EXISTS owner_user_id INT REFERENCES users(id) ON DELETE SET NULL;
 """)
 
 conn.commit()

@@ -32,6 +32,7 @@ class CartRepository:
                 cart_type_id=cart_data.get("cart_type_id"),
                 status=cart_data.get("status", "AVAILABLE"),
                 is_active=cart_data.get("is_active", True),
+                owner_user_id=cart_data.get("owner_user_id"),
             )
             session.add(cart)
             session.commit()
@@ -61,6 +62,21 @@ class CartRepository:
         session = session or self._session_factory()
         try:
             carts = session.query(Cart).all()
+            return [c.to_dict() for c in carts]
+        finally:
+            if own_session:
+                session.close()
+
+    def find_by_owner(self, owner_user_id: int, session=None) -> list[dict]:
+        """Retrieve all carts owned by a specific user. Enforces GROUND_OWNER isolation at DB level."""
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            carts = (
+                session.query(Cart)
+                .filter(Cart.owner_user_id == owner_user_id)
+                .all()
+            )
             return [c.to_dict() for c in carts]
         finally:
             if own_session:
