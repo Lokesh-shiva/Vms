@@ -2,6 +2,7 @@ import os
 import random
 
 from core.base.base_service import BaseService
+from modules.audit.service.audit_service import audit_service
 from modules.payment.repository.payment_repository import (
     payment_repository as _default_payment_repo,
 )
@@ -413,6 +414,13 @@ class PaymentService(BaseService):
             {
                 "status": "REFUNDED",
             },
+        )
+
+        audit_service.log(
+            action="REFUND",
+            target_resource_type="payment",
+            target_resource_id=payment_id,
+            details={"refund_amount": refund_amount},
         )
 
         self.booking_repository.update(

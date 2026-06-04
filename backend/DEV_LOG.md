@@ -1,6 +1,30 @@
 # Development Log
 
 ---
+## [2026-06-04] Phase 02 — Audit log module
+
+### Backend
+**Added:**
+- Migration 10: `audit_logs` table (id, action, actor_user_id FK→users, target_resource_type, target_resource_id, details, created_at)
+- Full audit module: `backend/modules/audit/` (model, repository, service, controller, tests)
+- `GET /api/v1/audit-logs` — SUPER_ADMIN only, returns recent entries (default 200, max 500)
+- `AuditService.log()` — fire-and-forget, never raises; silently returns {} on DB failure
+- 4 unit tests (in-memory SQLite) — all pass
+
+**Modified:**
+- `backend/main.py` — registered `audit_router`, imported `AuditLog` model
+- `backend/run_migrations.py` — added migration 10
+- `backend/modules/user/controller/user_routes.py` — ROLE_CHANGE audit hook in `update_user`
+- `backend/modules/payment/service/payment_service.py` — REFUND audit hook in `process_refund`
+- `backend/modules/captain/controller/captain_routes.py` — CAPTAIN_STATUS_CHANGE hook in `update_captain`
+- `backend/modules/dispute/controller/dispute_routes.py` — DISPUTE_RESOLVED hook in `update_dispute`
+
+**Architectural decisions:**
+- `AuditService.log()` swallows all exceptions — audit failure must never break primary operations
+- Hooks are import-time singletons (module-level `audit_service`) — no DI required for fire-and-forget
+- `details` stored as JSON text in TEXT column — avoids JSONB dependency for portability
+
+---
 ## [2026-06-04] Phase 02 — Dispute/ticket system
 
 ### Backend

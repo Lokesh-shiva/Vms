@@ -129,6 +129,19 @@ cur.execute("""
     );
 """)
 
+print("Running migration 10: create audit_logs table ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS audit_logs (
+        id                   SERIAL PRIMARY KEY,
+        action               VARCHAR NOT NULL,
+        actor_user_id        INT REFERENCES users(id) ON DELETE SET NULL,
+        target_resource_type VARCHAR,
+        target_resource_id   INT,
+        details              TEXT,
+        created_at           TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+
 conn.commit()
 cur.close()
 conn.close()

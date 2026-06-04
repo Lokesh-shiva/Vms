@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from modules.audit.service.audit_service import audit_service
 from modules.auth.dependencies.auth_dependencies import require_role
 from modules.dispute.schemas.dispute_schema import CreateDisputeSchema, UpdateDisputeSchema
 from modules.dispute.service.dispute_service import DisputeService
@@ -57,6 +58,14 @@ def update_dispute(
         raise HTTPException(status_code=400, detail=schema.errors)
     try:
         d = dispute_service.update_dispute(dispute_id, schema.validated_data)
+        if schema.validated_data.get("status") in ("RESOLVED", "CLOSED"):
+            audit_service.log(
+                action="DISPUTE_RESOLVED",
+                actor_user_id=current_user["id"],
+                target_resource_type="dispute",
+                target_resource_id=dispute_id,
+                details={"status": schema.validated_data.get("status")},
+            )
         return _success(d, "Dispute updated successfully.")
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

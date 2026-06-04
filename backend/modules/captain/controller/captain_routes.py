@@ -2,6 +2,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
+from modules.audit.service.audit_service import audit_service
 from modules.auth.dependencies.auth_dependencies import require_role
 from modules.captain.schemas.captain_schema import CreateCaptainSchema, UpdateCaptainSchema
 from modules.captain.service.captain_service import CaptainService
@@ -75,6 +76,14 @@ def update_captain(
 
     try:
         captain = captain_service.update_captain(captain_id, schema.validated_data)
+        if "status" in request_data:
+            audit_service.log(
+                action="CAPTAIN_STATUS_CHANGE",
+                actor_user_id=current_user["id"],
+                target_resource_type="captain",
+                target_resource_id=captain_id,
+                details={"new_status": request_data["status"]},
+            )
         return _success(captain, "Captain updated successfully.")
     except HTTPException:
         raise

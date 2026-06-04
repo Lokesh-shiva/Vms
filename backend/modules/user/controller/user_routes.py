@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from modules.audit.service.audit_service import audit_service
 from modules.user.service.user_service import UserService
 from modules.user.schemas.user_schema import CreateUserSchema, UpdateUserSchema
 from modules.user.model.user_model import User, UserRole
@@ -150,6 +151,14 @@ def update_user(
         )
         if not user:
             raise HTTPException(status_code=404, detail="User not found.")
+        if "role" in request_data:
+            audit_service.log(
+                action="ROLE_CHANGE",
+                actor_user_id=current_user["id"],
+                target_resource_type="user",
+                target_resource_id=user_id,
+                details={"new_role": request_data["role"]},
+            )
         return _success(user, "User updated successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
