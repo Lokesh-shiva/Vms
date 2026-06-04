@@ -23,9 +23,12 @@ def _success(data, message: str = "Success") -> dict:
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 
-@router.post("/create", status_code=201, dependencies=[Depends(require_admin)])
-def create_fee_config(request_data: dict):
-    """Create a new fee config. Admin only."""
+@router.post("/create", status_code=201)
+def create_fee_config(
+    request_data: dict,
+    current_user: dict = require_role(UserRole.OPS_MANAGER, UserRole.SUPER_ADMIN),
+):
+    """Create a new fee config. OPS_MANAGER and SUPER_ADMIN only."""
     schema = CreateFeeConfigSchema(request_data)
     if not schema.is_valid():
         raise HTTPException(status_code=400, detail=schema.errors)
@@ -37,9 +40,13 @@ def create_fee_config(request_data: dict):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/{config_id}", dependencies=[Depends(require_admin)])
-def update_fee_config(config_id: int, request_data: dict):
-    """Update an existing fee config. Admin only."""
+@router.put("/{config_id}")
+def update_fee_config(
+    config_id: int,
+    request_data: dict,
+    current_user: dict = require_role(UserRole.OPS_MANAGER, UserRole.SUPER_ADMIN),
+):
+    """Update an existing fee config. OPS_MANAGER and SUPER_ADMIN only."""
     schema = UpdateFeeConfigSchema(request_data)
     if not schema.is_valid():
         raise HTTPException(status_code=400, detail=schema.errors)
@@ -74,9 +81,12 @@ def list_fee_configs():
     return _success(configs)
 
 
-@router.delete("/{config_id}", dependencies=[Depends(require_admin)])
-def delete_fee_config(config_id: int):
-    """Soft-delete a fee config (sets is_active = False). Admin only."""
+@router.delete("/{config_id}")
+def delete_fee_config(
+    config_id: int,
+    current_user: dict = require_role(UserRole.SUPER_ADMIN),
+):
+    """Soft-delete a fee config. SUPER_ADMIN only."""
     deleted = fee_config_service.delete_config(config_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Fee config not found.")
