@@ -1,6 +1,29 @@
 # Development Log
 
 ---
+## [2026-06-04] Phase 02 — Role change dropdown (backend-driven)
+
+### Backend
+**Added:**
+- `GET /api/v1/users/assignable-roles` — returns roles the caller can assign, filtered by JWT role (SUPER_ADMIN → all 8 derived from UserRole enum, others → [])
+- `backend/modules/user/tests/test_user_routes.py` — 3 tests: super_admin gets all roles, non-admin gets empty list, unauthenticated gets 401
+
+**Modified:**
+- `backend/modules/user/controller/user_routes.py` — new route + `_ALL_ROLES` constant derived from UserRole enum
+
+### Admin App
+**Modified:**
+- `models/Models.kt` — added `AssignableRolesResponse`
+- `network/ApiService.kt` — added `getAssignableRoles()`
+- `data/UserManagementRepository.kt` — added `getAssignableRoles()` (non-fatal, returns emptyList on error)
+- `viewmodel/UserManagementViewModel.kt` — added `_assignableRoles` StateFlow + `loadAssignableRoles()` called in init
+- `ui/screens/UsersScreen.kt` — replaced hardcoded roles list with `assignableRoles` from ViewModel; added empty-state text in dialog
+
+### Architecture decisions
+- Role policy lives on the server (not hardcoded in the app) — future role-matrix changes require only a backend deploy, no app update
+- Repository failure is non-fatal (returns emptyList) — broken backend doesn't crash the Users screen
+- No changes to the role-change submit path (changeRole → updateRole → PUT /users/{id} → DB)
+---
 
 ## 2026-05-30 — Phase 02: Admin App — Time-Based Billing UI
 
