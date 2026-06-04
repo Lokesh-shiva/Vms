@@ -23,6 +23,7 @@ import com.example.vmsadmin.viewmodel.MatchViewModel
 import com.example.vmsadmin.viewmodel.UserManagementViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.CaptainViewModel
+import com.example.vmsadmin.viewmodel.DisputeViewModel
 import com.example.vmsadmin.viewmodel.QueueOverviewViewModel
 import com.example.vmsadmin.viewmodel.TournamentViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
@@ -48,6 +49,7 @@ fun AppNavigation(
     queueOverviewViewModel: QueueOverviewViewModel,
     captainViewModel: CaptainViewModel,
     tournamentViewModel: TournamentViewModel,
+    disputeViewModel: DisputeViewModel,
     startDestination: String
 ) {
     val navController = rememberNavController()
@@ -93,6 +95,7 @@ fun AppNavigation(
                 queueOverviewViewModel = queueOverviewViewModel,
                 captainViewModel = captainViewModel,
                 tournamentViewModel = tournamentViewModel,
+                disputeViewModel = disputeViewModel,
                 currentUserId = currentUserId,
                 role = role ?: "",
                 isDebugMode = realRole == "super_admin",

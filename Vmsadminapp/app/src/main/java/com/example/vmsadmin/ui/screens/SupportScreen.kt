@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
@@ -20,8 +21,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.vmsadmin.models.AppUser
+import com.example.vmsadmin.models.Booking
+import com.example.vmsadmin.models.CreateDisputeRequest
 import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.viewmodel.BookingViewModel
+import com.example.vmsadmin.viewmodel.DisputeViewModel
 import com.example.vmsadmin.viewmodel.SearchStatus
 import com.example.vmsadmin.viewmodel.UserManagementViewModel
 
@@ -29,7 +33,8 @@ import com.example.vmsadmin.viewmodel.UserManagementViewModel
 @Composable
 fun SupportScreen(
     userManagementViewModel: UserManagementViewModel,
-    bookingViewModel: BookingViewModel
+    bookingViewModel: BookingViewModel,
+    disputeViewModel: DisputeViewModel
 ) {
     val searchStatus by userManagementViewModel.searchStatus.collectAsState()
     val searchResult by userManagementViewModel.searchResult.collectAsState()
@@ -151,39 +156,126 @@ fun SupportScreen(
                     )
                 }
                 else -> items(bookingState.bookings.take(20)) { booking ->
-                    AppCard {
-                        Column {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = "Booking #${booking.id}",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold
+                    SupportBookingCard(
+                        booking = booking,
+                        onRaiseTicket = { title, description ->
+                            disputeViewModel.createDispute(
+                                CreateDisputeRequest(
+                                    title = title,
+                                    description = description,
+                                    booking_id = booking.id,
+                                    user_id = null
                                 )
-                                BookingStatusBadge(booking.status)
-                            }
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = listOfNotNull(booking.cart_type_name, booking.region_name)
-                                    .joinToString(" · ").ifEmpty { "—" },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            booking.date?.let {
-                                Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
                         }
-                    }
+                    )
                 }
             }
 
             item { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun SupportBookingCard(
+    booking: Booking,
+    onRaiseTicket: (String, String) -> Unit
+) {
+    var showDialog by remember { mutableStateOf(false) }
+    var ticketTitle by remember { mutableStateOf("") }
+    var ticketDescription by remember { mutableStateOf("") }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Raise Ticket") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Booking #${booking.id}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = ticketTitle,
+                        onValueChange = { ticketTitle = it },
+                        label = { Text("Title") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = ticketDescription,
+                        onValueChange = { ticketDescription = it },
+                        label = { Text("Description") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onRaiseTicket(ticketTitle.trim(), ticketDescription.trim())
+                        ticketTitle = ""
+                        ticketDescription = ""
+                        showDialog = false
+                    },
+                    enabled = ticketTitle.isNotBlank() && ticketDescription.isNotBlank()
+                ) { Text("Submit") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    ticketTitle = ""
+                    ticketDescription = ""
+                    showDialog = false
+                }) { Text("Cancel") }
+            }
+        )
+    }
+
+    AppCard {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Booking #${booking.id}",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    BookingStatusBadge(booking.status)
+                    Spacer(Modifier.width(4.dp))
+                    IconButton(
+                        onClick = { showDialog = true },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Flag,
+                            contentDescription = "Raise Ticket",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = listOfNotNull(booking.cart_type_name, booking.region_name)
+                    .joinToString(" · ").ifEmpty { "—" },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            booking.date?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

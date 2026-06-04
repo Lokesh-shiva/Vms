@@ -43,6 +43,7 @@ import com.example.vmsadmin.viewmodel.CaptainViewModel
 import com.example.vmsadmin.viewmodel.CartViewModel
 import com.example.vmsadmin.viewmodel.CartTypeViewModel
 import com.example.vmsadmin.viewmodel.DashboardViewModel
+import com.example.vmsadmin.viewmodel.DisputeViewModel
 import com.example.vmsadmin.viewmodel.FeeConfigViewModel
 import com.example.vmsadmin.viewmodel.ItemViewModel
 import com.example.vmsadmin.viewmodel.GroundViewModel
@@ -77,6 +78,7 @@ private val SUPPORT_ROLES       = setOf("support", "super_admin", "ops_manager")
 private val GROUND_OWNER_ROLES  = setOf("ground_owner")
 private val TOURNAMENT_ROLES    = setOf("tournament_manager", "super_admin", "ops_manager")
 private val CSR_ROLES           = setOf("csr_partner", "super_admin")
+private val DISPUTE_ROLES       = setOf("support", "super_admin", "ops_manager")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +99,7 @@ fun MainScreen(
     queueOverviewViewModel: QueueOverviewViewModel,
     captainViewModel: CaptainViewModel,
     tournamentViewModel: TournamentViewModel,
+    disputeViewModel: DisputeViewModel,
     currentUserId: Int? = null,
     role: String = "",
     isDebugMode: Boolean = false,
@@ -222,7 +225,8 @@ fun MainScreen(
                     } else {
                         SupportScreen(
                             userManagementViewModel = userManagementViewModel,
-                            bookingViewModel = bookingViewModel
+                            bookingViewModel = bookingViewModel,
+                            disputeViewModel = disputeViewModel
                         )
                     }
                 }
@@ -267,6 +271,7 @@ fun MainScreen(
                             onNavigateToQueue        = { navController.navigate("manage/queue") },
                             onNavigateToCaptains     = { navController.navigate("manage/captains") },
                             onNavigateToTournaments  = { navController.navigate("manage/tournaments") },
+                            onNavigateToDisputes     = { navController.navigate("manage/disputes") },
                             role = role
                         )
                     }
@@ -344,6 +349,13 @@ fun MainScreen(
                     if (role !in TOURNAMENT_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
                     else TournamentsScreen(
                         viewModel = tournamentViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("manage/disputes") {
+                    if (role !in DISPUTE_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else DisputesScreen(
+                        viewModel = disputeViewModel,
                         onBack = { navController.popBackStack() }
                     )
                 }

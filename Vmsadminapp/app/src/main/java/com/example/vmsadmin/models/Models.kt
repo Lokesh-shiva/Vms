@@ -457,3 +457,33 @@ data class SessionStatus(
     val current_blocks: Int,
     val estimated_time_bill: Double
 )
+
+// --- Dispute Models ---
+
+@Serializable
+data class Dispute(
+    val id: Int,
+    val booking_id: Int? = null,
+    val user_id: Int? = null,
+    val raised_by: Int? = null,
+    val title: String,
+    val description: String,
+    val status: String = "OPEN",
+    val resolution_note: String? = null,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class CreateDisputeRequest(
+    val title: String,
+    val description: String,
+    val booking_id: Int? = null,
+    val user_id: Int? = null
+)
+
+@Serializable
+data class UpdateDisputeRequest(
+    val status: String? = null,
+    val resolution_note: String? = null
+)

@@ -19,6 +19,7 @@ import com.example.vmsadmin.data.PaymentRepository
 import com.example.vmsadmin.data.GroundRepository
 import com.example.vmsadmin.data.MatchRepository
 import com.example.vmsadmin.data.CaptainRepository
+import com.example.vmsadmin.data.DisputeRepository
 import com.example.vmsadmin.data.TournamentRepository
 import com.example.vmsadmin.data.QueueRepository
 import com.example.vmsadmin.data.SystemConfigRepository
@@ -53,6 +54,8 @@ import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModelFactory
 import com.example.vmsadmin.viewmodel.CaptainViewModel
 import com.example.vmsadmin.viewmodel.CaptainViewModelFactory
+import com.example.vmsadmin.viewmodel.DisputeViewModel
+import com.example.vmsadmin.viewmodel.DisputeViewModelFactory
 import com.example.vmsadmin.viewmodel.TournamentViewModel
 import com.example.vmsadmin.viewmodel.TournamentViewModelFactory
 import com.example.vmsadmin.viewmodel.QueueOverviewViewModel
@@ -142,6 +145,10 @@ class MainActivity : ComponentActivity() {
         val tournamentViewModelFactory = TournamentViewModelFactory(tournamentRepository)
         val tournamentViewModel = ViewModelProvider(this, tournamentViewModelFactory)[TournamentViewModel::class.java]
 
+        val disputeRepository = DisputeRepository(apiService)
+        val disputeViewModelFactory = DisputeViewModelFactory(disputeRepository)
+        val disputeViewModel = ViewModelProvider(this, disputeViewModelFactory)[DisputeViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -169,6 +176,7 @@ class MainActivity : ComponentActivity() {
                         queueOverviewViewModel = queueOverviewViewModel,
                         captainViewModel = captainViewModel,
                         tournamentViewModel = tournamentViewModel,
+                        disputeViewModel = disputeViewModel,
                         startDestination = startDestination
                     )
                 }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DateRange
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.automirrored.outlined.List
@@ -35,6 +36,7 @@ fun ManageScreen(
     onNavigateToQueue: () -> Unit = {},
     onNavigateToCaptains: () -> Unit = {},
     onNavigateToTournaments: () -> Unit = {},
+    onNavigateToDisputes: () -> Unit = {},
     role: String = ""
 ) {
     val isOpsOrAbove = role == "super_admin" || role == "ops_manager"
@@ -73,6 +75,7 @@ fun ManageScreen(
             item { ManageCard("Grounds", "Sports grounds and facilities", Icons.Outlined.LocationOn, onNavigateToGrounds) }
             item { ManageCard("Matches", "Scheduled and past matches", Icons.Outlined.DateRange, onNavigateToMatches) }
             item { ManageCard("Tournaments", "Tournament scheduling and status", Icons.Outlined.Star, onNavigateToTournaments) }
+            item { ManageCard("Disputes", "Support tickets and dispute resolution", Icons.Outlined.Flag, onNavigateToDisputes) }
 
             // ── Admin ──────────────────────────────────────────────────
             if (role == "super_admin") {
