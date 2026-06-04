@@ -48,7 +48,7 @@ class TournamentViewModel(private val repository: TournamentRepository) : ViewMo
                     tournaments = repository.getTournaments(), isRefreshing = false
                 )
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isRefreshing = false, snackbar = e.message ?: "Refresh failed")
+                _uiState.value = _uiState.value.copy(isRefreshing = false, error = e.message ?: "Refresh failed")
             }
         }
     }
@@ -72,21 +72,17 @@ class TournamentViewModel(private val repository: TournamentRepository) : ViewMo
                 val updated = repository.updateTournament(id, UpdateTournamentRequest(status = status))
                 _uiState.value = _uiState.value.copy(
                     tournaments = _uiState.value.tournaments.map { if (it.id == id) updated else it },
-                    updatingIds = _uiState.value.updatingIds - id,
-                    snackbar = "Status updated"
+                    updatingIds = _uiState.value.updatingIds - id
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     updatingIds = _uiState.value.updatingIds - id,
-                    snackbar = e.message ?: "Failed to update tournament"
+                    error = e.message ?: "Failed to update tournament"
                 )
             }
         }
     }
 
-    fun clearSnackbar() {
-        _uiState.value = _uiState.value.copy(snackbar = null)
-    }
 }
 
 class TournamentViewModelFactory(
