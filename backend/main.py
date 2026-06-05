@@ -56,6 +56,9 @@ from modules.tournament.controller.tournament_routes import router as tournament
 from modules.tournament.model.tournament_model import Tournament  # noqa: F401 — registers model
 from modules.tournament.model.tournament_team_model import TournamentTeam  # noqa: F401 — registers model
 from modules.tournament.model.tournament_participant_model import TournamentParticipant  # noqa: F401 — registers model
+from modules.tournament.model.tournament_match_model import TournamentMatch  # noqa: F401 — registers model
+from modules.tournament.model.tournament_standing_model import TournamentStanding  # noqa: F401 — registers model
+from modules.tournament.model.player_score_model import PlayerScore  # noqa: F401 — registers model
 from modules.dispute.controller.dispute_routes import router as dispute_router
 from modules.dispute.model.dispute_model import Dispute  # noqa: F401 — registers model
 from modules.audit.controller.audit_routes import router as audit_router
