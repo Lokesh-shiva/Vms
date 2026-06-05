@@ -1,6 +1,31 @@
 # Development Log
 
 ---
+## [2026-06-05] Phase 02 — Dynamic Tournament & League System
+
+### Backend
+**Added:**
+- `Tournament` model: `format_type` (KNOCKOUT/ROUND_ROBIN/LEAGUE), `participant_type` (INDIVIDUAL/TEAM), `team_size`, `rules_json` (JSON — configurable win/draw/loss points, tiebreaker, global_points_per_win)
+- `TournamentTeam` model + repository (`tournament_teams` table — team name, captain FK)
+- `TournamentParticipant` model + repository (`tournament_participants` table, UNIQUE per user per tournament)
+- `TournamentMatch` model + repository (`tournament_matches` table — supports individual and team matches, manual point overrides with notes)
+- `TournamentStanding` model + repository (`tournament_standings` table — upsert + rerank on every result)
+- `PlayerScore` model + repository (`player_scores` table — global area leaderboard, UNIQUE per user/region/sport)
+- `TournamentService`: `register()` and `withdraw()` for individual and team tournaments; `update_tournament()` now validates `format_type`/`participant_type`
+- `TournamentMatchService`: `create_match()`, `record_result()` (rules_json-driven + manual override requiring notes), `list_matches()`; validates team membership; cross-checks match belongs to tournament
+- `TournamentStandingService`: `get_standings()`, `get_global_leaderboard()`
+- `CreateTournamentSchema` / `UpdateTournamentSchema` updated to pass through `format_type`, `participant_type`, `team_size`, `rules_json`
+- New routes: `POST/DELETE /{id}/register`, `GET/POST /{id}/matches`, `PUT /{id}/matches/{mid}/result`, `GET /{id}/standings`, `GET /api/v1/leaderboard`
+
+**Architectural decisions:**
+- Typed columns for structural fields (format_type, participant_type, team_size); `rules_json` JSON column for scoring — adding new rule types (age_limit, custom tiebreakers) requires no migration.
+- KNOCKOUT draws raise `ValueError` at service layer — enforced, not just documented.
+- Manual point overrides require non-empty `notes` field for audit trail.
+- Global `PlayerScore` upserted on every match result: winner gets `global_points_per_win` (default 10), loser gets `matches_played` increment only. Draw: both get `matches_played++`, no points.
+- For TEAM tournaments, all team members individually get global points (resolved via `tournament_participants WHERE team_id = winning_team_id`).
+- `rules_json` updates in `update_tournament` are merged (not overwritten) — existing keys preserved unless explicitly overridden.
+
+---
 ## [2026-06-04] Phase 02 — Audit log finalization
 
 ### Backend
@@ -1895,3 +1920,35 @@ No backend changes this session — tournament endpoints expected at `/api/v1/to
 - Tournaments accessible to `tournament_manager`, `super_admin`, `ops_manager` (reuses existing `TOURNAMENT_ROLES` set).
 - Repository follows the same success/data-null guard pattern as `CaptainRepository`; throws `Exception` on failure so ViewModel catches it and surfaces via `error` state.
 - `TournamentViewModel` uses `updatingIds: Set<Int>` to show per-card progress spinner without blocking the entire list, consistent with `GroundViewModel` pattern.
+
+---
+## [2026-06-05] Phase 02 — Captain Matchmaking: Instant & Timed Fallback
+
+### Backend
+**Added:**
+- `Captain.is_available` (Boolean, default True) — real-time availability flag
+- `Captain.current_match_id` (FK → matches.id, nullable) — which match the captain is on
+- `CaptainRepository.find_available_captain(region_id, session)` — SKIP LOCKED fair rotation
+- `CaptainRepository.set_availability(captain_id, available, match_id, session)` — toggle in-transaction
+- `CaptainRepository.release_captain_for_match(match_id, session)` — frees captain on match end; increments `total_trips`
+- `QueueEntry.instant_captain` (Boolean, default False) — audit trail for instant-captain requests
+- `JoinQueueRequest.instant_captain: bool` — new optional field in Pydantic schema
+- `MatchmakingService.join_queue(instant_captain=False)` — branches: normal queue OR immediate captain assignment
+- `MatchmakingService._assign_captain_now(...)` — creates MATCHED match + MatchPlayer records instantly; marks captain unavailable
+- `MatchEngineService._process_captain_fallback()` — Phase 3 of engine cycle; scans WAITING entries older than `CAPTAIN_FALLBACK_WAIT_MINUTES`
+- `MatchEngineService._assign_captain_to_entry(...)` — per-entry isolated transaction for fallback assignment
+- `CAPTAIN_FALLBACK_WAIT_MINUTES = 5` added to `app_config.py` DEFAULTS (admin-overridable via system_configs table)
+
+**Modified:**
+- `match_service.finish_match()` — calls `release_captain_for_match()` to free captain when game ends
+- `match_service.cancel_match()` — same captain release on cancellation
+- `matchmaking_routes.POST /play-now` — passes `instant_captain`, returns `mode`, `match_id`, `captain_id` on instant path; returns HTTP 503 if no captain available
+
+### App
+(No app changes in this set — user app integration pending)
+
+### Architectural decisions
+- Captain is added as a `MatchPlayer` (same table, no Match model change needed); `current_match_id` on Captain is the release link.
+- SKIP LOCKED used on both `find_available_captain` and `find_and_lock_compatible_pair` — prevents double-assignment under concurrent engine runs.
+- 503 status code chosen for "no captain available" so mobile client can display a retry prompt vs. a 400 user-error.
+- `CAPTAIN_FALLBACK_WAIT_MINUTES` is admin-editable at runtime via the system_configs table — no redeploy needed to tune the window.
