@@ -6,9 +6,11 @@ class TournamentTeamRepository:
         self._session_factory = session_factory or SessionLocal
 
     def create(self, data: dict) -> dict:
+        # Fully implemented in Task 4
         raise NotImplementedError
 
     def count_by_tournament(self, tournament_id: int) -> int:
+        # Fully implemented in Task 4
         raise NotImplementedError
 
 

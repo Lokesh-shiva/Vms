@@ -74,4 +74,4 @@ class Tournament(Base):
         }
 
     def __repr__(self) -> str:
-        return f"<Tournament id={self.id} name={self.name} format={self.format_type}>"
+        return f"<Tournament id={self.id} name={self.name} status={self.status} format={self.format_type}>"

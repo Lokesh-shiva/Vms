@@ -1,5 +1,8 @@
 from datetime import date
 
+_VALID_FORMAT_TYPES = frozenset({"KNOCKOUT", "ROUND_ROBIN", "LEAGUE"})
+_VALID_PARTICIPANT_TYPES = frozenset({"INDIVIDUAL", "TEAM"})
+
 
 class CreateTournamentSchema:
     def __init__(self, data: dict):
@@ -47,6 +50,32 @@ class CreateTournamentSchema:
         else:
             self.validated_data["max_teams"] = max_teams
 
+        format_type = self._data.get("format_type", "LEAGUE")
+        if format_type not in _VALID_FORMAT_TYPES:
+            self.errors.append(f"'format_type' must be one of {sorted(_VALID_FORMAT_TYPES)}.")
+        else:
+            self.validated_data["format_type"] = format_type
+
+        participant_type = self._data.get("participant_type", "INDIVIDUAL")
+        if participant_type not in _VALID_PARTICIPANT_TYPES:
+            self.errors.append(f"'participant_type' must be one of {sorted(_VALID_PARTICIPANT_TYPES)}.")
+        else:
+            self.validated_data["participant_type"] = participant_type
+
+        if "team_size" in self._data:
+            ts = self._data["team_size"]
+            if not isinstance(ts, int) or ts < 1:
+                self.errors.append("'team_size' must be a positive integer.")
+            else:
+                self.validated_data["team_size"] = ts
+
+        if "rules_json" in self._data:
+            rj = self._data["rules_json"]
+            if rj is not None and not isinstance(rj, dict):
+                self.errors.append("'rules_json' must be a dict or null.")
+            else:
+                self.validated_data["rules_json"] = rj
+
         return len(self.errors) == 0
 
 
@@ -88,5 +117,33 @@ class UpdateTournamentSchema:
                 self.errors.append("'max_teams' must be an integer >= 2.")
             else:
                 self.validated_data["max_teams"] = val
+
+        if "format_type" in self._data:
+            fmt = self._data["format_type"]
+            if fmt not in _VALID_FORMAT_TYPES:
+                self.errors.append(f"'format_type' must be one of {sorted(_VALID_FORMAT_TYPES)}.")
+            else:
+                self.validated_data["format_type"] = fmt
+
+        if "participant_type" in self._data:
+            pt = self._data["participant_type"]
+            if pt not in _VALID_PARTICIPANT_TYPES:
+                self.errors.append(f"'participant_type' must be one of {sorted(_VALID_PARTICIPANT_TYPES)}.")
+            else:
+                self.validated_data["participant_type"] = pt
+
+        if "team_size" in self._data:
+            ts = self._data["team_size"]
+            if not isinstance(ts, int) or ts < 1:
+                self.errors.append("'team_size' must be a positive integer.")
+            else:
+                self.validated_data["team_size"] = ts
+
+        if "rules_json" in self._data:
+            rj = self._data["rules_json"]
+            if rj is not None and not isinstance(rj, dict):
+                self.errors.append("'rules_json' must be a dict or null.")
+            else:
+                self.validated_data["rules_json"] = rj
 
         return len(self.errors) == 0

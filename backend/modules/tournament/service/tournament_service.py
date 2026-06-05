@@ -53,6 +53,10 @@ class TournamentService:
             raise ValueError(f"Tournament {tournament_id} not found.")
         if "status" in data and data["status"] not in TournamentStatus.ALL:
             raise ValueError(f"Invalid status. Must be one of: {TournamentStatus.ALL}")
+        if "format_type" in data and data["format_type"] not in TournamentFormat.ALL:
+            raise ValueError(f"format_type must be one of {TournamentFormat.ALL}.")
+        if "participant_type" in data and data["participant_type"] not in TournamentParticipantType.ALL:
+            raise ValueError(f"participant_type must be one of {TournamentParticipantType.ALL}.")
         if "rules_json" in data and data["rules_json"]:
             current_rules = existing.get("rules_json") or {}
             current_rules.update(data["rules_json"])
