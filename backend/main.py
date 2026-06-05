@@ -54,6 +54,8 @@ from modules.captain.controller.captain_routes import router as captain_router
 from modules.captain.model.captain_model import Captain  # noqa: F401 — registers model
 from modules.tournament.controller.tournament_routes import router as tournament_router
 from modules.tournament.model.tournament_model import Tournament  # noqa: F401 — registers model
+from modules.tournament.model.tournament_team_model import TournamentTeam  # noqa: F401 — registers model
+from modules.tournament.model.tournament_participant_model import TournamentParticipant  # noqa: F401 — registers model
 from modules.dispute.controller.dispute_routes import router as dispute_router
 from modules.dispute.model.dispute_model import Dispute  # noqa: F401 — registers model
 from modules.audit.controller.audit_routes import router as audit_router

@@ -4,10 +4,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from core.database.db_connection import Base
 from modules.tournament.model.tournament_model import Tournament  # noqa: F401
+from modules.tournament.model.tournament_team_model import TournamentTeam  # noqa: F401
+from modules.tournament.model.tournament_participant_model import TournamentParticipant  # noqa: F401
 from modules.tournament.repository.tournament_repository import TournamentRepository
 from modules.tournament.service.tournament_service import TournamentService
 import modules.sport.model.sport_model  # noqa: F401
 import modules.location.model.location_model  # noqa: F401
+import modules.user.model.user_model  # noqa: F401
 
 
 def _factory():
