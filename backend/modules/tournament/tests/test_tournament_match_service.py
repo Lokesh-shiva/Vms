@@ -122,3 +122,11 @@ class TestTournamentMatchService(unittest.TestCase):
         self.service.create_match(self.tid, {"home_user_id": 1, "away_user_id": 2, "round": 1})
         matches = self.service.list_matches(self.tid)
         self.assertEqual(len(matches), 1)
+
+    def test_record_result_override_requires_notes(self):
+        m = self.service.create_match(self.tid, {"home_user_id": 1, "away_user_id": 2, "round": 1})
+        with self.assertRaises(ValueError):
+            self.service.record_result(
+                self.tid, m["id"], home_score=3, away_score=1,
+                overrides={"home_points": 10, "away_points": 2, "notes": ""},
+            )
