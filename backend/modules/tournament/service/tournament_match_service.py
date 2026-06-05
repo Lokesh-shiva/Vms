@@ -54,6 +54,13 @@ class TournamentMatchService:
                 p = self._p_repo.find_by_tournament_and_user(tournament_id, uid)
                 if not p or p["status"] != ParticipantStatus.REGISTERED:
                     raise ValueError(f"User {uid} is not a registered participant.")
+        else:
+            # Validate both teams belong to this tournament
+            from modules.tournament.repository.tournament_team_repository import tournament_team_repository as _team_repo
+            for team_id in (home_id, away_id):
+                team = _team_repo.find_by_id(team_id)
+                if not team or team["tournament_id"] != tournament_id:
+                    raise ValueError(f"Team {team_id} is not registered in this tournament.")
 
         return self._m_repo.create({
             "tournament_id": tournament_id,
@@ -84,6 +91,8 @@ class TournamentMatchService:
         match = self._m_repo.find_by_id(match_id)
         if not match:
             raise ValueError("Match not found.")
+        if match["tournament_id"] != tournament_id:
+            raise ValueError("Match does not belong to the given tournament.")
         if match["status"] == TournamentMatchStatus.COMPLETED:
             raise ValueError("Match result has already been recorded.")
 

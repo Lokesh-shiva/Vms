@@ -130,3 +130,23 @@ class TestTournamentMatchService(unittest.TestCase):
                 self.tid, m["id"], home_score=3, away_score=1,
                 overrides={"home_points": 10, "away_points": 2, "notes": ""},
             )
+
+    def test_global_score_updated_after_win(self):
+        """Winner gets global_points_per_win (10), loser gets 0 but matches_played increments."""
+        m = self.service.create_match(self.tid, {"home_user_id": 1, "away_user_id": 2, "round": 1})
+        self.service.record_result(self.tid, m["id"], home_score=3, away_score=1)
+        # tournament has region_id=1, sport_id=1 — global scores should be updated
+        from modules.tournament.repository.player_score_repository import PlayerScoreRepository
+        from sqlalchemy import create_engine
+        # Re-use the same DB via the service's repos — check via the player_score_repository
+        # We check by calling get_leaderboard
+        board = self.service._ps_repo.get_leaderboard(region_id=1, sport_id=1, limit=10)
+        user_scores = {row["user_id"]: row for row in board}
+        # Winner (user_id=1, home won 3-1) should have 10 global points
+        self.assertIn(1, user_scores)
+        self.assertEqual(user_scores[1]["total_points"], 10)
+        self.assertEqual(user_scores[1]["matches_played"], 1)
+        # Loser (user_id=2) should have 0 points but 1 match played
+        self.assertIn(2, user_scores)
+        self.assertEqual(user_scores[2]["total_points"], 0)
+        self.assertEqual(user_scores[2]["matches_played"], 1)
