@@ -53,6 +53,9 @@ from modules.matchmaking.model.queue_entry_model import QueueEntry  # noqa: F401
 from modules.captain.controller.captain_routes import router as captain_router
 from modules.captain.model.captain_model import Captain  # noqa: F401 — registers model
 from modules.tournament.controller.tournament_routes import router as tournament_router
+from modules.tournament.controller.tournament_registration_routes import router as tournament_registration_router
+from modules.tournament.controller.tournament_match_routes import router as tournament_match_router
+from modules.tournament.controller.leaderboard_routes import router as leaderboard_router
 from modules.tournament.model.tournament_model import Tournament  # noqa: F401 — registers model
 from modules.tournament.model.tournament_team_model import TournamentTeam  # noqa: F401 — registers model
 from modules.tournament.model.tournament_participant_model import TournamentParticipant  # noqa: F401 — registers model
@@ -164,6 +167,9 @@ app.include_router(pricing_router)
 app.include_router(engine_router)
 app.include_router(captain_router)
 app.include_router(tournament_router)
+app.include_router(tournament_registration_router)
+app.include_router(tournament_match_router)
+app.include_router(leaderboard_router)
 app.include_router(dispute_router)
 app.include_router(audit_router)
 
