@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, JSON, String
 from core.database.db_connection import Base
 
 
@@ -9,6 +9,30 @@ class TournamentStatus:
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
     ALL: frozenset[str] = frozenset({UPCOMING, ONGOING, COMPLETED, CANCELLED})
+
+
+class TournamentFormat:
+    KNOCKOUT = "KNOCKOUT"
+    ROUND_ROBIN = "ROUND_ROBIN"
+    LEAGUE = "LEAGUE"
+    ALL: frozenset[str] = frozenset({KNOCKOUT, ROUND_ROBIN, LEAGUE})
+
+
+class TournamentParticipantType:
+    INDIVIDUAL = "INDIVIDUAL"
+    TEAM = "TEAM"
+    ALL: frozenset[str] = frozenset({INDIVIDUAL, TEAM})
+
+
+RULES_JSON_DEFAULTS: dict = {
+    "win_points": 3,
+    "draw_points": 1,
+    "loss_points": 0,
+    "tiebreaker": "head_to_head",
+    "age_limit": None,
+    "skill_cap": None,
+    "global_points_per_win": 10,
+}
 
 
 class Tournament(Base):
@@ -23,6 +47,10 @@ class Tournament(Base):
     end_date = Column(Date, nullable=False)
     max_teams = Column(Integer, nullable=False, default=8)
     status = Column(String(50), nullable=False, default=TournamentStatus.UPCOMING)
+    format_type = Column(String(50), nullable=False, default=TournamentFormat.LEAGUE)
+    participant_type = Column(String(50), nullable=False, default=TournamentParticipantType.INDIVIDUAL)
+    team_size = Column(Integer, nullable=False, default=1)
+    rules_json = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -37,9 +65,13 @@ class Tournament(Base):
             "end_date": self.end_date.isoformat() if self.end_date else None,
             "max_teams": self.max_teams,
             "status": self.status,
+            "format_type": self.format_type,
+            "participant_type": self.participant_type,
+            "team_size": self.team_size,
+            "rules_json": self.rules_json or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
 
     def __repr__(self) -> str:
-        return f"<Tournament id={self.id} name={self.name} status={self.status}>"
+        return f"<Tournament id={self.id} name={self.name} format={self.format_type}>"

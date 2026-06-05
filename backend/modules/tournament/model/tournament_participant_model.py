@@ -1,0 +1,5 @@
+class ParticipantStatus:
+    REGISTERED = "REGISTERED"
+    WITHDRAWN = "WITHDRAWN"
+    DISQUALIFIED = "DISQUALIFIED"
+    ALL: frozenset[str] = frozenset({REGISTERED, WITHDRAWN, DISQUALIFIED})

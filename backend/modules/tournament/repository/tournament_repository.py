@@ -19,6 +19,10 @@ class TournamentRepository:
                 end_date=data["end_date"],
                 max_teams=data.get("max_teams", 8),
                 status=data.get("status", "UPCOMING"),
+                format_type=data.get("format_type", "LEAGUE"),
+                participant_type=data.get("participant_type", "INDIVIDUAL"),
+                team_size=data.get("team_size", 1),
+                rules_json=data.get("rules_json", {}),
             )
             session.add(t)
             session.commit()
