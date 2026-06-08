@@ -40,6 +40,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.vmsadmin.viewmodel.AuditLogViewModel
 import com.example.vmsadmin.viewmodel.BookingViewModel
+import com.example.vmsadmin.viewmodel.SocietyViewModel
 import com.example.vmsadmin.viewmodel.CaptainViewModel
 import com.example.vmsadmin.viewmodel.CartViewModel
 import com.example.vmsadmin.viewmodel.CartTypeViewModel
@@ -81,6 +82,7 @@ private val TOURNAMENT_ROLES    = setOf("tournament_manager", "super_admin", "op
 private val CSR_ROLES           = setOf("csr_partner", "super_admin")
 private val DISPUTE_ROLES       = setOf("support", "super_admin", "ops_manager")
 private val AUDIT_LOG_ROLES     = setOf("super_admin")
+private val SOCIETY_ROLES       = setOf("super_admin", "ops_manager")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +105,7 @@ fun MainScreen(
     tournamentViewModel: TournamentViewModel,
     disputeViewModel: DisputeViewModel,
     auditLogViewModel: AuditLogViewModel,
+    societyViewModel: SocietyViewModel,
     currentUserId: Int? = null,
     role: String = "",
     isDebugMode: Boolean = false,
@@ -276,6 +279,7 @@ fun MainScreen(
                             onNavigateToTournaments  = { navController.navigate("manage/tournaments") },
                             onNavigateToDisputes     = { navController.navigate("manage/disputes") },
                             onNavigateToAuditLog     = { navController.navigate("manage/audit-logs") },
+                            onNavigateToSocieties    = { navController.navigate("manage/societies") },
                             role = role
                         )
                     }
@@ -367,6 +371,14 @@ fun MainScreen(
                     if (role !in AUDIT_LOG_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
                     else AuditLogScreen(
                         viewModel = auditLogViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("manage/societies") {
+                    if (role !in SOCIETY_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else SocietiesScreen(
+                        viewModel = societyViewModel,
+                        currentUserRole = role,
                         onBack = { navController.popBackStack() }
                     )
                 }

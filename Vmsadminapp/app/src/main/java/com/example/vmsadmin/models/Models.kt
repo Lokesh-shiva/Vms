@@ -500,3 +500,37 @@ data class AuditLogEntry(
     val details: String? = null,
     val created_at: String? = null
 )
+
+// --- Society Models ---
+
+@Serializable
+data class Society(
+    val id: Int,
+    val name: String,
+    val description: String? = null,
+    val owner_user_id: Int,
+    val region_id: Int,
+    val sport_id: Int,
+    val is_public: Boolean = true,
+    val max_members: Int = 50,
+    val is_active: Boolean = true,
+    val created_at: String? = null,
+    val updated_at: String? = null
+)
+
+@Serializable
+data class SocietyMember(
+    val id: Int,
+    val society_id: Int,
+    val user_id: Int,
+    val role: String,
+    val joined_at: String? = null
+)
+
+@Serializable
+data class SocietyLeaderboardEntry(
+    val user_id: Int,
+    val society_member_role: String,
+    val total_points: Int = 0,
+    val matches_played: Int = 0
+)

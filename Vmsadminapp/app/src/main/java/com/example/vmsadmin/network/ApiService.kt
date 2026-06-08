@@ -48,6 +48,9 @@ import com.example.vmsadmin.models.Dispute
 import com.example.vmsadmin.models.CreateDisputeRequest
 import com.example.vmsadmin.models.UpdateDisputeRequest
 import com.example.vmsadmin.models.AuditLogEntry
+import com.example.vmsadmin.models.Society
+import com.example.vmsadmin.models.SocietyMember
+import com.example.vmsadmin.models.SocietyLeaderboardEntry
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -324,4 +327,20 @@ interface ApiService {
     // ── Audit Log endpoints ────────────────────────────────────────────
     @GET("audit-logs")
     suspend fun getAuditLogs(): ApiResponse<List<AuditLogEntry>>
+
+    // ── Society endpoints ──────────────────────────────────────────────
+    @GET("/api/v1/societies")
+    suspend fun getSocieties(): ApiResponse<List<Society>>
+
+    @DELETE("/api/v1/societies/{id}")
+    suspend fun deleteSociety(@Path("id") id: Int): ApiResponse<JsonElement>
+
+    @POST("/api/v1/societies/{id}/deactivate")
+    suspend fun deactivateSociety(@Path("id") id: Int): ApiResponse<Society>
+
+    @GET("/api/v1/societies/{id}/members")
+    suspend fun getSocietyMembers(@Path("id") id: Int): ApiResponse<List<SocietyMember>>
+
+    @GET("/api/v1/societies/{id}/leaderboard")
+    suspend fun getSocietyLeaderboard(@Path("id") id: Int): ApiResponse<List<SocietyLeaderboardEntry>>
 }

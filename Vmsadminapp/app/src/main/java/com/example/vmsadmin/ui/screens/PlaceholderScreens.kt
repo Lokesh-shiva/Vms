@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Star
@@ -38,6 +39,7 @@ fun ManageScreen(
     onNavigateToTournaments: () -> Unit = {},
     onNavigateToDisputes: () -> Unit = {},
     onNavigateToAuditLog: () -> Unit = {},
+    onNavigateToSocieties: () -> Unit = {},
     role: String = ""
 ) {
     val isOpsOrAbove = role == "super_admin" || role == "ops_manager"
@@ -76,6 +78,7 @@ fun ManageScreen(
             item { ManageCard("Grounds", "Sports grounds and facilities", Icons.Outlined.LocationOn, onNavigateToGrounds) }
             item { ManageCard("Matches", "Scheduled and past matches", Icons.Outlined.DateRange, onNavigateToMatches) }
             item { ManageCard("Tournaments", "Tournament scheduling and status", Icons.Outlined.Star, onNavigateToTournaments) }
+            item { ManageCard("Societies", "Player groups and community clubs", Icons.Outlined.People, onNavigateToSocieties) }
             item { ManageCard("Disputes", "Support tickets and dispute resolution", Icons.Outlined.Flag, onNavigateToDisputes) }
 
             // ── Admin ──────────────────────────────────────────────────
