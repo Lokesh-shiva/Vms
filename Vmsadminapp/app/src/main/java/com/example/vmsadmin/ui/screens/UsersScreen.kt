@@ -173,7 +173,8 @@ fun UsersScreen(
                                                 isPending = pendingIds.contains(user.id),
                                                 assignableRoles = assignableRoles,
                                                 onChangeRole = { newRole -> viewModel.changeRole(user.id, newRole) },
-                                                onToggleActive = { viewModel.toggleActive(user.id, user.is_active) }
+                                                onToggleActive = { viewModel.toggleActive(user.id, user.is_active) },
+                                                onToggleSocietyPermission = { viewModel.toggleSocietyPermission(user.id, user.can_create_society) }
                                             )
                                         }
                                     }
@@ -186,7 +187,8 @@ fun UsersScreen(
                                         isPending = pendingIds.contains(user.id),
                                         assignableRoles = assignableRoles,
                                         onChangeRole = { newRole -> viewModel.changeRole(user.id, newRole) },
-                                        onToggleActive = { viewModel.toggleActive(user.id, user.is_active) }
+                                        onToggleActive = { viewModel.toggleActive(user.id, user.is_active) },
+                                        onToggleSocietyPermission = { viewModel.toggleSocietyPermission(user.id, user.can_create_society) }
                                     )
                                 }
                             }
@@ -261,7 +263,8 @@ private fun UserRow(
     isPending: Boolean,
     assignableRoles: List<String>,
     onChangeRole: (String) -> Unit,
-    onToggleActive: () -> Unit
+    onToggleActive: () -> Unit,
+    onToggleSocietyPermission: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showRoleDialog by remember { mutableStateOf(false) }
@@ -356,6 +359,17 @@ private fun UserRow(
                                 onClick = {
                                     showMenu = false
                                     onToggleActive()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        if (user.can_create_society) "Revoke Society Creation" else "Grant Society Creation"
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    onToggleSocietyPermission()
                                 }
                             )
                         }

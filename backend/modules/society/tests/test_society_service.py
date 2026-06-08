@@ -202,6 +202,48 @@ class TestSocietyService(unittest.TestCase):
             self.service.delete(society["id"], requester_role="ops_manager")
         self.assertIn("Permission denied", str(ctx.exception))
 
+    # ------------------------------------------------------------------
+    # permission gate
+    # ------------------------------------------------------------------
+
+    def test_create_without_permission_raises(self) -> None:
+        """Regular user without flag cannot create."""
+        with self.assertRaises(ValueError) as ctx:
+            self.service.create(
+                {"name": "Blocked Society", "region_id": 1, "sport_id": 1},
+                owner_user_id=5,
+                requester_role="user",
+                can_create_society=False,
+            )
+        self.assertIn("permission", str(ctx.exception).lower())
+
+    def test_create_with_permission_succeeds(self) -> None:
+        """Regular user WITH flag can create."""
+        result = self.service.create(
+            {"name": "Permitted Society", "region_id": 1, "sport_id": 1},
+            owner_user_id=5,
+            requester_role="user",
+            can_create_society=True,
+        )
+        self.assertEqual(result["name"], "Permitted Society")
+
+    def test_create_second_society_raises(self) -> None:
+        """User with flag cannot own more than 1 society."""
+        self.service.create(
+            {"name": "First Society", "region_id": 1, "sport_id": 1},
+            owner_user_id=5,
+            requester_role="user",
+            can_create_society=True,
+        )
+        with self.assertRaises(ValueError) as ctx:
+            self.service.create(
+                {"name": "Second Society", "region_id": 1, "sport_id": 1},
+                owner_user_id=5,
+                requester_role="user",
+                can_create_society=True,
+            )
+        self.assertIn("already own", str(ctx.exception).lower())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1996,3 +1996,51 @@ No backend changes this session — tournament endpoints expected at `/api/v1/to
 - SKIP LOCKED used on both `find_available_captain` and `find_and_lock_compatible_pair` — prevents double-assignment under concurrent engine runs.
 - 503 status code chosen for "no captain available" so mobile client can display a retry prompt vs. a 400 user-error.
 - `CAPTAIN_FALLBACK_WAIT_MINUTES` is admin-editable at runtime via the system_configs table — no redeploy needed to tune the window.
+---
+## [2026-06-08] Phase 02 — Society creation permission gate
+
+### Backend
+**Added:**
+- `users.can_create_society BOOLEAN NOT NULL DEFAULT FALSE` column on `User` model and `to_dict()`
+- `UpdateUserSchema.is_valid()` — validates `can_create_society` boolean field
+- `CreateSocietySchema.owner_user_id: int | None` — allows admin to specify owner on creation
+- `SocietyRepository.count_by_owner(owner_user_id)` — counts societies owned by a user (read-only, no rollback)
+- `_ADMIN_BYPASS_ROLES` frozenset in `society_service.py` — SUPER_ADMIN + OPS_MANAGER skip the gate
+- Permission gate in `SocietyService.create()` — non-admins need `can_create_society=True` and must not already own a society (1-per-user limit)
+- Migration 11: `ALTER TABLE users ADD COLUMN IF NOT EXISTS can_create_society BOOLEAN NOT NULL DEFAULT FALSE` in `run_migrations.py` and in `main.py` lifespan
+- 3 new unit tests: `test_create_without_permission_raises`, `test_create_with_permission_succeeds`, `test_create_second_society_raises`
+
+**Modified:**
+- `user_model.py` — new column + docstring
+- `user_schema.py` — `UpdateUserSchema` validates `can_create_society`
+- `society_schema.py` — `CreateSocietySchema` adds optional `owner_user_id`
+- `society_repository.py` — `count_by_owner` method added
+- `society_service.py` — `create()` signature extended with `requester_role` and `can_create_society` (defaults keep all existing tests green)
+- `society_routes.py` — POST `/` reads `can_create_society` from DB for non-admins; resolves effective owner; imports `User`, `get_db`, `Session`
+- `run_migrations.py` — migration 11 appended
+- `main.py` — idempotent `can_create_society` ALTER in lifespan
+
+### App
+**Added:**
+- `CreateSocietyRequest` data class in `Models.kt`
+- `ApiService.createSociety(request)` — POST `/api/v1/societies`
+- `SocietyRepository.createSociety(request)` — delegates to API, throws on failure
+- `SocietyViewModel.createSociety(request)` — sets `isCreating`, refreshes list on success
+- `CreateSocietyDialog` composable in `SocietiesScreen.kt` — form with name, description, region/sport IDs, max members, public toggle, optional owner user ID
+- FAB (+ icon) on `SocietiesScreen` opens the dialog
+
+**Modified:**
+- `AppUser` — added `can_create_society: Boolean = false`
+- `UpdateUserRequest` — added `can_create_society: Boolean? = null`
+- `SocietyUiState` — added `isCreating: Boolean = false`
+- `SocietiesScreen` empty state text changed to "Tap + to create a society"
+- `UserRow` in `UsersScreen` — new `onToggleSocietyPermission` parameter; DropdownMenu item "Grant/Revoke Society Creation"
+- Both `UserRow` call sites updated with `onToggleSocietyPermission` lambda
+- `UserManagementRepository.setSocietyPermission()` — calls `updateUser` with `can_create_society`
+- `UserManagementViewModel.toggleSocietyPermission()` — self-mutation guard, updates state in-place
+
+### Architectural decisions
+- Default parameter values on `SocietyService.create()` (`requester_role=SUPER_ADMIN`, `can_create_society=True`) preserve all 35 existing tests without modification.
+- Route reads `User.can_create_society` directly from DB via `get_db` session — not from JWT — so permission changes take effect on the next request with no token refresh needed.
+- 1-per-user society limit enforced at service layer via `count_by_owner`; checked only for non-admin roles.
+- HTTP 403 returned when "permission" appears in the ValueError message; 400 for all other validation errors.

@@ -142,6 +142,12 @@ cur.execute("""
     );
 """)
 
+print("Running migration 11: add can_create_society to users ...")
+cur.execute("""
+    ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS can_create_society BOOLEAN NOT NULL DEFAULT FALSE;
+""")
+
 conn.commit()
 cur.close()
 conn.close()

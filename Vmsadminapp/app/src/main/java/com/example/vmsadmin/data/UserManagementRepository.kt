@@ -67,6 +67,16 @@ class UserManagementRepository(private val apiService: ApiService) {
         }
     }
 
+    suspend fun setSocietyPermission(id: Int, allowed: Boolean): AppUser {
+        try {
+            val response = apiService.updateUser(id, UpdateUserRequest(can_create_society = allowed))
+            if (response.success && response.data != null) return response.data
+            throw Exception(response.message ?: "Failed to update society permission")
+        } catch (e: HttpException) {
+            throw Exception(parseErrorDetail(e) ?: "Failed to update society permission")
+        }
+    }
+
     private fun parseErrorDetail(e: HttpException): String? {
         return try {
             val errorBody = e.response()?.errorBody()?.string() ?: return null

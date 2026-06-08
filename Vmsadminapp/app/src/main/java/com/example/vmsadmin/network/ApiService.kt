@@ -51,6 +51,7 @@ import com.example.vmsadmin.models.AuditLogEntry
 import com.example.vmsadmin.models.Society
 import com.example.vmsadmin.models.SocietyMember
 import com.example.vmsadmin.models.SocietyLeaderboardEntry
+import com.example.vmsadmin.models.CreateSocietyRequest
 import kotlinx.serialization.json.JsonElement
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -331,6 +332,9 @@ interface ApiService {
     // ── Society endpoints ──────────────────────────────────────────────
     @GET("/api/v1/societies")
     suspend fun getSocieties(): ApiResponse<List<Society>>
+
+    @POST("/api/v1/societies")
+    suspend fun createSociety(@Body request: CreateSocietyRequest): ApiResponse<Society>
 
     @DELETE("/api/v1/societies/{id}")
     suspend fun deleteSociety(@Path("id") id: Int): ApiResponse<JsonElement>

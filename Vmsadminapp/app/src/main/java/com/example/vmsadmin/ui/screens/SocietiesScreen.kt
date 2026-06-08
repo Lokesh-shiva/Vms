@@ -6,8 +6,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material3.*
@@ -17,7 +19,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.vmsadmin.models.CreateSocietyRequest
 import com.example.vmsadmin.models.Society
 import com.example.vmsadmin.models.SocietyLeaderboardEntry
 import com.example.vmsadmin.models.SocietyMember
@@ -35,6 +39,7 @@ fun SocietiesScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showCreateDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
@@ -57,6 +62,17 @@ fun SocietiesScreen(
         }
     }
 
+    if (showCreateDialog) {
+        CreateSocietyDialog(
+            isCreating = uiState.isCreating,
+            onConfirm = { request ->
+                viewModel.createSociety(request)
+                showCreateDialog = false
+            },
+            onDismiss = { showCreateDialog = false }
+        )
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
@@ -71,6 +87,11 @@ fun SocietiesScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showCreateDialog = true }) {
+                Icon(Icons.Outlined.Add, contentDescription = "Create Society")
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
@@ -465,7 +486,7 @@ private fun EmptySocieties(modifier: Modifier = Modifier) {
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "Societies are created by users",
+                "Tap + to create a society",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
@@ -482,4 +503,106 @@ private fun SocietyErrorState(message: String, onRetry: () -> Unit, modifier: Mo
             Button(onClick = onRetry) { Text("Retry") }
         }
     }
+}
+
+@Composable
+private fun CreateSocietyDialog(
+    isCreating: Boolean,
+    onConfirm: (CreateSocietyRequest) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var regionId by remember { mutableStateOf("") }
+    var sportId by remember { mutableStateOf("") }
+    var maxMembers by remember { mutableStateOf("50") }
+    var isPublic by remember { mutableStateOf(true) }
+    var ownerUserId by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Create Society") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = regionId,
+                    onValueChange = { regionId = it },
+                    label = { Text("Region ID") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value = sportId,
+                    onValueChange = { sportId = it },
+                    label = { Text("Sport ID") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value = maxMembers,
+                    onValueChange = { maxMembers = it },
+                    label = { Text("Max members") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value = ownerUserId,
+                    onValueChange = { ownerUserId = it },
+                    label = { Text("Owner User ID (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("Public society", style = MaterialTheme.typography.bodyMedium)
+                    Switch(checked = isPublic, onCheckedChange = { isPublic = it })
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onConfirm(
+                        CreateSocietyRequest(
+                            name = name.trim(),
+                            description = description.trim().ifBlank { null },
+                            region_id = regionId.toIntOrNull() ?: 0,
+                            sport_id = sportId.toIntOrNull() ?: 0,
+                            max_members = maxMembers.toIntOrNull() ?: 50,
+                            is_public = isPublic,
+                            owner_user_id = ownerUserId.toIntOrNull()
+                        )
+                    )
+                },
+                enabled = name.isNotBlank() && regionId.isNotBlank() && sportId.isNotBlank() && !isCreating
+            ) {
+                if (isCreating) CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                else Text("Create")
+            }
+        },
+        dismissButton = {
+            OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }

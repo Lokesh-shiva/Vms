@@ -93,5 +93,13 @@ class SocietyRepository:
         finally:
             session.close()
 
+    def count_by_owner(self, owner_user_id: int) -> int:
+        """Return the number of societies owned by this user."""
+        session = self._session_factory()
+        try:
+            return session.query(Society).filter(Society.owner_user_id == owner_user_id).count()
+        finally:
+            session.close()
+
 
 society_repository = SocietyRepository()

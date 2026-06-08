@@ -88,6 +88,9 @@ async def lifespan(app: FastAPI):
         )
         # Idempotent migration: rename legacy 'admin' role to 'super_admin'
         conn.execute(text("UPDATE users SET role = 'super_admin' WHERE role = 'admin'"))
+        conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS can_create_society BOOLEAN NOT NULL DEFAULT FALSE")
+        )
         conn.commit()
     yield
 

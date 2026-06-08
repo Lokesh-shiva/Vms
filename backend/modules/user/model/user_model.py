@@ -30,6 +30,9 @@ class User(Base):
         password_hash (str): Bcrypt hash — never exposed via to_dict().
         role (str): One of the UserRole values (e.g. 'user', 'super_admin').
         is_active (bool): Whether the account is active.
+        region_id (int | None): Optional region assignment.
+        ghost_strikes (int): Counter for ghost/no-show incidents.
+        can_create_society (bool): Whether the user is allowed to create a society.
         created_at (datetime): Timestamp of account creation (immutable).
         updated_at (datetime): Timestamp of last update.
     """
@@ -44,6 +47,7 @@ class User(Base):
     is_active = Column(Boolean, nullable=False, default=True)
     region_id = Column(Integer, nullable=True)
     ghost_strikes = Column(Integer, nullable=False, default=0)
+    can_create_society = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -59,6 +63,7 @@ class User(Base):
             "is_active": self.is_active,
             "region_id": self.region_id,
             "ghost_strikes": self.ghost_strikes,
+            "can_create_society": self.can_create_society,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

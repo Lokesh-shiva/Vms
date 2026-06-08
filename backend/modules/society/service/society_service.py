@@ -9,6 +9,11 @@ from modules.society.repository.society_repository import (
 )
 from modules.user.model.user_model import UserRole
 
+_ADMIN_BYPASS_ROLES: frozenset[str] = frozenset({
+    UserRole.SUPER_ADMIN.value,
+    UserRole.OPS_MANAGER.value,
+})
+
 
 class SocietyService:
     def __init__(
@@ -21,20 +26,31 @@ class SocietyService:
             member_repository or society_member_repository
         )
 
-    def create(self, data: dict, owner_user_id: int) -> dict:
-        name: str = data.get("name", "")
-        if not isinstance(name, str) or not name.strip():
-            raise ValueError("Society name must be a non-empty string.")
-
-        if data.get("region_id") is None:
+    def create(
+        self,
+        data: dict,
+        owner_user_id: int,
+        requester_role: str = UserRole.SUPER_ADMIN.value,
+        can_create_society: bool = True,
+    ) -> dict:
+        # Validate required fields
+        if not data.get("name", "").strip():
+            raise ValueError("Society name is required.")
+        if not data.get("region_id"):
             raise ValueError("region_id is required.")
-
-        if data.get("sport_id") is None:
+        if not data.get("sport_id"):
             raise ValueError("sport_id is required.")
+
+        # Gate: non-admins must have the flag and not already own a society
+        if requester_role not in _ADMIN_BYPASS_ROLES:
+            if not can_create_society:
+                raise ValueError("You don't have permission to create a society. Contact an admin.")
+            if self.repository.count_by_owner(owner_user_id) >= 1:
+                raise ValueError("You already own a society. Only one society per user is allowed.")
 
         payload = dict(data)
         payload["owner_user_id"] = owner_user_id
-        payload["name"] = name.strip()
+        payload["name"] = data["name"].strip()
 
         society: dict = self.repository.create(payload)
         self.member_repository.add_member(

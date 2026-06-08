@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.SocietyRepository
+import com.example.vmsadmin.models.CreateSocietyRequest
 import com.example.vmsadmin.models.Society
 import com.example.vmsadmin.models.SocietyLeaderboardEntry
 import com.example.vmsadmin.models.SocietyMember
@@ -18,6 +19,7 @@ data class SocietyUiState(
     val isRefreshing: Boolean = false,
     val error: String? = null,
     val actionInProgressIds: Set<Int> = emptySet(),
+    val isCreating: Boolean = false,
     // Detail panel state
     val selectedSociety: Society? = null,
     val members: List<SocietyMember> = emptyList(),
@@ -122,6 +124,21 @@ class SocietyViewModel(private val repository: SocietyRepository) : ViewModel() 
         _uiState.value = _uiState.value.copy(
             selectedSociety = null, members = emptyList(), leaderboard = emptyList()
         )
+    }
+
+    fun createSociety(request: CreateSocietyRequest) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCreating = true, error = null)
+            try {
+                repository.createSociety(request)
+                val updated = repository.getSocieties()
+                _uiState.value = _uiState.value.copy(societies = updated, isCreating = false)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isCreating = false, error = e.message ?: "Failed to create society"
+                )
+            }
+        }
     }
 
     fun clearError() {

@@ -137,6 +137,22 @@ class UserManagementViewModel(
             }
         }
     }
+
+    fun toggleSocietyPermission(id: Int, currentAllowed: Boolean) {
+        if (id == currentUserId) return
+        viewModelScope.launch {
+            _pendingIds.value = _pendingIds.value + id
+            try {
+                val updated = repository.setSocietyPermission(id, !currentAllowed)
+                val current = (_state.value as? UserManagementState.Success)?.users ?: return@launch
+                _state.value = UserManagementState.Success(current.map { if (it.id == id) updated else it })
+            } catch (e: Exception) {
+                _state.value = UserManagementState.Error(e.message ?: "Failed to update society permission")
+            } finally {
+                _pendingIds.value = _pendingIds.value - id
+            }
+        }
+    }
 }
 
 class UserManagementViewModelFactory(

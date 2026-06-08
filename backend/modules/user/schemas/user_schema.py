@@ -116,4 +116,11 @@ class UpdateUserSchema:
             else:
                 self.validated_data["region_id"] = region_id
 
+        if "can_create_society" in self._data:
+            val = self._data["can_create_society"]
+            if not isinstance(val, bool):
+                self.errors.append("'can_create_society' must be a boolean.")
+            else:
+                self.validated_data["can_create_society"] = val
+
         return len(self.errors) == 0

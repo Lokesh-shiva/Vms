@@ -1,5 +1,6 @@
 package com.example.vmsadmin.data
 
+import com.example.vmsadmin.models.CreateSocietyRequest
 import com.example.vmsadmin.models.Society
 import com.example.vmsadmin.models.SocietyLeaderboardEntry
 import com.example.vmsadmin.models.SocietyMember
@@ -34,5 +35,11 @@ class SocietyRepository(private val apiService: ApiService) {
         val response = apiService.getSocietyLeaderboard(id)
         if (response.success && response.data != null) return response.data
         throw Exception(response.message ?: "Failed to fetch leaderboard")
+    }
+
+    suspend fun createSociety(request: CreateSocietyRequest): Society {
+        val response = apiService.createSociety(request)
+        if (response.success && response.data != null) return response.data
+        throw Exception(response.message ?: "Failed to create society")
     }
 }

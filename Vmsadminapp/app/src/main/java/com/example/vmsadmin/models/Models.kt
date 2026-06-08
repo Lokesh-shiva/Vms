@@ -32,6 +32,7 @@ data class AppUser(
     val is_active: Boolean,
     val region_id: Int? = null,
     val ghost_strikes: Int = 0,
+    val can_create_society: Boolean = false,
     val created_at: String? = null,
     val updated_at: String? = null
 )
@@ -39,7 +40,8 @@ data class AppUser(
 @Serializable
 data class UpdateUserRequest(
     val role: String? = null,
-    val is_active: Boolean? = null
+    val is_active: Boolean? = null,
+    val can_create_society: Boolean? = null,
 )
 
 @Serializable
@@ -533,4 +535,15 @@ data class SocietyLeaderboardEntry(
     val society_member_role: String,
     val total_points: Int = 0,
     val matches_played: Int = 0
+)
+
+@Serializable
+data class CreateSocietyRequest(
+    val name: String,
+    val description: String? = null,
+    val region_id: Int,
+    val sport_id: Int,
+    val is_public: Boolean = true,
+    val max_members: Int = 50,
+    val owner_user_id: Int? = null
 )

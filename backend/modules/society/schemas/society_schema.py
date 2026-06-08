@@ -8,6 +8,7 @@ class CreateSocietySchema(BaseModel):
     sport_id: int
     is_public: bool = True
     max_members: int = Field(default=50, ge=2, le=500)
+    owner_user_id: int | None = None
 
 
 class UpdateSocietySchema(BaseModel):

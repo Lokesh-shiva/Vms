@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 from modules.auth.dependencies.auth_dependencies import require_role, require_user
-from modules.user.model.user_model import UserRole
+from modules.user.model.user_model import User, UserRole
 from modules.society.service.society_service import society_service
 from modules.society.service.society_member_service import society_member_service
 from modules.society.service.society_tournament_service import society_tournament_service
 from modules.society.schemas.society_schema import CreateSocietySchema, UpdateSocietySchema
+from core.database.db_connection import get_db
 
 router = APIRouter(prefix="/api/v1/societies", tags=["Societies"])
+
+_ADMIN_BYPASS = frozenset({UserRole.SUPER_ADMIN.value, UserRole.OPS_MANAGER.value})
 
 
 def _success(data, message: str = "Success") -> dict:
@@ -17,12 +21,36 @@ def _success(data, message: str = "Success") -> dict:
 def create_society(
     body: CreateSocietySchema,
     current_user: dict = Depends(require_user),
+    db: Session = Depends(get_db),
 ):
+    requester_role = current_user["role"]
+    can_create = False
+
+    if requester_role in _ADMIN_BYPASS:
+        can_create = True
+    else:
+        user_row = db.query(User).filter(User.id == current_user["id"]).first()
+        can_create = bool(user_row and user_row.can_create_society)
+
+    # Admin can optionally specify a different owner; regular users always own their own society
+    data = body.model_dump()
+    if requester_role in _ADMIN_BYPASS and data.get("owner_user_id"):
+        effective_owner = data.pop("owner_user_id")
+    else:
+        data.pop("owner_user_id", None)
+        effective_owner = current_user["id"]
+
     try:
-        result = society_service.create(body.model_dump(), owner_user_id=current_user["id"])
+        result = society_service.create(
+            data,
+            owner_user_id=effective_owner,
+            requester_role=requester_role,
+            can_create_society=can_create,
+        )
         return _success(result, "Society created.")
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        code = 403 if "permission" in str(e).lower() else 400
+        raise HTTPException(status_code=code, detail=str(e))
 
 
 @router.get("/")
