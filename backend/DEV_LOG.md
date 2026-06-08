@@ -1,6 +1,50 @@
 # Development Log
 
 ---
+## [2026-06-08] Phase 02 — Societies / Groups Module
+
+### Backend
+**Added:**
+- `Society` model + `societies` table: name, description, owner_user_id (FK→users), region_id (FK→locations), sport_id (FK→sports), is_public, max_members (default 50), is_active, timestamps
+- `SocietyMember` model + `society_members` table: society_id, user_id, role (OWNER/MEMBER), joined_at; UNIQUE(society_id, user_id)
+- `SocietyRole` class (plain class pattern: OWNER, MEMBER, ALL)
+- `SocietyRepository`: create, find_by_id, find_all (with region/sport/active filters), update, delete
+- `SocietyMemberRepository`: add_member, find_member, get_members, remove_member, update_role, count_members
+- `SocietyService`: create (auto-adds owner as OWNER member), get_by_id, list, update (owner/SUPER_ADMIN/OPS_MANAGER), deactivate (SUPER_ADMIN/OPS_MANAGER), delete (SUPER_ADMIN only)
+- `SocietyMemberService`: join (capacity + public check), leave (owner guard), kick (owner or SUPER_ADMIN), transfer_ownership, get_members, get_leaderboard (reuses PlayerScore filtered by society region+sport)
+- `SocietyTournamentService`: register_as_team — validates owner + active society + all member_ids in society, delegates to TournamentService.register()
+- `CreateSocietySchema` / `UpdateSocietySchema` (Pydantic v2)
+- 13 routes under `/api/v1/societies`: CRUD, join/leave/kick, transfer-owner, leaderboard, tournament-register
+- `main.py`: Society + SocietyMember model imports (table auto-creation), society_router registered
+
+**Files added:**
+- `backend/modules/society/__init__.py`
+- `backend/modules/society/model/society_model.py`
+- `backend/modules/society/model/society_member_model.py`
+- `backend/modules/society/repository/society_repository.py`
+- `backend/modules/society/repository/society_member_repository.py`
+- `backend/modules/society/service/society_service.py`
+- `backend/modules/society/service/society_member_service.py`
+- `backend/modules/society/service/society_tournament_service.py`
+- `backend/modules/society/schemas/society_schema.py`
+- `backend/modules/society/controller/society_routes.py`
+- `backend/modules/society/tests/test_society_service.py` (16 tests)
+- `backend/modules/society/tests/test_society_member_service.py` (15 tests)
+- `backend/modules/society/tests/test_society_tournament_service.py` (4 tests)
+
+**Files modified:**
+- `backend/main.py` — added Society/SocietyMember imports + society_router
+
+**Architectural decisions:**
+- Leaderboard reuses `PlayerScore` (global tournament scores) filtered by society's region_id + sport_id — no new points table needed.
+- Private societies (is_public=False): creation is supported; join is blocked with clear error. Invite flow deferred to v2.
+- `SocietyTournamentService` is a thin adapter — it validates society-level preconditions then delegates to existing `TournamentService.register()`. No duplication of tournament registration logic.
+- Owner cannot leave without transferring ownership first — prevents ownerless societies.
+- Structural fields (owner_user_id, region_id, sport_id) are immutable after creation — SocietyRepository.update() blocks them. Ownership transfer updates only member roles (owner_user_id column update deferred to v2).
+- SUPER_ADMIN-only hard delete; OPS_MANAGER can deactivate (soft) only.
+- 35 tests, all passing.
+
+---
 ## [2026-06-05] Phase 02 — Dynamic Tournament & League System
 
 ### Backend
