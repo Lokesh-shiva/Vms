@@ -1,6 +1,58 @@
 # Development Log
 
 ---
+## [2026-06-15] Phase 03b — Plixo User App migrated to Vmsuserapp
+
+### App (Vmsuserapp — existing project)
+**Modified:**
+- Migrated all 65 Plixo Kotlin source files from `PlixoApp/` into `Vmsuserapp/` (package `com.example.vmsuser`)
+- Added Firebase BOM + Auth + Messaging deps to `Vmsuserapp/app/build.gradle.kts`
+- Added `google-services` plugin to root and app `build.gradle.kts`
+- Added `firebase-bom`, `firebase-auth`, `firebase-messaging` to `gradle/libs.versions.toml`
+- Enabled `buildConfig = true` + `BASE_URL` buildConfigField
+- Raised `minSdk` from 24 → 26 (required by Plixo screens)
+- Copied 7 flat TTF font files to `res/font/` (Bricolage Grotesque + Plus Jakarta Sans static variants)
+- Updated `AndroidManifest.xml`: `android:name=".PlixoApp"`, `POST_NOTIFICATIONS` permission, FCM service
+- Updated `strings.xml`: app_name → "Plixo"
+- Deleted 29 old VMS-era files (old screens, old repositories, old network layer)
+- `PlixoApp/` directory retained but no longer the active project
+
+**Architectural decisions:**
+- Kept existing `Vmsuserapp/` Gradle infrastructure (AGP 9.1.0, Kotlin 2.2.10, compileSdk 36)
+- Package stays `com.example.vmsuser` (matches existing Firebase app registration in project "Memory")
+
+---
+## [2026-06-15] Phase 03 — Plixo User App (Android)
+
+### App (PlixoApp — initial scaffold, superseded by Phase 03b)
+**Added:**
+- Complete new Android project at `PlixoApp/` (package `com.plixo.app`, minSdk 26, Compose BOM 2024.09.00)
+- Design system: `Color.kt` (all tokens — Primary #7C5CFF, Lime #D9F26B, Ink #16151F, 6 block colors, 10 sport colors), `Typography.kt` (Bricolage Grotesque display / Plus Jakarta Sans body), `Shape.kt`, `Theme.kt`
+- All 29 navigation routes in `Screen.kt` sealed class; `AppNavigation.kt` NavHost + Scaffold with floating pill BottomNav
+- `BottomNav.kt` — ink bg, lime active indicator, dynamic Captain tab
+- Network layer: `ApiService.kt` (22 Retrofit endpoints), `RetrofitClient.kt` (OkHttp auth interceptor), `AuthTokenManager.kt` (DataStore JWT), `UserSession.kt` (StateFlow singleton), `SseClient.kt` (OkHttp SSE callbackFlow), `PlixoMessagingService.kt`
+- 16 data model classes in `Models.kt` (User, Match, Tournament, Society, ChatThread, etc.)
+- Auth screens: `SplashScreen` (animated, ink bg, lime zap), `PhoneInputScreen` (Unsplash hero, +91 prefix), `OtpScreen` (6-box BasicTextField), `ProfileSetupScreen` (2-step, sport chip multi-select)
+- `HomeScreen` — location picker, 240dp hero card, stat blocks, coins strip, quick tiles, tournament card, courts grid
+- Play flow: `PlayScreen` (sport chips, skill level, mini stats), `QueueTrackerScreen` (radar animation, 7.5s demo navigate), `ActiveMatchScreen` (photo hero, location/captain/player cards, GPS check-in), `OpenMatchesScreen`
+- Tournaments: `TournamentsScreen` (filter tabs, photo cards), `TournamentDetailScreen` (progress bar, register CTA)
+- Chat: `ChatListScreen` (threads + unread badge), `ChatThreadScreen` (message bubbles, BasicTextField input)
+- Social: `SocietiesScreen` (sport-colored avatars, join state), `SocietyDetailScreen` (dark header, AvatarStack), `CreateSocietyScreen` (gated by `canCreateSociety`)
+- Profile: `ProfileScreen` (ink header, stat row, captain promo), `EditProfileScreen`, `SettingsScreen` (sign-out, delete account), `WalletScreen` (balance card, transactions), `NotificationsScreen`
+- Captain mode: `CaptainDashboardScreen` (ink bg, 4-stat grid, 3 tabs), `CaptainMatchDetailScreen` (player check-in switches), `CaptainEarningsScreen`
+- KYC/Captain funnel: `BecomeACaptainScreen`, `CaptainApplicationScreen` (3-step form), `KycIntroScreen`, `KycUploadScreen`, `KycSubmittedScreen` (lime check, pending badge), `KycStatusScreen` (timeline)
+- ViewModels + Repositories: Auth, Play, Tournaments, Social, Chat, Profile, Captain
+- `gradle/libs.versions.toml` version catalog; `app/build.gradle.kts` with Firebase, Coil, DataStore, SSE, kotlinx-serialization
+
+**Architectural decisions:**
+- Manual DI (no Hilt) — consistent with admin app pattern
+- All screens use mock/hardcoded data fallback when API unavailable (backend gaps B1–B4 still to be built)
+- SSE client: OkHttp callbackFlow pattern; demo auto-navigates after 7.5s (replace with real SSE when B2 is built)
+- Firebase Auth: `firebase-verify` backend endpoint (B1) not yet built — OTP screen navigates directly in demo mode
+- Fonts (Bricolage Grotesque, Plus Jakarta Sans) must be added to `res/font/` manually by developer
+- `google-services.json` must be added manually (Firebase console)
+
+---
 ## [2026-06-08] Phase 02 — Societies / Groups Module
 
 ### Backend
@@ -2044,3 +2096,38 @@ No backend changes this session — tournament endpoints expected at `/api/v1/to
 - Route reads `User.can_create_society` directly from DB via `get_db` session — not from JWT — so permission changes take effect on the next request with no token refresh needed.
 - 1-per-user society limit enforced at service layer via `count_by_owner`; checked only for non-admin roles.
 - HTTP 403 returned when "permission" appears in the ValueError message; 400 for all other validation errors.
+
+---
+## [2026-06-15] Phase 02 — Pixel-perfect UI pass (JSX to Compose)
+
+### Added
+- docs/plan-ui-pixel-perfect.md — screen-by-screen implementation plan
+
+### Modified (App)
+- ui/components/StatCard.kt — icon param, suffix param, icon in 38dp rounded box, value+suffix AnnotatedString, 0.72 alpha label
+- ui/components/Avatar.kt — added onClick param to PlixoAvatar
+- ui/screens/home/HomeScreen.kt — hero 360dp, frosted badges, 38sp title, stat blocks with icons, coins on white surface, quick tiles with sub-labels, Up next 188dp tournament card, ground cards photo+text layout, Captain CTA
+- ui/screens/play/PlayScreen.kt — 2-col sport photo grid (92dp), skill 3-buttons, 3 stat mini-cards, price in CTA label
+- ui/screens/tournaments/TournamentsScreen.kt — Browse/Vote/My cups tab switcher, prize hero card, tournament card 128dp photo+progress bar, Vote tab with percentage bars, Host CTA
+- ui/screens/profile/ProfileScreen.kt — XP bar, stats row, Stats/Badges/History tabs, sport breakdown table, badges grid, menu sections with icon boxes
+
+### Backend changes
+- None
+
+### Architectural decisions
+- Ground cards: photo-top + text-below layout matching JSX GroundCard exactly
+- Tournament tabs mirror JSX tabbed layout; Vote tab is fully local, no backend needed
+- StatCard icon param is nullable for backward compatibility
+
+---
+## [2026-06-15] Phase 02 — Missing user-facing backend endpoints
+
+### Added
+**Backend:**
+- `backend/modules/captain/controller/captain_routes.py` — `GET /api/v1/captains/me/stats` (returns rating + total_trips from Captain model)
+- `backend/modules/wallet/` — new wallet module with `GET /api/v1/wallet/transactions` and `GET /api/v1/wallet/balance` (stub — returns empty list / 0 balance until wallet ledger table is built)
+- `backend/main.py` — registered `wallet_router`
+
+### Architectural decisions
+- Wallet routes are a stub returning empty data; no DB table created yet (Phase 02 scope)
+- Captain `/me/stats` looks up captain by `user_id` from JWT rather than requiring a captain_id param

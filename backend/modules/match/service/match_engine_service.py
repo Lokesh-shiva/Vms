@@ -113,6 +113,12 @@ class MatchEngineService:
                 outcome["result"],
             )
 
+        # Phase 3: captain fallback — assign a captain to any user who has
+        # been WAITING longer than CAPTAIN_FALLBACK_WAIT_MINUTES without finding
+        # a stranger match (only for entries where instant_captain=False).
+        fallback_outcomes = self._process_captain_fallback()
+        outcomes.extend(fallback_outcomes)
+
         return outcomes
 
     # ── Internal helpers ──────────────────────────────────────────────
@@ -363,6 +369,157 @@ class MatchEngineService:
             )
             return {"group": group_key, "result": "error", "reason": str(exc)}
 
+        finally:
+            session.close()
+
+    def _process_captain_fallback(self) -> list[dict]:
+        """
+        Phase 3 — Captain fallback sweep.
+
+        Finds all WAITING queue entries (instant_captain=False) whose age
+        exceeds CAPTAIN_FALLBACK_WAIT_MINUTES and attempts to assign an
+        available captain to each one.
+
+        Each entry is processed in its own transaction so a failure on one
+        user does not block others.
+
+        Returns a list of outcome dicts for observability.
+        """
+        from core.config.app_config import get_int
+        from modules.matchmaking.model.queue_entry_model import QueueEntry
+        from modules.captain.repository.captain_repository import captain_repository
+        from modules.match.model.match_model import Match, MatchPlayer
+
+        fallback_minutes = get_int("CAPTAIN_FALLBACK_WAIT_MINUTES")
+        deadline = datetime.utcnow() - timedelta(minutes=fallback_minutes)
+
+        discovery_session = self._session_factory()
+        try:
+            stale_entries = (
+                discovery_session.query(QueueEntry)
+                .filter(
+                    QueueEntry.status == "WAITING",
+                    QueueEntry.instant_captain.is_(False),
+                    QueueEntry.created_at < deadline,
+                )
+                .order_by(QueueEntry.created_at.asc())
+                .all()
+            )
+            # Detach: we'll process each in its own session
+            stale_data = [
+                {
+                    "id": e.id,
+                    "user_id": e.user_id,
+                    "region_id": e.region_id,
+                    "sport_id": e.sport_id,
+                    "skill_level": e.skill_level or "BEGINNER",
+                }
+                for e in stale_entries
+            ]
+        finally:
+            discovery_session.close()
+
+        outcomes = []
+        for entry_data in stale_data:
+            outcome = self._assign_captain_to_entry(entry_data, captain_repository, Match, MatchPlayer)
+            outcomes.append(outcome)
+            logger.info(
+                "Captain fallback entry %d (user %d) → %s",
+                entry_data["id"],
+                entry_data["user_id"],
+                outcome["result"],
+            )
+        return outcomes
+
+    def _assign_captain_to_entry(
+        self,
+        entry_data: dict,
+        captain_repository,
+        Match,
+        MatchPlayer,
+    ) -> dict:
+        """
+        Assign a free captain to a single timed-out queue entry.
+
+        Opens its own transaction.  If no captain is available the entry
+        remains WAITING so it will be retried on the next engine cycle.
+        """
+        from modules.matchmaking.repository.queue_entry_repository import (
+            queue_entry_repository as _queue_repo,
+        )
+
+        session = self._session_factory()
+        try:
+            captain = captain_repository.find_available_captain(
+                entry_data["region_id"], session
+            )
+            if captain is None:
+                session.rollback()
+                return {
+                    "entry_id": entry_data["id"],
+                    "result": "no_captain",
+                    "reason": "no available captain in region",
+                }
+
+            # Create MATCHED match with user + captain
+            match = Match(
+                created_by=entry_data["user_id"],
+                sport_id=entry_data["sport_id"],
+                region_id=entry_data["region_id"],
+                cart_type_id=self._resolve_cart_type_id(entry_data["region_id"]),
+                skill_level=entry_data["skill_level"],
+                max_players=2,
+                joined_players=2,
+                status="MATCHED",
+            )
+            session.add(match)
+            session.flush()
+
+            session.add(MatchPlayer(match_id=match.id, user_id=entry_data["user_id"]))
+            session.add(MatchPlayer(match_id=match.id, user_id=captain.user_id))
+
+            captain_repository.set_availability(
+                captain_id=captain.id,
+                available=False,
+                match_id=match.id,
+                session=session,
+            )
+
+            # Mark queue entry as MATCHED
+            _queue_repo.update_status(entry_data["id"], "MATCHED", session=session)
+
+            # Attempt to secure a booking (ground allocation)
+            try:
+                self._secure_booking_for_match(match, entry_data["user_id"], session)
+            except ValueError as booking_exc:
+                logger.warning(
+                    "Captain fallback entry %d: booking failed — %s",
+                    entry_data["id"],
+                    booking_exc,
+                )
+                # Still commit the match; ground will be assigned when booking retried.
+
+            session.commit()
+            session.refresh(match)
+            return {
+                "entry_id": entry_data["id"],
+                "result": "captain_assigned",
+                "match_id": match.id,
+                "captain_id": captain.id,
+            }
+
+        except Exception as exc:
+            session.rollback()
+            logger.exception(
+                "Captain fallback entry %d: unexpected error — %s",
+                entry_data["id"],
+                exc,
+            )
+            return {
+                "entry_id": entry_data["id"],
+                "result": "error",
+                "reason": str(exc),
+            }
         finally:
             session.close()
 

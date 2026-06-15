@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Boolean, Column, Integer, String, ForeignKey, DateTime
 
 from core.database.db_connection import Base
 
@@ -27,6 +27,8 @@ class QueueEntry(Base):
     skill_level = Column(String, nullable=False)
     status = Column(String, nullable=False, default="WAITING")
     reason = Column(String, nullable=True)
+    # True when the user explicitly chose to skip stranger wait and get a captain now.
+    instant_captain = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     def to_dict(self) -> dict:
@@ -38,6 +40,7 @@ class QueueEntry(Base):
             "skill_level": self.skill_level,
             "status": self.status,
             "reason": self.reason,
+            "instant_captain": self.instant_captain,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 

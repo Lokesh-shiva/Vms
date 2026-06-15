@@ -67,6 +67,7 @@ from modules.dispute.model.dispute_model import Dispute  # noqa: F401 — regist
 from modules.audit.controller.audit_routes import router as audit_router
 from modules.audit.model.audit_model import AuditLog  # noqa: F401 — registers model
 from modules.society.controller.society_routes import router as society_router
+from modules.wallet.controller.wallet_routes import router as wallet_router
 from modules.society.model.society_model import Society  # noqa: F401 — registers model
 from modules.society.model.society_member_model import SocietyMember  # noqa: F401 — registers model
 
@@ -179,6 +180,7 @@ app.include_router(leaderboard_router)
 app.include_router(dispute_router)
 app.include_router(audit_router)
 app.include_router(society_router)
+app.include_router(wallet_router)
 
 
 # ── Health Check ──────────────────────────────────────────────────────

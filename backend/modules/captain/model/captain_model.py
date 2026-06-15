@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 
 from core.database.db_connection import Base
 
@@ -50,6 +50,14 @@ class Captain(Base):
     rating = Column(Float, nullable=False, default=0.0)
     total_trips = Column(Integer, nullable=False, default=0)
     bio = Column(Text, nullable=True)
+    # Availability tracking — toggled by the matchmaking engine on assignment/release.
+    # is_available = False while the captain is on an active match.
+    is_available = Column(Boolean, nullable=False, default=True)
+    current_match_id = Column(
+        Integer,
+        ForeignKey("matches.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -65,6 +73,8 @@ class Captain(Base):
             "rating": self.rating,
             "total_trips": self.total_trips,
             "bio": self.bio,
+            "is_available": self.is_available,
+            "current_match_id": self.current_match_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

@@ -7,7 +7,14 @@ class JoinQueueRequest(BaseModel):
 
     sport_id: int = Field(..., gt=0, description="ID of the sport to match for")
     skill_level: str = Field(..., description="BEGINNER | INTERMEDIATE | ADVANCED")
-    # region_id is injected server-side from user profile or header; not client-supplied
+    # Set to True to skip the stranger-wait and get a captain assigned immediately.
+    # If no captain is available the request returns 503 so the client can retry
+    # or fall back to the normal queue.
+    instant_captain: bool = Field(
+        default=False,
+        description="Skip queue, assign an available captain right now.",
+    )
+    # region_id is injected server-side from user profile; not client-supplied
 
 
 class QueueStatusResponse(BaseModel):

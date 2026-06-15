@@ -345,6 +345,10 @@ class MatchService(BaseService):
                     cart.status = "AVAILABLE"
                     cart.updated_at = datetime.utcnow()
 
+            # Free any captain assigned to this match
+            from modules.captain.repository.captain_repository import captain_repository
+            captain_repository.release_captain_for_match(match_id, session)
+
             from datetime import datetime
 
             match_orm.updated_at = datetime.utcnow()
@@ -579,6 +583,10 @@ class MatchService(BaseService):
                 if cart:
                     cart.status = "AVAILABLE"
                     cart.updated_at = now
+
+            # Free any captain assigned to this match
+            from modules.captain.repository.captain_repository import captain_repository
+            captain_repository.release_captain_for_match(match_id, session)
 
             session.commit()
             session.refresh(match_orm)

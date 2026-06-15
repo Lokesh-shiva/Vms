@@ -1,7 +1,10 @@
 from datetime import datetime
+from typing import Optional
+
+from sqlalchemy.orm import Session
 
 from core.database.db_connection import SessionLocal
-from modules.captain.model.captain_model import Captain
+from modules.captain.model.captain_model import Captain, CaptainStatus
 
 
 class CaptainRepository:
@@ -101,6 +104,70 @@ class CaptainRepository:
             raise
         finally:
             session.close()
+
+    def find_available_captain(
+        self, region_id: int, session: Session
+    ) -> Optional[Captain]:
+        """
+        Find the least-busy ACTIVE and available captain in the given region.
+
+        Uses SELECT FOR UPDATE SKIP LOCKED so concurrent requests don't
+        double-assign the same captain.
+
+        Returns the ORM instance (not dict) so the caller can mutate it
+        inside the same transaction.  Returns None if no captain is free.
+        """
+        return (
+            session.query(Captain)
+            .filter(
+                Captain.status == CaptainStatus.ACTIVE,
+                Captain.is_available.is_(True),
+                Captain.region_id == region_id,
+            )
+            .order_by(Captain.total_trips.asc())  # fair rotation: fewest trips first
+            .with_for_update(skip_locked=True)
+            .first()
+        )
+
+    def set_availability(
+        self,
+        captain_id: int,
+        available: bool,
+        match_id: Optional[int],
+        session: Session,
+    ) -> None:
+        """
+        Toggle captain availability and link/unlink a match.
+
+        Designed to be called within the caller's transaction (no commit here).
+        - On assignment:  available=False, match_id=<match.id>
+        - On release:     available=True,  match_id=None
+        """
+        captain = session.query(Captain).filter(Captain.id == captain_id).first()
+        if captain:
+            captain.is_available = available
+            captain.current_match_id = match_id
+            captain.updated_at = datetime.utcnow()
+            session.flush()
+
+    def release_captain_for_match(self, match_id: int, session: Session) -> None:
+        """
+        Free any captain currently assigned to match_id.
+
+        Called from match_service.finish_match() and cancel_match() so the
+        captain becomes available again after a game ends.
+        """
+        captain = (
+            session.query(Captain)
+            .filter(Captain.current_match_id == match_id)
+            .first()
+        )
+        if captain:
+            captain.is_available = True
+            captain.current_match_id = None
+            captain.total_trips += 1
+            captain.updated_at = datetime.utcnow()
+            session.flush()
 
     def delete(self, captain_id: int) -> bool:
         """Delete a captain record by ID. Returns True if deleted, False if not found."""

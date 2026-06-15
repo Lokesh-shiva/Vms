@@ -44,25 +44,40 @@ def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_u
             region_id=region_id,
             sport_id=request.sport_id,
             skill_level=request.skill_level,
+            instant_captain=request.instant_captain,
         )
     except ValueError as e:
-        return _error(str(e))
+        # No captain available is a 503 so the client can retry
+        status_code = 503 if "No captains are available" in str(e) else 400
+        return _error(str(e), status_code)
 
     entry = result["entry"]
+    mode = result.get("mode", "STRANGER_MATCH")
+
     # FLAT response — fields at top level, not inside "data"
-    return {
+    response: dict = {
         "entry_id": entry["id"],
         "user_id": entry["user_id"],
         "region_id": entry["region_id"],
         "sport_id": entry["sport_id"],
         "skill_level": entry["skill_level"],
         "status": entry["status"],
+        "mode": mode,
+        "instant_captain": entry.get("instant_captain", False),
         "players_searching": result["players_searching"],
         "estimated_wait_seconds": result["estimated_wait_seconds"],
         "pricing": result["pricing"],
         "created_at": entry["created_at"],
-        "message": "You have joined the queue. Looking for a match...",
     }
+
+    if mode == "INSTANT_CAPTAIN":
+        response["match_id"] = result["match_id"]
+        response["captain_id"] = result["captain_id"]
+        response["message"] = "Captain assigned! Head to your ground."
+    else:
+        response["message"] = "You have joined the queue. Looking for a match..."
+
+    return response
 
 
 @router.delete("/leave")

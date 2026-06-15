@@ -1,9 +1,10 @@
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from modules.audit.service.audit_service import audit_service
-from modules.auth.dependencies.auth_dependencies import require_role
+from modules.auth.dependencies.auth_dependencies import require_role, require_user
+from modules.captain.repository.captain_repository import CaptainRepository
 from modules.captain.schemas.captain_schema import CreateCaptainSchema, UpdateCaptainSchema
 from modules.captain.service.captain_service import CaptainService
 from modules.user.model.user_model import UserRole
@@ -12,6 +13,7 @@ from modules.user.model.user_model import UserRole
 router = APIRouter(prefix="/api/v1/captains", tags=["Captains"])
 
 captain_service = CaptainService()
+captain_repo = CaptainRepository()
 
 
 # ── Response helper ───────────────────────────────────────────────────
@@ -22,6 +24,21 @@ def _success(data, message: str = "Success") -> dict:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────
+
+
+@router.get("/me/stats")
+def get_my_captain_stats(current_user: dict = Depends(require_user)):
+    """Return stats for the authenticated captain."""
+    captain = captain_repo.get_by_user_id(current_user["id"])
+    if not captain:
+        raise HTTPException(status_code=404, detail="Captain profile not found")
+    return _success({
+        "today_earnings": 0,
+        "week_earnings": 0,
+        "rating": captain.rating,
+        "matches_led": captain.total_trips,
+        "active_matches": [],
+    })
 
 
 @router.get("")

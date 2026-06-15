@@ -22,19 +22,33 @@ class MatchmakingService:
     """
 
     def join_queue(
-        self, user_id: int, region_id: int, sport_id: int, skill_level: str
+        self,
+        user_id: int,
+        region_id: int,
+        sport_id: int,
+        skill_level: str,
+        instant_captain: bool = False,
     ) -> dict:
         """
-        Place user into the WAITING queue.
+        Place user into the WAITING queue — or assign a captain instantly.
+
+        When instant_captain=True the method:
+          1. Creates a QueueEntry (for audit) and immediately marks it MATCHED.
+          2. Calls _assign_captain_now() to find a free captain and form a Match.
+          3. Returns mode="INSTANT_CAPTAIN" + match_id so the client can skip
+             the polling loop and navigate straight to the match screen.
 
         Raises:
-            ValueError: if user already has a WAITING entry, or skill_level invalid.
+            ValueError: if user already has a WAITING entry, skill_level invalid,
+                        or instant_captain=True but no captain is available.
 
         Returns dict with:
             entry: the created QueueEntry dict
             pricing: {base_price, time_factor, demand_factor, queue_count, final_price}
             estimated_wait_seconds: int
             players_searching: int
+            mode: "INSTANT_CAPTAIN" | "STRANGER_MATCH"
+            match_id: (present only when mode=INSTANT_CAPTAIN)
         """
         from modules.matchmaking.model.queue_entry_model import QueueEntry
 
@@ -83,15 +97,112 @@ class MatchmakingService:
                 "sport_id": sport_id,
                 "skill_level": skill_level,
                 "status": "WAITING",
+                "instant_captain": instant_captain,
             }
         )
+
+        # ── Instant-captain path ──────────────────────────────────────
+        if instant_captain:
+            match_result = self._assign_captain_now(
+                user_id=user_id,
+                region_id=region_id,
+                sport_id=sport_id,
+                skill_level=skill_level,
+                queue_entry_id=entry["id"],
+            )
+            return {
+                "entry": {**entry, "status": "MATCHED"},
+                "pricing": pricing,
+                "estimated_wait_seconds": 0,
+                "players_searching": players_searching,
+                "mode": "INSTANT_CAPTAIN",
+                "match_id": match_result["match_id"],
+                "captain_id": match_result["captain_id"],
+            }
 
         return {
             "entry": entry,
             "pricing": pricing,
             "estimated_wait_seconds": estimated_wait,
             "players_searching": players_searching,
+            "mode": "STRANGER_MATCH",
         }
+
+    # ── Captain assignment helpers ────────────────────────────────────
+
+    def _assign_captain_now(
+        self,
+        user_id: int,
+        region_id: int,
+        sport_id: int,
+        skill_level: str,
+        queue_entry_id: int,
+    ) -> dict:
+        """
+        Immediately find a free captain and create a MATCHED match.
+
+        Called by join_queue() when instant_captain=True, and by
+        MatchEngineService when a queue entry has timed out.
+
+        Raises:
+            ValueError: if no ACTIVE + available captain exists in the region.
+
+        Returns:
+            {"match_id": int, "captain_id": int}
+        """
+        from modules.captain.repository.captain_repository import captain_repository
+        from modules.match.model.match_model import Match, MatchPlayer
+
+        db = SessionLocal()
+        try:
+            # Lock an available captain (SKIP LOCKED → concurrent-safe)
+            captain = captain_repository.find_available_captain(region_id, db)
+            if captain is None:
+                raise ValueError(
+                    "No captains are available in your region right now. "
+                    "Try again in a moment or join the regular queue."
+                )
+
+            # Create match record: user + captain, immediately MATCHED
+            match = Match(
+                created_by=user_id,
+                sport_id=sport_id,
+                region_id=region_id,
+                cart_type_id=None,   # engine will fill on booking
+                skill_level=skill_level,
+                max_players=2,
+                joined_players=2,
+                status="MATCHED",
+            )
+            db.add(match)
+            db.flush()  # get match.id
+
+            # Add both players
+            db.add(MatchPlayer(match_id=match.id, user_id=user_id))
+            db.add(MatchPlayer(match_id=match.id, user_id=captain.user_id))
+
+            # Mark captain busy
+            captain_repository.set_availability(
+                captain_id=captain.id,
+                available=False,
+                match_id=match.id,
+                session=db,
+            )
+
+            # Mark queue entry as MATCHED
+            queue_entry_repository.update_status(
+                queue_entry_id, "MATCHED", session=db
+            )
+
+            db.commit()
+            db.refresh(match)
+            return {"match_id": match.id, "captain_id": captain.id}
+
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
 
     def leave_queue(self, user_id: int) -> dict:
         """

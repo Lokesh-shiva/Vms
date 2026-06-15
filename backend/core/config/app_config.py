@@ -17,6 +17,9 @@ DEFAULTS: dict[str, str] = {
     "MATCH_ARRIVAL_TIMEOUT_MINUTES": "20",  # cancel MATCHED match if no arrival within N min
     "MATCH_IN_PROGRESS_TIMEOUT_HOURS": "3",  # cancel IN_PROGRESS match after N hours (safety net)
     "MATCH_MAX_PLAYERS": "2",
+    # Captain fallback — how long a user waits in the stranger queue before
+    # the engine automatically assigns one of our captains to them.
+    "CAPTAIN_FALLBACK_WAIT_MINUTES": "5",
     # Ghost / no-show penalty
     "GHOST_STRIKES_BEFORE_PENALTY": "2",  # excuses before issuing a MatchPenalty
     "GHOST_PENALTY_HOURS": "4",  # duration of a matchmaking ban
