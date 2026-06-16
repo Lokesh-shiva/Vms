@@ -38,6 +38,18 @@ def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_u
     """
     region_id = current_user.get("region_id")
     if not region_id:
+        # Fallback: try to resolve from user's city string for accounts created before region_id was set
+        city = current_user.get("city")
+        if city:
+            db = SessionLocal()
+            try:
+                from modules.location.model.location_model import Location
+                loc = db.query(Location).filter(Location.name.ilike(city)).first()
+                if loc:
+                    region_id = loc.id
+            finally:
+                db.close()
+    if not region_id:
         return _error("Your account has no region set. Please update your profile.")
 
     # Resolve sport_id from name if only name was provided

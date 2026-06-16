@@ -88,21 +88,38 @@ def complete_profile(
     current_user: dict = Depends(get_current_user),
 ):
     """Save profile details collected during onboarding (name, DOB, city, sports, photo)."""
+    from core.database.db_connection import SessionLocal
+    from modules.location.model.location_model import Location
+
     name = str(body.get("name", "")).strip()
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
 
-    updated = user_repository.update(
-        current_user["id"],
-        {
-            "name": name,
-            "date_of_birth": body.get("date_of_birth"),
-            "city": str(body.get("city", "")).strip() or None,
-            "sport_preferences": body.get("sport_preferences") or [],
-            "profile_photo_url": body.get("profile_photo_url"),
-            "is_profile_complete": True,
-        },
-    )
+    city = str(body.get("city", "")).strip() or None
+
+    # Try to resolve region_id from the city string so matchmaking works immediately
+    region_id = None
+    if city:
+        db = SessionLocal()
+        try:
+            loc = db.query(Location).filter(Location.name.ilike(city)).first()
+            if loc:
+                region_id = loc.id
+        finally:
+            db.close()
+
+    update_data: dict = {
+        "name": name,
+        "date_of_birth": body.get("date_of_birth"),
+        "city": city,
+        "sport_preferences": body.get("sport_preferences") or [],
+        "profile_photo_url": body.get("profile_photo_url"),
+        "is_profile_complete": True,
+    }
+    if region_id is not None:
+        update_data["region_id"] = region_id
+
+    updated = user_repository.update(current_user["id"], update_data)
     if not updated:
         raise HTTPException(status_code=404, detail="User not found.")
     return _success(updated, "Profile saved.")
