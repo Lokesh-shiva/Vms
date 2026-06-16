@@ -70,6 +70,7 @@ from modules.society.controller.society_routes import router as society_router
 from modules.wallet.controller.wallet_routes import router as wallet_router
 from modules.society.model.society_model import Society  # noqa: F401 — registers model
 from modules.society.model.society_member_model import SocietyMember  # noqa: F401 — registers model
+from modules.otp.model.otp_model import OtpCode  # noqa: F401 — registers model
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────
@@ -91,6 +92,13 @@ async def lifespan(app: FastAPI):
         conn.execute(text("UPDATE users SET role = 'super_admin' WHERE role = 'admin'"))
         conn.execute(
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS can_create_society BOOLEAN NOT NULL DEFAULT FALSE")
+        )
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS date_of_birth VARCHAR"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS city VARCHAR"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS sport_preferences JSON"))
+        conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo_url VARCHAR"))
+        conn.execute(
+            text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_profile_complete BOOLEAN NOT NULL DEFAULT FALSE")
         )
         conn.commit()
     yield

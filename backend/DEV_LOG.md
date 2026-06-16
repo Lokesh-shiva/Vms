@@ -1,6 +1,132 @@
 # Development Log
 
 ---
+## [2026-06-16] Phase 04b — Real auth: OTP + registration (Phase 1)
+
+### Added
+**Backend**
+- `backend/modules/otp/model/otp_model.py` — `otp_codes` table (phone, code, expires_at, used)
+- `backend/modules/otp/repository/otp_repository.py` — create / find_active / mark_used
+- `backend/modules/otp/service/otp_service.py` — generate + verify OTP; reads `OTP_DEV_MODE` env var; in dev mode always accepts `123456` and logs to console; SMS hook stubbed for MSG91 later
+- `backend/modules/auth/controller/auth_routes.py` — 3 new endpoints: `POST /send-otp`, `POST /verify-otp`, `POST /complete-profile`
+- `Vmsuserapp/.../data/AuthRepository.kt` — sendOtp / verifyOtp / completeProfile / getMe
+
+**App**
+- `docs/plan-phase1-auth.md` — full implementation plan
+
+### Modified
+**Backend**
+- `backend/modules/user/model/user_model.py` — 5 new columns: `date_of_birth`, `city`, `sport_preferences` (JSON), `profile_photo_url`, `is_profile_complete`; all added to `to_dict()`
+- `backend/modules/auth/service/auth_service.py` — added `issue_token(user_id, role)` for OTP flow
+- `backend/main.py` — import `OtpCode` to register table; 5 `ALTER TABLE IF NOT EXISTS` migrations for new user columns
+
+**App**
+- `models/Models.kt` — `User` gains 5 new fields; added `OtpVerifyResponse`; removed legacy `TokenData`
+- `network/ApiService.kt` — removed `firebaseVerify`; added `sendOtp`, `verifyOtp`, `completeProfile`
+- `ui/screens/auth/SplashScreen.kt` — checks saved JWT via `AuthTokenManager`; calls `getMe` to restore session; routes to Home / ProfileSetup / Phone accordingly
+- `ui/screens/auth/PhoneInputScreen.kt` — calls real `sendOtp` endpoint; shows inline error on failure
+- `ui/screens/auth/OtpScreen.kt` — calls real `verifyOtp`; saves JWT; seeds `UserSession`; routes to ProfileSetup (new) or Home (returning); error state clears boxes
+- `ui/screens/auth/ProfileSetupScreen.kt` — step 1 now collects name + DOB + city (free text); step 2 sport picker unchanged; calls `completeProfile` on submit; "Skip for now" also submits with empty sports
+
+### Architectural decisions
+- OTP module has no controller — service called directly from auth routes to avoid extra router noise
+- `is_profile_complete` flag on User drives routing: Splash and OtpScreen both check it so returning users always land on Home, not ProfileSetup
+- Dev bypass (`OTP_DEV_MODE=true`, code=`123456`) lets full flow be tested today; switching to real SMS requires only adding MSG91 credentials to `.env` and setting `OTP_DEV_MODE=false`
+
+---
+
+## [2026-06-16] Phase 04a — Navigation bug fix (Phase 0)
+
+### Added
+- `parentTabRoute()` top-level function in `AppNavigation.kt` — maps any route (including sub-screen routes like `queue/{sport}`, `tournament_detail/{id}`) to its owning tab route, enabling correct active-tab highlighting at any stack depth
+
+### Modified
+- `navigation/AppNavigation.kt`
+  - Replaced `noNavRoutes` blacklist with `tabRoutes` whitelist — bottom nav now shown ONLY on the 5 root tabs (Home, Play, Tournaments, Societies, Profile) plus Captain/Chat when flagged on; all sub-screens (Queue, ActiveMatch, TournamentDetail, SocietyDetail, EditProfile, KYC flow, etc.) are now full-screen without a nav bar
+  - `showBottomNav = currentRoute in tabRoutes` (was negative filter)
+  - `popUpTo` now uses `navController.graph.startDestinationId` (was string `Screen.Home.route`) — more reliable, avoids route-string lookup failure when Home hasn't been pushed yet
+- `ui/components/BottomNav.kt`
+  - Added import for `parentTabRoute`
+  - `isActive` now uses `parentTabRoute(currentRoute) == tab.route` instead of `currentRoute == tab.route` — Home tab stays highlighted while on sub-screens that belong to the Play/Tournaments/etc. flows
+
+### Architectural decision
+Bottom nav visibility is now a **whitelist** (show only on root tabs) rather than a blacklist (hide on known screens). This is correct for an app where new sub-screens are regularly added — new screens are automatically hidden from the nav bar by default without needing to update a list.
+
+---
+## [2026-06-15] Phase 03e — Revert image redesign, keep glass, real-data + empty states
+
+Per user direction: reverted the sports-app-image-inspired layouts back to the previous
+UI, kept the glassmorphism, thickened the nav, and replaced mock content with real data +
+empty states on Home and Profile.
+
+### App Changes
+**Modified**
+- `ui/components/BottomNav.kt` — thicker (52dp icons, 13dp padding) refractive glass slab:
+  layered vertical shimmer + diagonal sheen + gradient rim, active icon glow shadow
+- `ui/screens/home/HomeScreen.kt` — removed stories row + VS match cards + fake "285 playing"
+  + Courts grid (unbacked). Stat cards now bind to `UserSession.user` (streak, win rate);
+  quick tiles + "Up next" pull from `TournamentsViewModel` with a real empty state. Kept all glass.
+- `ui/screens/play/PlayScreen.kt` — reverted date strip + emoji chips back to the 2-col photo grid
+- `ui/screens/tournaments/TournamentsScreen.kt` — reverted league/VS cards + sport filter pills
+  back to photo `TournamentCard`; added loading + empty states (mock seed removed)
+- `ui/screens/profile/ProfileScreen.kt` — stats/XP/level bind to real user (no fake fallbacks);
+  Stats / Badges / History tabs are now empty states (backend has no per-sport/badge data)
+- `viewmodel/TournamentsViewModel.kt`, `viewmodel/SocialViewModel.kt` — dropped mock seed lists;
+  start empty + expose `loading` so screens show real data or empty states
+
+### Architectural decisions
+- Glassmorphism retained as the app's visual language; only the image-derived *layouts* were reverted.
+- "Real data + empty states" over fabricated numbers: every metric now reflects `UserSession.user`
+  or a wired ViewModel; sections without a backend feed render a labelled empty state.
+
+---
+## [2026-06-15] Phase 03d — User app feature gating (link real, disable unsupported)
+
+Audited every endpoint `Vmsuserapp/.../network/ApiService.kt` calls against `backend/modules/*`.
+Disabled (NOT deleted) user-app features that have no backend endpoint, via a single
+reversible kill-switch. Screens + routes stay registered; only entry points are gated.
+
+### Backend audit result
+- ON (wired): matchmaking queue, tournaments, societies, captain dashboard (`/captains/me/stats`)
+- OFF (no endpoint): Chat (no module), Notifications (no `/notifications`), Wallet
+  (`/wallet/*` are zero/empty stubs), Become-a-Captain + KYC (no `/captains/apply`, no KYC),
+  Open Matches (`/matches/mine` 404)
+
+### App Changes
+**Added**
+- `Vmsuserapp/.../config/FeatureFlags.kt` — central booleans, each annotated with the missing endpoint
+- `docs/plan-user-app-feature-gating.md` — endpoint audit + decision matrix
+
+**Modified**
+- `ui/components/BottomNav.kt` — Chat tab hidden when `!CHAT`; Captain tab guarded by `CAPTAIN_DASHBOARD`
+- `ui/screens/home/HomeScreen.kt` — gated notifications bell, coins strip, wallet quick tile
+  (replaced with Tournaments tile when off), Become-a-Captain CTA, "See all" → Play fallback
+- `ui/screens/profile/ProfileScreen.kt` — menu rows built conditionally (wallet/notifications/
+  captain-onboarding/KYC hidden; captain dashboard kept for existing captains)
+- `ui/screens/play/PlayScreen.kt` — "Browse open matches" button hidden when `!OPEN_MATCHES`
+- `ui/screens/play/ActiveMatchScreen.kt` — captain chat button hidden when `!CHAT`
+
+### Architectural decisions
+- **Kill-switch over deletion** — flipping a flag back to `true` re-enables a feature in one line
+  once its backend ships. No screens, routes, repositories, or ViewModels were removed.
+- Auth (`/auth/firebase-verify`) left untouched despite being a known backend gap (B1) — changing
+  it needs a backend + Firebase change, out of scope for this UI-gating pass.
+
+---
+## [2026-06-15] Phase 03c — Sports app design refresh (user app)
+
+### App Changes
+**Modified**
+- `Vmsuserapp/.../ui/screens/home/HomeScreen.kt` — added `StoriesRow` (captain story circles with LIVE indicator), replaced "Courts near you" two-card grid with horizontal `LazyRow` of `MatchVsCard` components (VS layout, LIVE badge, Join button, dark ink background)
+- `Vmsuserapp/.../ui/screens/play/PlayScreen.kt` — added `DateStrip` (7-day week scroll, selected day highlighted with PlixoInk), replaced 2-col sport photo grid with two horizontal `Row + horizontalScroll` rows of emoji sport chips (72dp tall, active state PlixoInk + border)
+
+### Architectural decisions
+- Adopted VS match card style from Dunkra/sports app mockups — dark `PlixoInk` cards with lime Join button, LIVE red badge, player initials as avatars
+- Story circles use lime border for live captains, grey border for offline; no external library
+- LazyRow for match cards (HomeScreen); plain Row+horizontalScroll for sport chips inside vertical scroll (avoids nested lazy scroll crash)
+- Kept light `PlixoBg` theme — only cards use `PlixoInk` dark background for contrast
+
+---
 ## [2026-06-15] Phase 03b — Plixo User App migrated to Vmsuserapp
 
 ### App (Vmsuserapp — existing project)

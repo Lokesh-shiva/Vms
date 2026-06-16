@@ -70,6 +70,13 @@ class AuthService:
 
         return user
 
+    def issue_token(self, user_id: int, role: str) -> dict:
+        """Issue a JWT for an already-authenticated user (OTP flow)."""
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        payload = {"sub": str(user_id), "role": role, "exp": expire}
+        token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        return {"access_token": token, "token_type": "bearer"}
+
     def login_user(self, data: dict) -> dict:
         """Authenticate a user and return a JWT.
 

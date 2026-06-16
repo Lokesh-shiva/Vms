@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, JSON
 
 from core.database.db_connection import Base
 
@@ -48,6 +48,11 @@ class User(Base):
     region_id = Column(Integer, nullable=True)
     ghost_strikes = Column(Integer, nullable=False, default=0)
     can_create_society = Column(Boolean, nullable=False, default=False)
+    date_of_birth = Column(String, nullable=True)
+    city = Column(String, nullable=True)
+    sport_preferences = Column(JSON, nullable=True)
+    profile_photo_url = Column(String, nullable=True)
+    is_profile_complete = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -64,6 +69,11 @@ class User(Base):
             "region_id": self.region_id,
             "ghost_strikes": self.ghost_strikes,
             "can_create_society": self.can_create_society,
+            "date_of_birth": self.date_of_birth,
+            "city": self.city,
+            "sport_preferences": self.sport_preferences or [],
+            "profile_photo_url": self.profile_photo_url,
+            "is_profile_complete": self.is_profile_complete,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
