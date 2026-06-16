@@ -116,6 +116,13 @@ class UpdateUserSchema:
             else:
                 self.validated_data["region_id"] = region_id
 
+        if "city" in self._data:
+            city = self._data["city"]
+            if city is not None and not isinstance(city, str):
+                self.errors.append("'city' must be a string or null.")
+            else:
+                self.validated_data["city"] = city.strip() if isinstance(city, str) else city
+
         if "can_create_society" in self._data:
             val = self._data["can_create_society"]
             if not isinstance(val, bool):

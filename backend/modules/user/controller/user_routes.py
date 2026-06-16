@@ -92,9 +92,23 @@ def update_me(
     current_user: dict = Depends(get_current_user),
 ):
     """Update the authenticated user's own non-privileged profile fields."""
+    from core.database.db_connection import SessionLocal
+    from modules.location.model.location_model import Location
+
     # Strip fields users are never allowed to self-assign
     request_data.pop("role", None)
     request_data.pop("is_active", None)
+
+    # Resolve region_id from city name if city is provided
+    city = str(request_data.get("city", "")).strip() or None
+    if city:
+        db = SessionLocal()
+        try:
+            loc = db.query(Location).filter(Location.name.ilike(city)).first()
+            if loc:
+                request_data["region_id"] = loc.id
+        finally:
+            db.close()
 
     schema = UpdateUserSchema(request_data)
     if not schema.is_valid():
