@@ -86,6 +86,28 @@ def list_users(current_user: dict = Depends(get_current_user)):
     return _success(users)
 
 
+@router.put("/me")
+def update_me(
+    request_data: dict,
+    current_user: dict = Depends(get_current_user),
+):
+    """Update the authenticated user's own non-privileged profile fields."""
+    # Strip fields users are never allowed to self-assign
+    request_data.pop("role", None)
+    request_data.pop("is_active", None)
+
+    schema = UpdateUserSchema(request_data)
+    if not schema.is_valid():
+        raise HTTPException(status_code=400, detail=schema.errors)
+
+    user = user_service.update_user(
+        current_user["id"], schema.validated_data, current_user=current_user
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+    return _success(user, "Profile updated.")
+
+
 @router.get("/{user_id}")
 def get_user(user_id: int, current_user: dict = Depends(get_current_user)):
     """Retrieve a user by ID. Regular users can only view themselves."""

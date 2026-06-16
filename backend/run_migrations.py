@@ -148,6 +148,32 @@ cur.execute("""
         ADD COLUMN IF NOT EXISTS can_create_society BOOLEAN NOT NULL DEFAULT FALSE;
 """)
 
+print("Running migration 12: seed sports table ...")
+cur.execute("""
+    INSERT INTO sports (name, is_active) VALUES
+        ('Cricket',    TRUE),
+        ('Football',   TRUE),
+        ('Badminton',  TRUE),
+        ('Volleyball', TRUE),
+        ('Basketball', TRUE),
+        ('Tennis',     TRUE)
+    ON CONFLICT (name) DO NOTHING;
+""")
+
+print("Running migration 13: seed Vizag locations ...")
+cur.execute("""
+    INSERT INTO locations (name) VALUES
+        ('Vizag Central'),
+        ('Gajuwaka'),
+        ('Vizag North Zone'),
+        ('Rushikonda'),
+        ('Madhurawada'),
+        ('Dwaraka Nagar'),
+        ('MVP Colony'),
+        ('Seethammadhara')
+    ON CONFLICT (name) DO NOTHING;
+""")
+
 conn.commit()
 cur.close()
 conn.close()
