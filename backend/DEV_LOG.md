@@ -35,6 +35,37 @@
 
 ---
 
+## [2026-06-16] Phase 05 — All phases wired end-to-end
+
+### Added
+**Backend**
+- `match_routes.py` — `GET /matches/mine/active`, `GET /matches/mine`, `GET /matches/{match_id}` (all enriched: sport, ground_name, ground_address, scheduled_at, captain_name, player_ids)
+- `match_repository.py` — `find_by_user()`, `find_active_by_user()`, `find_by_id_enriched()`, `_enrich()` helper (joins CartType, Cart, Location, Timeslot, User, MatchPlayer)
+
+### Modified
+**Backend**
+- `matchmaking_schema.py` — `JoinQueueRequest` now accepts `sport: Optional[str]` (name) + `sport_id: Optional[int]` (legacy)
+- `matchmaking_routes.py`:
+  - `/play-now`: resolves sport name → ID via DB lookup; normalises `skill_level` to uppercase; response now wrapped in `{success, data}` format with `in_queue`, `match_found`, `match_id` fields
+  - `/status`: adds `in_queue: True`, `match_found: bool`, removes raw pricing dump
+
+**App**
+- `ui/screens/play/QueueTrackerScreen.kt` — reads real `queueStatus.playersSearching` for player count; shows `estimatedWaitSeconds` instead of hardcoded ₹400; navigates to `ActiveMatch` when `matchFound=true` with real `matchId`; removed fake 7.5 s delay
+- `ui/screens/play/ActiveMatchScreen.kt` — full rewrite: calls `vm.loadMatch(matchId)`, shows real sport/ground/time/captain/player count; graceful "Venue TBD" / "Captain" fallbacks for missing fields
+- `viewmodel/PlayViewModel.kt` — added `_match`, `loadMatch(matchId)`, `joinQueue` now propagates `QueueStatus` and handles instant-captain match path; poll interval extended to 60×3s
+- `data/MatchRepository.kt` — `joinQueue` returns `Result<QueueStatus>`; added `getMatch(id)`
+- `network/ApiService.kt` — `joinQueue` returns `ApiResponse<QueueStatus>` (was `ApiResponse<QueueEntry>`)
+- `ui/screens/home/HomeScreen.kt` — avatar uses `user?.name`; region defaults to `user?.city`
+- `ui/screens/profile/ProfileScreen.kt` — region reads `user?.city ?: user?.region`
+- `ui/screens/social/SocietyDetailScreen.kt` — replaced hardcoded fallback member list with member count label
+
+### Architectural decisions
+- Match enrichment done at repository layer (not service) — single query session reused for all joins, avoiding N+1
+- Match `/mine/active` and `/mine` defined before `/{match_id}` in route order so FastAPI doesn't try to parse "mine" as an integer
+- Android `joinQueue` now returns `QueueStatus` instead of `QueueEntry` — shape matches both join and poll responses, simplifying state management in ViewModel
+
+---
+
 ## [2026-06-16] Phase 04c — Home screen real data (Phase 2)
 
 ### Modified
