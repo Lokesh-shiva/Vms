@@ -1,188 +1,168 @@
-package com.example.vmsuser.navigation
+﻿package com.example.vmsuser.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.vmsuser.data.AddressManager
-import com.example.vmsuser.network.ApiClient
-import com.example.vmsuser.ui.screens.BookingScreen
-import com.example.vmsuser.ui.screens.BookingStatusScreen
-import com.example.vmsuser.ui.screens.CartScreen
-import com.example.vmsuser.ui.screens.CreateMatchScreen
-import com.example.vmsuser.ui.screens.HomeScreen
-import com.example.vmsuser.ui.screens.LoginScreen
-import com.example.vmsuser.ui.screens.MatchListScreen
-import com.example.vmsuser.ui.screens.PaymentScreen
-import com.example.vmsuser.ui.screens.RegisterScreen
-import com.example.vmsuser.viewmodel.AuthViewModel
-import com.example.vmsuser.viewmodel.BookingViewModel
-import com.example.vmsuser.viewmodel.HomeViewModel
-import com.example.vmsuser.viewmodel.MatchViewModel
-import com.example.vmsuser.viewmodel.PaymentViewModel
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.collectAsState
+import com.example.vmsuser.network.UserSession
+import com.example.vmsuser.ui.components.PlixoBottomNav
+import com.example.vmsuser.ui.screens.auth.*
+import com.example.vmsuser.ui.screens.captain.*
+import com.example.vmsuser.ui.screens.chat.*
+import com.example.vmsuser.ui.screens.home.HomeScreen
+import com.example.vmsuser.ui.screens.kyc.*
+import com.example.vmsuser.ui.screens.play.*
+import com.example.vmsuser.ui.screens.profile.*
+import com.example.vmsuser.ui.screens.social.*
+import com.example.vmsuser.ui.screens.tournaments.*
+
+// Bottom nav is ONLY shown on the five root tab destinations.
+// All sub-screens (detail, flow, settings) are full-screen without a nav bar.
+private val tabRoutes = setOf(
+    Screen.Home.route,
+    Screen.Play.route,
+    Screen.Tournaments.route,
+    Screen.Societies.route,
+    Screen.Profile.route,
+    Screen.Captain.route,
+    Screen.Chat.route,
+)
+
+// Maps any route (including sub-screen routes) to the tab that owns it.
+// Used by BottomNav to highlight the correct tab when deep inside a flow.
+fun parentTabRoute(route: String?): String? = when {
+    route == null -> null
+    route == Screen.Home.route -> Screen.Home.route
+    route.startsWith("play") || route.startsWith("queue") ||
+        route.startsWith("active_match") || route == Screen.OpenMatches.route -> Screen.Play.route
+    route.startsWith("tournament") -> Screen.Tournaments.route
+    route.startsWith("societ") || route == Screen.CreateSociety.route -> Screen.Societies.route
+    route == Screen.Profile.route || route == Screen.EditProfile.route ||
+        route == Screen.Settings.route || route == Screen.Wallet.route ||
+        route == Screen.Notifications.route -> Screen.Profile.route
+    route.startsWith("captain") || route.startsWith("kyc") ||
+        route == Screen.BecomeACaptain.route || route == Screen.CaptainApplication.route ||
+        route == Screen.CaptainEarnings.route -> Screen.Captain.route
+    route.startsWith("chat") -> Screen.Chat.route
+    else -> null
+}
 
 @Composable
-fun AppNavigation(
-    authViewModel: AuthViewModel,
-    homeViewModel: HomeViewModel,
-    bookingViewModel: BookingViewModel,
-    paymentViewModel: PaymentViewModel,
-    matchViewModel: MatchViewModel,
-    addressManager: AddressManager,
-    startDestination: String
-) {
+fun AppNavigation() {
     val navController = rememberNavController()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val showBottomNav = currentRoute in tabRoutes
 
-    // Auto-logout on 401
-    LaunchedEffect(Unit) {
-        ApiClient.logoutEvent.collect {
-            navController.navigate("login") {
-                popUpTo(0)
+    Box(modifier = Modifier.fillMaxSize()) {
+        NavHost(
+            navController = navController,
+            startDestination = Screen.Splash.route,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            // Auth
+            composable(Screen.Splash.route) { SplashScreen(navController) }
+            composable(Screen.Phone.route) { PhoneInputScreen(navController) }
+            composable(
+                Screen.Otp.route,
+                arguments = listOf(navArgument("phone") { type = NavType.StringType })
+            ) { entry ->
+                OtpScreen(navController, phone = entry.arguments?.getString("phone") ?: "")
             }
+            composable(Screen.ProfileSetup.route) { ProfileSetupScreen(navController) }
+
+            // Main
+            composable(Screen.Home.route) { HomeScreen(navController) }
+
+            // Play
+            composable(Screen.Play.route) { PlayScreen(navController) }
+            composable(
+                Screen.Queue.route,
+                arguments = listOf(navArgument("sport") { type = NavType.StringType })
+            ) { entry ->
+                QueueTrackerScreen(navController, sport = entry.arguments?.getString("sport") ?: "")
+            }
+            composable(
+                Screen.ActiveMatch.route,
+                arguments = listOf(navArgument("matchId") { type = NavType.IntType })
+            ) { entry ->
+                ActiveMatchScreen(navController, matchId = entry.arguments?.getInt("matchId") ?: 0)
+            }
+            composable(Screen.OpenMatches.route) { OpenMatchesScreen(navController) }
+
+            // Tournaments
+            composable(Screen.Tournaments.route) { TournamentsScreen(navController) }
+            composable(
+                Screen.TournamentDetail.route,
+                arguments = listOf(navArgument("id") { type = NavType.IntType })
+            ) { entry ->
+                TournamentDetailScreen(navController, id = entry.arguments?.getInt("id") ?: 0)
+            }
+
+            // Chat
+            composable(Screen.Chat.route) { ChatListScreen(navController) }
+            composable(
+                Screen.ChatThread.route,
+                arguments = listOf(navArgument("threadId") { type = NavType.StringType })
+            ) { entry ->
+                ChatThreadScreen(navController, threadId = entry.arguments?.getString("threadId") ?: "")
+            }
+
+            // Social
+            composable(Screen.Societies.route) { SocietiesScreen(navController) }
+            composable(
+                Screen.SocietyDetail.route,
+                arguments = listOf(navArgument("id") { type = NavType.IntType })
+            ) { entry ->
+                SocietyDetailScreen(navController, id = entry.arguments?.getInt("id") ?: 0)
+            }
+            composable(Screen.CreateSociety.route) { CreateSocietyScreen(navController) }
+
+            // Profile
+            composable(Screen.Profile.route) { ProfileScreen(navController) }
+            composable(Screen.EditProfile.route) { EditProfileScreen(navController) }
+            composable(Screen.Settings.route) { SettingsScreen(navController) }
+            composable(Screen.Wallet.route) { WalletScreen(navController) }
+            composable(Screen.Notifications.route) { NotificationsScreen(navController) }
+
+            // Captain
+            composable(Screen.Captain.route) { CaptainDashboardScreen(navController) }
+            composable(
+                Screen.CaptainMatch.route,
+                arguments = listOf(navArgument("matchId") { type = NavType.IntType })
+            ) { entry ->
+                CaptainMatchDetailScreen(navController, matchId = entry.arguments?.getInt("matchId") ?: 0)
+            }
+            composable(Screen.CaptainEarnings.route) { CaptainEarningsScreen(navController) }
+            composable(Screen.BecomeACaptain.route) { BecomeACaptainScreen(navController) }
+            composable(Screen.CaptainApplication.route) { CaptainApplicationScreen(navController) }
+            composable(Screen.KycIntro.route) { KycIntroScreen(navController) }
+            composable(Screen.KycUpload.route) { KycUploadScreen(navController) }
+            composable(Screen.KycSubmitted.route) { KycSubmittedScreen(navController) }
+            composable(Screen.KycStatus.route) { KycStatusScreen(navController) }
         }
-    }
 
-    NavHost(navController = navController, startDestination = startDestination) {
-
-        composable("login") {
-            LoginScreen(
-                viewModel = authViewModel,
-                onNavigateToHome = {
-                    navController.navigate("home") {
-                        popUpTo("login") { inclusive = true }
+        if (showBottomNav) {
+            PlixoBottomNav(
+                currentRoute = currentRoute ?: "",
+                onNavigate = { route ->
+                    navController.navigate(route) {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        launchSingleTop = true
+                        restoreState = true
                     }
                 },
-                onNavigateToRegister = {
-                    navController.navigate("register")
-                }
-            )
-        }
-
-        composable("register") {
-            RegisterScreen(
-                viewModel = authViewModel,
-                onNavigateToLogin = {
-                    navController.popBackStack()
-                },
-                onRegistrationSuccess = {
-                    navController.navigate("login") {
-                        popUpTo("register") { inclusive = true }
-                    }
-                }
-            )
-        }
-
-        composable("home") {
-            HomeScreen(
-                viewModel = homeViewModel,
-                onNavigateToBooking = {
-                    navController.navigate("booking")
-                },
-                onNavigateToCart = {
-                    navController.navigate("cart")
-                },
-                onNavigateToMatches = {
-                    navController.navigate("matches")
-                },
-                onLogout = {
-                    authViewModel.logout()
-                    navController.navigate("login") {
-                        popUpTo(0)
-                    }
-                }
-            )
-        }
-
-        // ── Cart Screen ──────────────────────────────────────────────
-        composable("cart") {
-            CartScreen(
-                homeViewModel = homeViewModel,
-                bookingViewModel = bookingViewModel,
-                addressManager = addressManager,
-                onNavigateToBookingStatus = { bookingId ->
-                    navController.navigate("booking_status/$bookingId") {
-                        popUpTo("cart") { inclusive = true }
-                    }
-                },
-                onBack = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        composable("booking") {
-            BookingScreen(
-                homeViewModel = homeViewModel,
-                bookingViewModel = bookingViewModel,
-                onNavigateToPayment = { bookingId ->
-                    navController.navigate("payment/$bookingId")
-                },
-                onBack = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        composable(
-            route = "payment/{bookingId}",
-            arguments = listOf(navArgument("bookingId") { type = NavType.IntType })
-        ) { backStackEntry ->
-            val bookingId = backStackEntry.arguments?.getInt("bookingId") ?: return@composable
-            PaymentScreen(
-                bookingId = bookingId,
-                paymentViewModel = paymentViewModel,
-                onNavigateToStatus = {
-                    navController.navigate("booking_status/$bookingId") {
-                        popUpTo("payment/$bookingId") { inclusive = true }
-                    }
-                },
-                onBack = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        composable(
-            route = "booking_status/{bookingId}",
-            arguments = listOf(navArgument("bookingId") { type = NavType.IntType })
-        ) { backStackEntry ->
-            val bookingId = backStackEntry.arguments?.getInt("bookingId") ?: return@composable
-            BookingStatusScreen(
-                bookingId = bookingId,
-                bookingViewModel = bookingViewModel,
-                onNavigateToHome = {
-                    navController.navigate("home") {
-                        popUpTo(0)
-                    }
-                }
-            )
-        }
-
-        // ── Match routes ──────────────────────────────────────────────
-        composable("matches") {
-            MatchListScreen(
-                viewModel = matchViewModel,
-                currentUserId = null,   // Server enforces auth; join/leave guarded by token
-                onCreateMatch = { navController.navigate("matches/create") }
-            )
-        }
-
-        composable("matches/create") {
-            val homeUiState by homeViewModel.uiState.collectAsState()
-            val cartTypes = homeUiState.cartTypes.map { it.id to it.name }
-            val timeslots = homeUiState.timeslots.map { it.id to "${it.start_time} - ${it.end_time}" }
-            val regions = homeUiState.regions.map { it.id to it.name }
-            CreateMatchScreen(
-                viewModel = matchViewModel,
-                cartTypes = cartTypes,
-                timeslots = timeslots,
-                regions = regions,
-                onSuccess = { navController.popBackStack() }
+                isCaptain = UserSession.isCaptain,
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
             )
         }
     }

@@ -101,6 +101,109 @@ class MatchRepository:
         finally:
             session.close()
 
+    def find_by_user(self, user_id: int) -> list[dict]:
+        """Return all matches this user has joined, enriched, newest first."""
+        session = self._session_factory()
+        try:
+            rows = (
+                session.query(Match)
+                .join(MatchPlayer, MatchPlayer.match_id == Match.id)
+                .filter(MatchPlayer.user_id == user_id)
+                .order_by(Match.created_at.desc())
+                .all()
+            )
+            return [self._enrich(m, session) for m in rows]
+        finally:
+            session.close()
+
+    def find_active_by_user(self, user_id: int) -> dict | None:
+        """Return the user's most recent non-terminal match, enriched."""
+        active_statuses = {"WAITING", "MATCHED", "ARRIVED", "IN_PROGRESS"}
+        session = self._session_factory()
+        try:
+            m = (
+                session.query(Match)
+                .join(MatchPlayer, MatchPlayer.match_id == Match.id)
+                .filter(
+                    MatchPlayer.user_id == user_id,
+                    Match.status.in_(active_statuses),
+                )
+                .order_by(Match.created_at.desc())
+                .first()
+            )
+            return self._enrich(m, session) if m else None
+        finally:
+            session.close()
+
+    def find_by_id_enriched(self, match_id: int) -> dict | None:
+        """Return a single match with enriched fields."""
+        session = self._session_factory()
+        try:
+            m = session.query(Match).filter(Match.id == match_id).first()
+            return self._enrich(m, session) if m else None
+        finally:
+            session.close()
+
+    def _enrich(self, m: "Match", session) -> dict:
+        """Attach human-readable fields to a Match ORM row."""
+        from modules.cart.model.cart_model import Cart
+        from modules.cart_type.model.cart_type_model import CartType
+        from modules.location.model.location_model import Location
+        from modules.timeslot.model.timeslot_model import Timeslot
+        from modules.user.model.user_model import User
+
+        base = m.to_dict()
+
+        # Sport name via cart_type
+        sport_name = ""
+        if m.cart_type_id:
+            ct = session.query(CartType).filter(CartType.id == m.cart_type_id).first()
+            if ct:
+                sport_name = ct.name
+
+        # Ground name + address via cart → location
+        ground_name = ""
+        ground_address = ""
+        if m.cart_id:
+            cart = session.query(Cart).filter(Cart.id == m.cart_id).first()
+            if cart:
+                ground_name = cart.label or ""
+                loc = session.query(Location).filter(Location.id == cart.region_id).first()
+                if loc:
+                    ground_address = loc.name
+
+        # Scheduled time via timeslot
+        scheduled_at = ""
+        if m.timeslot_id:
+            ts = session.query(Timeslot).filter(Timeslot.id == m.timeslot_id).first()
+            if ts:
+                scheduled_at = f"{ts.date}T{ts.start_time}"
+
+        # Captain name via created_by
+        captain_name = None
+        if m.created_by:
+            u = session.query(User).filter(User.id == m.created_by).first()
+            if u:
+                captain_name = u.name
+
+        # Player IDs via match_players
+        player_ids = [
+            mp.user_id
+            for mp in session.query(MatchPlayer).filter(MatchPlayer.match_id == m.id).all()
+        ]
+
+        return {
+            **base,
+            "sport": sport_name,
+            "ground_name": ground_name,
+            "ground_address": ground_address,
+            "scheduled_at": scheduled_at,
+            "captain_name": captain_name,
+            "captain_id": m.created_by,
+            "player_ids": player_ids,
+            "price": 0,
+        }
+
     def update(self, match_id: int, data: dict, session=None) -> dict | None:
         """Update match fields."""
         own = session is None

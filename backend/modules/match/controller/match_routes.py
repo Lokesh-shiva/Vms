@@ -6,6 +6,7 @@ from modules.auth.dependencies.auth_dependencies import (
     require_user,
 )
 from modules.match.service.match_service import match_service
+from modules.match.repository.match_repository import match_repository
 from modules.match.repository.match_event_repository import match_event_repository
 from modules.match.schemas.match_schema import CreateMatchSchema, MatchArriveSchema
 
@@ -115,6 +116,29 @@ def finish_match(match_id: int, current_user: dict = Depends(require_user)):
         return _success(match, "Match completed successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/mine/active")
+def get_my_active_match(current_user: dict = Depends(require_user)):
+    """Return the current user's most recent active match, or null."""
+    m = match_repository.find_active_by_user(current_user["id"])
+    return _success(m)
+
+
+@router.get("/mine")
+def get_my_matches(current_user: dict = Depends(require_user)):
+    """Return all matches the current user has joined, enriched, newest first."""
+    matches = match_repository.find_by_user(current_user["id"])
+    return _success(matches)
+
+
+@router.get("/{match_id}")
+def get_match(match_id: int, current_user: dict = Depends(require_user)):
+    """Return a single match with enriched fields (sport, ground, captain, players)."""
+    m = match_repository.find_by_id_enriched(match_id)
+    if not m:
+        raise HTTPException(status_code=404, detail="Match not found.")
+    return _success(m)
 
 
 @router.get("")

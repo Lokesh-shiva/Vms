@@ -35,6 +35,18 @@
 
 ---
 
+## [2026-06-16] Phase 04c — Home screen real data (Phase 2)
+
+### Modified
+**App**
+- `ui/screens/home/HomeScreen.kt`
+  - `PlixoAvatar` now uses `user?.name?.takeIf { it.isNotBlank() } ?: "Player"` instead of hardcoded `"Aarav Mehta"`
+  - Default region now reads `user?.city` (new field) falling back to `user?.region` and then `"My area"` — was hardcoded to `"Indiranagar"`
+- `ui/screens/profile/ProfileScreen.kt`
+  - Region display now reads `(user?.city ?: user?.region)?.takeIf { it.isNotBlank() } ?: "—"` — was only reading the old `region` field which isn't populated by the new OTP auth flow
+
+---
+
 ## [2026-06-16] Phase 04a — Navigation bug fix (Phase 0)
 
 ### Added

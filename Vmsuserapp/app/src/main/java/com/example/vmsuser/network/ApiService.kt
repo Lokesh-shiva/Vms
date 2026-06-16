@@ -1,88 +1,93 @@
-package com.example.vmsuser.network
+﻿package com.example.vmsuser.network
 
-import com.example.vmsuser.models.ApiResponse
-import com.example.vmsuser.models.Booking
-import com.example.vmsuser.models.CartType
-import com.example.vmsuser.models.ConfirmPaymentRequest
-import com.example.vmsuser.models.CreateBookingRequest
-import com.example.vmsuser.models.InitiatePaymentResponse
-import com.example.vmsuser.models.Item
-import com.example.vmsuser.models.LoginRequest
-import com.example.vmsuser.models.LoginResponse
-import com.example.vmsuser.models.Match
-import com.example.vmsuser.models.CreateMatchRequest
-import com.example.vmsuser.models.Payment
-import com.example.vmsuser.models.Region
-import com.example.vmsuser.models.RegisterRequest
-import com.example.vmsuser.models.Timeslot
-import com.example.vmsuser.models.User
-import retrofit2.http.Body
-import retrofit2.http.GET
-import retrofit2.http.POST
-import retrofit2.http.Path
-import retrofit2.http.Query
+import com.example.vmsuser.models.*
+import retrofit2.http.*
 
 interface ApiService {
 
-    // ── Auth ─────────────────────────────────────────────────────────
-    @POST("/api/v1/auth/login")
-    suspend fun login(@Body request: LoginRequest): ApiResponse<LoginResponse>
+    // Auth — OTP flow
+    @POST("api/v1/auth/send-otp")
+    suspend fun sendOtp(@Body body: Map<String, String>): ApiResponse<Unit>
 
-    @POST("/api/v1/auth/register")
-    suspend fun register(@Body request: RegisterRequest): ApiResponse<User>
+    @POST("api/v1/auth/verify-otp")
+    suspend fun verifyOtp(@Body body: Map<String, String>): ApiResponse<OtpVerifyResponse>
 
-    @GET("/api/v1/auth/me")
+    @POST("api/v1/auth/complete-profile")
+    suspend fun completeProfile(@Body body: CompleteProfileRequest): ApiResponse<User>
+
+    @GET("api/v1/auth/me")
     suspend fun getMe(): ApiResponse<User>
 
-    // ── Config (public lookups) ───────────────────────────────────────
-    @GET("/api/v1/locations")
-    suspend fun getRegions(): ApiResponse<List<Region>>
+    @PUT("api/v1/users/me")
+    suspend fun updateProfile(@Body body: Map<String, String>): ApiResponse<User>
 
-    @GET("/api/v1/cart-types")
-    suspend fun getCartTypes(): ApiResponse<List<CartType>>
+    @PUT("api/v1/users/me/fcm-token")
+    suspend fun updateFcmToken(@Body body: Map<String, String>): ApiResponse<Unit>
 
-    @GET("/api/v1/timeslots")
-    suspend fun getTimeslots(): ApiResponse<List<Timeslot>>
+    // Matchmaking
+    @GET("api/v1/matchmaking/status")
+    suspend fun getQueueStatus(): ApiResponse<QueueStatus>
 
-    @GET("/api/v1/items")
-    suspend fun getItems(): ApiResponse<List<Item>>
+    @POST("api/v1/matchmaking/play-now")
+    suspend fun joinQueue(@Body request: JoinQueueRequest): ApiResponse<QueueStatus>
 
-    // ── Bookings ─────────────────────────────────────────────────────
-    @POST("/api/v1/bookings")
-    suspend fun createBooking(@Body request: CreateBookingRequest): ApiResponse<Booking>
+    @DELETE("api/v1/matchmaking/leave")
+    suspend fun leaveQueue(): ApiResponse<Unit>
 
-    @GET("/api/v1/bookings/{booking_id}")
-    suspend fun getBooking(@Path("booking_id") bookingId: Int): ApiResponse<Booking>
+    // Matches
+    @GET("api/v1/matches/mine")
+    suspend fun getMyMatches(): ApiResponse<List<Match>>
 
-    @GET("/api/v1/bookings")
-    suspend fun getMyBookings(): ApiResponse<List<Booking>>
+    @GET("api/v1/matches/mine/active")
+    suspend fun getActiveMatch(): ApiResponse<Match?>
 
-    @POST("/api/v1/bookings/{booking_id}/cancel")
-    suspend fun cancelBooking(@Path("booking_id") bookingId: Int): ApiResponse<Booking>
+    @GET("api/v1/matches/{id}")
+    suspend fun getMatch(@Path("id") id: Int): ApiResponse<Match>
 
-    // ── Payments ──────────────────────────────────────────────────────
-    @POST("/api/v1/payments/initiate/{booking_id}")
-    suspend fun initiatePayment(@Path("booking_id") bookingId: Int): ApiResponse<InitiatePaymentResponse>
+    // Tournaments
+    @GET("api/v1/tournaments")
+    suspend fun getTournaments(): ApiResponse<List<Tournament>>
 
-    @POST("/api/v1/payments/confirm-manual/{booking_id}")
-    suspend fun confirmManualPayment(
-        @Path("booking_id") bookingId: Int,
-        @Body request: ConfirmPaymentRequest
-    ): ApiResponse<Payment>
+    @GET("api/v1/tournaments/{id}")
+    suspend fun getTournament(@Path("id") id: Int): ApiResponse<Tournament>
 
-    // ── Matches ───────────────────────────────────────────────
-    @GET("/api/v1/matches")
-    suspend fun getMatches(
-        @Query("sport_id") sportId: Int? = null,
-        @Query("region_id") regionId: Int? = null
-    ): ApiResponse<List<Match>>
+    @POST("api/v1/tournaments/{id}/register")
+    suspend fun registerTournament(@Path("id") id: Int, @Body body: Map<String, String> = emptyMap()): ApiResponse<Unit>
 
-    @POST("/api/v1/matches")
-    suspend fun createMatch(@Body request: CreateMatchRequest): ApiResponse<Match>
+    // Societies
+    @GET("api/v1/societies")
+    suspend fun getSocieties(): ApiResponse<List<Society>>
 
-    @POST("/api/v1/matches/{match_id}/join")
-    suspend fun joinMatch(@Path("match_id") matchId: Int): ApiResponse<Match>
+    @GET("api/v1/societies/{id}")
+    suspend fun getSociety(@Path("id") id: Int): ApiResponse<Society>
 
-    @POST("/api/v1/matches/{match_id}/leave")
-    suspend fun leaveMatch(@Path("match_id") matchId: Int): ApiResponse<Match>
+    @POST("api/v1/societies/{id}/join")
+    suspend fun joinSociety(@Path("id") id: Int): ApiResponse<Unit>
+
+    @DELETE("api/v1/societies/{id}/leave")
+    suspend fun leaveSociety(@Path("id") id: Int): ApiResponse<Unit>
+
+    @GET("api/v1/societies/{id}/members")
+    suspend fun getSocietyMembers(@Path("id") id: Int): ApiResponse<List<SocietyMember>>
+
+    @POST("api/v1/societies")
+    suspend fun createSociety(@Body request: CreateSocietyRequest): ApiResponse<Society>
+
+    // Wallet
+    @GET("api/v1/wallet/transactions")
+    suspend fun getWalletTransactions(): ApiResponse<List<WalletTransaction>>
+
+    @GET("api/v1/wallet/balance")
+    suspend fun getWalletBalance(): ApiResponse<Map<String, Int>>
+
+    // Notifications
+    @GET("api/v1/notifications")
+    suspend fun getNotifications(): ApiResponse<List<Notification>>
+
+    // Captain
+    @POST("api/v1/captains/apply")
+    suspend fun applyCaptain(@Body body: Map<String, String>): ApiResponse<Unit>
+
+    @GET("api/v1/captains/me/stats")
+    suspend fun getCaptainStats(): ApiResponse<CaptainStats>
 }

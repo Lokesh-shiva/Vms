@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+from core.database.db_connection import SessionLocal
 from modules.auth.dependencies.auth_dependencies import require_user
 from modules.matchmaking.service.matchmaking_service import matchmaking_service
 from modules.matchmaking.schemas.matchmaking_schema import JoinQueueRequest
+from modules.sport.model.sport_model import Sport
 
 
 router = APIRouter(prefix="/api/v1/matchmaking", tags=["Matchmaking"])
@@ -30,54 +32,60 @@ def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_u
     """
     Join the matchmaking queue for a sport.
 
-    - sport_id and skill_level supplied by client.
-    - region_id injected from authenticated user's profile.
-    - Returns entry details, dynamic pricing, and estimated wait time.
+    Accepts either sport name (string) or sport_id (int).
+    skill_level is case-insensitive (Intermediate == INTERMEDIATE).
+    region_id is injected from authenticated user's profile.
     """
     region_id = current_user.get("region_id")
     if not region_id:
         return _error("Your account has no region set. Please update your profile.")
 
+    # Resolve sport_id from name if only name was provided
+    sport_id = request.sport_id
+    if sport_id is None and request.sport:
+        db = SessionLocal()
+        try:
+            sport_row = db.query(Sport).filter(Sport.name.ilike(request.sport)).first()
+            if not sport_row:
+                return _error(f"Unknown sport: {request.sport}")
+            sport_id = sport_row.id
+        finally:
+            db.close()
+    if sport_id is None:
+        return _error("Provide either sport (name) or sport_id.")
+
+    # Normalise skill_level casing — mobile sends "Intermediate", service expects "INTERMEDIATE"
+    skill_level = request.skill_level.upper()
+
     try:
         result = matchmaking_service.join_queue(
             user_id=current_user["id"],
             region_id=region_id,
-            sport_id=request.sport_id,
-            skill_level=request.skill_level,
+            sport_id=sport_id,
+            skill_level=skill_level,
             instant_captain=request.instant_captain,
         )
     except ValueError as e:
-        # No captain available is a 503 so the client can retry
         status_code = 503 if "No captains are available" in str(e) else 400
         return _error(str(e), status_code)
 
     entry = result["entry"]
     mode = result.get("mode", "STRANGER_MATCH")
+    match_id = result.get("match_id")
 
-    # FLAT response — fields at top level, not inside "data"
-    response: dict = {
+    data: dict = {
         "entry_id": entry["id"],
-        "user_id": entry["user_id"],
-        "region_id": entry["region_id"],
-        "sport_id": entry["sport_id"],
-        "skill_level": entry["skill_level"],
-        "status": entry["status"],
-        "mode": mode,
-        "instant_captain": entry.get("instant_captain", False),
+        "in_queue": True,
+        "match_found": match_id is not None,
+        "match_id": match_id,
         "players_searching": result["players_searching"],
         "estimated_wait_seconds": result["estimated_wait_seconds"],
-        "pricing": result["pricing"],
-        "created_at": entry["created_at"],
+        "mode": mode,
     }
-
     if mode == "INSTANT_CAPTAIN":
-        response["match_id"] = result["match_id"]
-        response["captain_id"] = result["captain_id"]
-        response["message"] = "Captain assigned! Head to your ground."
-    else:
-        response["message"] = "You have joined the queue. Looking for a match..."
+        data["captain_id"] = result["captain_id"]
 
-    return response
+    return _success(data, "Captain assigned! Head to your ground." if mode == "INSTANT_CAPTAIN" else "Joined queue.")
 
 
 @router.delete("/leave")
@@ -110,19 +118,14 @@ def queue_status(current_user: dict = Depends(require_user)):
         return _error(str(e))
 
     entry = result["entry"]
+    match_id = result.get("match_id")
     data = {
         "entry_id": entry["id"],
-        "user_id": entry["user_id"],
-        "region_id": entry["region_id"],
-        "sport_id": entry["sport_id"],
-        "skill_level": entry["skill_level"],
-        "status": entry["status"],
+        "in_queue": True,
+        "match_found": match_id is not None,
+        "match_id": match_id,
         "players_searching": result["players_searching"],
         "estimated_wait_seconds": result["estimated_wait_seconds"],
-        "pricing": result["pricing"],
-        "created_at": entry["created_at"],
     }
-    if result.get("match_id"):
-        data["match_id"] = result["match_id"]
 
     return _success(data, "Queue status retrieved.")

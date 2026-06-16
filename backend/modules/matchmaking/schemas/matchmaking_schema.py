@@ -5,7 +5,9 @@ from typing import Optional
 class JoinQueueRequest(BaseModel):
     """Request body for POST /matchmaking/play-now"""
 
-    sport_id: int = Field(..., gt=0, description="ID of the sport to match for")
+    # Accept either sport name (mobile client) or sport_id (legacy/admin)
+    sport: Optional[str] = Field(None, description="Sport name (e.g. 'Badminton')")
+    sport_id: Optional[int] = Field(None, gt=0, description="Sport ID (legacy)")
     skill_level: str = Field(..., description="BEGINNER | INTERMEDIATE | ADVANCED")
     # Set to True to skip the stranger-wait and get a captain assigned immediately.
     # If no captain is available the request returns 503 so the client can retry
