@@ -1,11 +1,26 @@
-﻿package com.example.vmsuser.data
+package com.example.vmsuser.data
 
 import android.util.Log
+import com.example.vmsuser.models.ApiResponse
 import com.example.vmsuser.models.Match
 import com.example.vmsuser.models.OpenMatch
 import com.example.vmsuser.models.PlayNowRequest
 import com.example.vmsuser.models.QueueStatus
 import com.example.vmsuser.network.RetrofitClient
+import kotlinx.serialization.json.Json
+import retrofit2.HttpException
+
+private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
+/** Extract the backend `message` field from a 4xx/5xx response body. */
+private fun HttpException.backendMessage(): String {
+    return try {
+        val body = response()?.errorBody()?.string() ?: return "Server error (${code()})"
+        json.decodeFromString<ApiResponse<Unit>>(body).message ?: "Server error (${code()})"
+    } catch (_: Exception) {
+        "Server error (${code()})"
+    }
+}
 
 class MatchRepository {
     private val api = RetrofitClient.api
@@ -14,29 +29,43 @@ class MatchRepository {
         val res = api.getQueueStatus()
         if (res.success && res.data != null) Result.success(res.data)
         else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: HttpException) {
+        val msg = e.backendMessage()
+        Log.e("MatchRepo", "getQueueStatus: $msg")
+        Result.failure(Exception(msg))
     } catch (e: Exception) { Log.e("MatchRepo", "getQueueStatus", e); Result.failure(e) }
 
     suspend fun joinQueue(sport: String, skillLevel: String, maxPlayers: Int = 2): Result<QueueStatus> = try {
         val res = api.joinQueue(PlayNowRequest(sport, skillLevel, maxPlayers))
         if (res.success && res.data != null) Result.success(res.data)
         else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: HttpException) {
+        val msg = e.backendMessage()
+        Log.e("MatchRepo", "joinQueue: $msg")
+        Result.failure(Exception(msg))
     } catch (e: Exception) { Log.e("MatchRepo", "joinQueue", e); Result.failure(e) }
 
     suspend fun getOpenMatches(sport: String? = null): Result<List<OpenMatch>> = try {
         val res = api.getOpenMatches(sport)
         if (res.success && res.data != null) Result.success(res.data)
         else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: HttpException) {
+        Result.failure(Exception(e.backendMessage()))
     } catch (e: Exception) { Log.e("MatchRepo", "getOpenMatches", e); Result.failure(e) }
 
     suspend fun joinOpenMatch(matchId: Int): Result<Match> = try {
         val res = api.joinOpenMatch(matchId)
         if (res.success && res.data != null) Result.success(res.data)
         else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: HttpException) {
+        Result.failure(Exception(e.backendMessage()))
     } catch (e: Exception) { Log.e("MatchRepo", "joinOpenMatch", e); Result.failure(e) }
 
     suspend fun leaveQueue(): Result<Unit> = try {
         val res = api.leaveQueue()
         if (res.success) Result.success(Unit) else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: HttpException) {
+        Result.failure(Exception(e.backendMessage()))
     } catch (e: Exception) { Log.e("MatchRepo", "leaveQueue", e); Result.failure(e) }
 
     suspend fun getActiveMatch(): Result<Match?> = try {
@@ -52,6 +81,7 @@ class MatchRepository {
 
     suspend fun getMyMatches(): Result<List<Match>> = try {
         val res = api.getMyMatches()
-        if (res.success && res.data != null) Result.success(res.data) else Result.failure(Exception(res.message ?: "Failed"))
+        if (res.success && res.data != null) Result.success(res.data)
+        else Result.failure(Exception(res.message ?: "Failed"))
     } catch (e: Exception) { Log.e("MatchRepo", "getMyMatches", e); Result.failure(e) }
 }

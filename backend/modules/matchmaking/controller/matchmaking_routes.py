@@ -96,7 +96,22 @@ def play_now(request: PlayNowRequest, current_user: dict = Depends(require_user)
     """
     region_id = current_user.get("region_id")
     if not region_id:
-        return _error("No region set on your account. Please update your profile first.")
+        # Fallback: resolve region from city string on older accounts
+        city = current_user.get("city")
+        if city:
+            db = SessionLocal()
+            try:
+                from modules.location.model.location_model import Location
+                loc = db.query(Location).filter(Location.name.ilike(city)).first()
+                if loc:
+                    region_id = loc.id
+            finally:
+                db.close()
+    if not region_id:
+        return _error(
+            "Your profile has no location set. "
+            "Go to Profile → Edit Profile and select your area."
+        )
 
     sport_name: str = request.sport
 
