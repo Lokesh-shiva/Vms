@@ -1,6 +1,28 @@
 # Development Log
 
 ---
+## [2026-06-16] Critical fixes — DB seed + location picker + profile update
+
+### Added
+**Backend**
+- Migration 12: `sports` table seeded with Cricket, Football, Badminton, Volleyball, Basketball, Tennis (`ON CONFLICT DO NOTHING`) — was empty, causing all matchmaking attempts to fail with "Unknown sport"
+- Migration 13: `locations` table seeded with 8 Vizag areas (Vizag Central, Gajuwaka, Vizag North Zone, Rushikonda, Madhurawada, Dwaraka Nagar, MVP Colony, Seethammadhara) — city→region_id lookup now resolves for Vizag users
+- `PUT /api/v1/users/me` — self-update endpoint for authenticated users; strips `role`/`is_active` before delegating to `UpdateUserSchema`; resolves `region_id` from `city` string via Location ilike lookup
+- `city` field added to `UpdateUserSchema` so profile updates can carry city
+
+**App**
+- `LocationOption` model in `Models.kt` (id, name)
+- `getLocations()` in `ApiService` — `GET /api/v1/locations` (public, no auth)
+- `ProfileSetupScreen`: city free-text replaced with `ExposedDropdownMenuBox` that loads locations from API on mount; city is now always a valid location name
+- `EditProfileScreen`: hardcoded Bangalore/Mumbai/Delhi list replaced with real API locations; sends `city` (was `region`)
+- `ProfileRepository.updateProfile`: sends `city` field (was `region`) to match backend schema
+
+### Architectural decisions
+- Location picker fetches from API at mount time — no local cache needed, list is small and rarely changes
+- `PUT /users/me` resolves region_id server-side from city name (ilike match), same pattern as `complete-profile` — app stays simple, FK resolution stays in backend
+- Sports and locations seeded via `run_migrations.py` (idempotent, `ON CONFLICT DO NOTHING`) so Render picks them up on next deploy without wiping existing data
+
+---
 ## [2026-06-16] Phase 04b — Real auth: OTP + registration (Phase 1)
 
 ### Added

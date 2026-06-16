@@ -1,4 +1,4 @@
-﻿package com.example.vmsuser.ui.screens.profile
+package com.example.vmsuser.ui.screens.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -11,20 +11,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.vmsuser.models.LocationOption
+import com.example.vmsuser.network.RetrofitClient
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
 import com.example.vmsuser.viewmodel.ProfileViewModel
-
-private val REGIONS = listOf(
-    "Indiranagar, Bengaluru",
-    "Koramangala, Bengaluru",
-    "HSR Layout, Bengaluru",
-    "Whitefield, Bengaluru",
-    "Jayanagar, Bengaluru",
-    "Bandra, Mumbai",
-    "Andheri, Mumbai",
-    "Connaught Place, Delhi",
-)
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,9 +24,18 @@ fun EditProfileScreen(navController: NavController) {
     val vm: ProfileViewModel = viewModel()
     val user by vm.user.collectAsStateWithLifecycle()
     var name by remember { mutableStateOf(user?.name ?: "") }
-    var region by remember { mutableStateOf(user?.region ?: "") }
-    var regionExpanded by remember { mutableStateOf(false) }
+    var city by remember { mutableStateOf(user?.city ?: user?.region ?: "") }
+    var areaExpanded by remember { mutableStateOf(false) }
+    var locations by remember { mutableStateOf<List<LocationOption>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        try {
+            val res = RetrofitClient.api.getLocations()
+            if (res.success && res.data != null) locations = res.data
+        } catch (_: Exception) {}
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(PlixoSurface).statusBarsPadding()) {
         PlixoTopBar(title = "Edit Profile", onBack = { navController.popBackStack() })
@@ -61,14 +62,15 @@ fun EditProfileScreen(navController: NavController) {
             )
             Spacer(Modifier.height(14.dp))
             ExposedDropdownMenuBox(
-                expanded = regionExpanded,
-                onExpandedChange = { regionExpanded = it },
+                expanded = areaExpanded,
+                onExpandedChange = { areaExpanded = it },
             ) {
                 OutlinedTextField(
-                    value = region,
+                    value = city,
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Your area") },
+                    placeholder = { Text(if (locations.isEmpty()) "Loading areas…" else "Select your area") },
                     modifier = Modifier.fillMaxWidth().menuAnchor(),
                     shape = PlixoShape.Input,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -77,16 +79,17 @@ fun EditProfileScreen(navController: NavController) {
                         focusedContainerColor = PlixoSurface2,
                         unfocusedContainerColor = PlixoSurface2,
                     ),
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = regionExpanded) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = areaExpanded) },
+                    singleLine = true,
                 )
                 ExposedDropdownMenu(
-                    expanded = regionExpanded,
-                    onDismissRequest = { regionExpanded = false },
+                    expanded = areaExpanded && locations.isNotEmpty(),
+                    onDismissRequest = { areaExpanded = false },
                 ) {
-                    REGIONS.forEach { r ->
+                    locations.forEach { loc ->
                         DropdownMenuItem(
-                            text = { Text(r) },
-                            onClick = { region = r; regionExpanded = false },
+                            text = { Text(loc.name) },
+                            onClick = { city = loc.name; areaExpanded = false },
                         )
                     }
                 }
@@ -96,7 +99,12 @@ fun EditProfileScreen(navController: NavController) {
                 label = if (loading) "Saving…" else "Save changes",
                 onClick = {
                     loading = true
-                    vm.updateProfile(name, region) { navController.popBackStack() }
+                    scope.launch {
+                        vm.updateProfile(name, city) {
+                            loading = false
+                            navController.popBackStack()
+                        }
+                    }
                 },
                 enabled = name.isNotBlank() && !loading,
             )

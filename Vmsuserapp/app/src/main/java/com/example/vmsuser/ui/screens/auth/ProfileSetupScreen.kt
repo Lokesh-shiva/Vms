@@ -21,7 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.vmsuser.data.AuthRepository
+import com.example.vmsuser.models.LocationOption
 import com.example.vmsuser.navigation.Screen
+import com.example.vmsuser.network.RetrofitClient
 import com.example.vmsuser.network.UserSession
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
@@ -39,11 +41,20 @@ fun ProfileSetupScreen(navController: NavController) {
     var name by remember { mutableStateOf("") }
     var dob by remember { mutableStateOf("") }
     var city by remember { mutableStateOf("") }
+    var areaExpanded by remember { mutableStateOf(false) }
+    var locations by remember { mutableStateOf<List<LocationOption>>(emptyList()) }
     var sports by remember { mutableStateOf<Set<String>>(emptySet()) }
     var loading by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val repo = remember { AuthRepository() }
+
+    LaunchedEffect(Unit) {
+        try {
+            val res = RetrofitClient.api.getLocations()
+            if (res.success && res.data != null) locations = res.data
+        } catch (_: Exception) {}
+    }
 
     val totalSteps = 2
     val progress by animateFloatAsState(
@@ -155,22 +166,39 @@ fun ProfileSetupScreen(navController: NavController) {
                 )
                 Spacer(Modifier.height(14.dp))
 
-                OutlinedTextField(
-                    value = city,
-                    onValueChange = { city = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("City / area") },
-                    placeholder = { Text("e.g. Indiranagar, Bengaluru") },
-                    shape = PlixoShape.Input,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PlixoPrimary,
-                        unfocusedBorderColor = PlixoBorder,
-                        focusedContainerColor = PlixoSurface2,
-                        unfocusedContainerColor = PlixoSurface2,
-                    ),
-                    singleLine = true,
-                )
+                ExposedDropdownMenuBox(
+                    expanded = areaExpanded,
+                    onExpandedChange = { areaExpanded = it },
+                ) {
+                    OutlinedTextField(
+                        value = city,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        label = { Text("Your area") },
+                        placeholder = { Text(if (locations.isEmpty()) "Loading areas…" else "Select your area") },
+                        shape = PlixoShape.Input,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PlixoPrimary,
+                            unfocusedBorderColor = PlixoBorder,
+                            focusedContainerColor = PlixoSurface2,
+                            unfocusedContainerColor = PlixoSurface2,
+                        ),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = areaExpanded) },
+                        singleLine = true,
+                    )
+                    ExposedDropdownMenu(
+                        expanded = areaExpanded && locations.isNotEmpty(),
+                        onDismissRequest = { areaExpanded = false },
+                    ) {
+                        locations.forEach { loc ->
+                            DropdownMenuItem(
+                                text = { Text(loc.name) },
+                                onClick = { city = loc.name; areaExpanded = false },
+                            )
+                        }
+                    }
+                }
 
                 Spacer(Modifier.height(26.dp))
                 PlixoButton(

@@ -188,6 +188,12 @@ data class CaptainStats(
 )
 
 @Serializable
+data class LocationOption(
+    val id: Int = 0,
+    val name: String = "",
+)
+
+@Serializable
 data class CreateSocietyRequest(
     val name: String,
     val sport: String,

@@ -47,7 +47,7 @@ class PlayViewModel : ViewModel() {
     fun selectSport(sport: String) { _selectedSport.value = sport }
     fun selectSkill(skill: String) { _selectedSkill.value = skill }
 
-    fun joinQueue(onNavigate: (String) -> Unit, onMatchFound: (Int) -> Unit = {}) {
+    fun joinQueue(onMatchFound: (Int) -> Unit = {}, onNavigate: (String) -> Unit) {
         viewModelScope.launch {
             _loading.value = true
             _error.value = null

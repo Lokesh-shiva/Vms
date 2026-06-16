@@ -32,6 +32,6 @@ object FeatureFlags {
     /** No /api/v1/captains/apply and no KYC upload endpoints. */
     const val CAPTAIN_ONBOARDING = false
 
-    /** /api/v1/matches/mine returns 404 — no user match-history list endpoint. */
+    /** OpenMatchesScreen still uses mock data — no backend browse-open-matches endpoint yet. */
     const val OPEN_MATCHES = false
 }
