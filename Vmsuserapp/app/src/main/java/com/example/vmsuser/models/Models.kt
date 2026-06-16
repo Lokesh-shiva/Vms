@@ -87,12 +87,6 @@ data class MatchmakingPrice(
 )
 
 @Serializable
-data class JoinQueueRequest(
-    val sport: String,
-    @SerialName("skill_level") val skillLevel: String = "Intermediate",
-)
-
-@Serializable
 data class Match(
     val id: Int = 0,
     val sport: String = "",
@@ -208,6 +202,19 @@ data class SportItem(
     val id: Int = 0,
     val name: String = "",
     @SerialName("is_active") val isActive: Boolean = true,
+)
+
+@Serializable
+data class OpenMatch(
+    val id: Int = 0,
+    val sport: String = "",
+    @SerialName("ground_name") val groundName: String = "",
+    @SerialName("region_name") val regionName: String = "",
+    @SerialName("joined_players") val joinedPlayers: Int = 0,
+    @SerialName("max_players") val maxPlayers: Int = 2,
+    @SerialName("created_at") val createdAt: String = "",
+    val status: String = "WAITING",
+    @SerialName("captain_name") val creatorName: String = "",
 )
 
 @Serializable

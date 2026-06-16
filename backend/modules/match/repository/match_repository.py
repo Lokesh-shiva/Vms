@@ -90,6 +90,57 @@ class MatchRepository:
         finally:
             session.close()
 
+    def create_play_now(
+        self,
+        user_id: int,
+        region_id: int,
+        cart_type_id: int,
+        max_players: int = 2,
+    ) -> dict:
+        """
+        Create a WAITING play-now match and add the creator as the first MatchPlayer.
+        No timeslot or ground needed — captain brings those when they arrive.
+        """
+        session = self._session_factory()
+        try:
+            match = Match(
+                created_by=user_id,
+                region_id=region_id,
+                cart_type_id=cart_type_id,
+                sport_id=cart_type_id,  # unified post-migration-14
+                max_players=max_players,
+                joined_players=1,
+                status="WAITING",
+            )
+            session.add(match)
+            session.flush()
+            session.add(MatchPlayer(match_id=match.id, user_id=user_id))
+            session.commit()
+            session.refresh(match)
+            return match.to_dict()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def find_waiting_in_region(
+        self, region_id: int, sport_id: int | None = None
+    ) -> list[dict]:
+        """Return WAITING matches in a region, newest first. No timeslot join needed."""
+        session = self._session_factory()
+        try:
+            query = session.query(Match).filter(
+                Match.region_id == region_id,
+                Match.status == "WAITING",
+            )
+            if sport_id:
+                query = query.filter(Match.cart_type_id == sport_id)
+            rows = query.order_by(Match.created_at.desc()).all()
+            return [self._enrich(m, session) for m in rows]
+        finally:
+            session.close()
+
     def find_all_matches(self) -> list[dict]:
         """Return all matches across all statuses, newest first."""
         session = self._session_factory()

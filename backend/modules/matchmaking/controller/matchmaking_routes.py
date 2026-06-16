@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from core.database.db_connection import SessionLocal
 from modules.auth.dependencies.auth_dependencies import require_user
-from modules.matchmaking.service.matchmaking_service import matchmaking_service
-from modules.matchmaking.schemas.matchmaking_schema import JoinQueueRequest
+from modules.match.repository.match_repository import match_repository
+from modules.match.service.match_service import match_service
 from modules.cart_type.model.cart_type_model import CartType
 
 
@@ -22,6 +22,22 @@ def _error(message: str, status_code: int = 400):
         status_code=status_code,
         content={"success": False, "data": None, "message": message},
     )
+
+
+def _match_to_queue_status(match: dict, price: int = 200) -> dict:
+    """Shape an enriched match dict into the QueueStatus response the app expects."""
+    status = match.get("status", "WAITING")
+    match_found = status in ("MATCHED", "ARRIVED", "IN_PROGRESS")
+    return {
+        "in_queue": True,
+        "queue_position": 0,
+        "players_searching": match.get("joined_players", 1),
+        "estimated_wait_seconds": 0,
+        "sport": match.get("sport", ""),
+        "match_found": match_found,
+        "match_id": match["id"] if match_found else None,
+        "price": price,
+    }
 
 
 # -- Endpoints ──────────────────────────────────────────────────────────
@@ -57,117 +73,106 @@ def get_price(sport: str, current_user: dict = Depends(require_user)):
 
 
 @router.post("/play-now", status_code=201)
-def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_user)):
+def play_now(request: dict, current_user: dict = Depends(require_user)):
     """
-    Join the matchmaking queue for a sport.
+    Create an open play-now session for a sport.
 
-    Accepts either sport name (string) or sport_id (int).
-    skill_level is case-insensitive (Intermediate == INTERMEDIATE).
-    region_id is injected from authenticated user's profile.
+    Flow:
+    1. Resolve region from user's profile.
+    2. Resolve sport (cart_type) from name.
+    3. Check user has no existing active match.
+    4. Create Match(WAITING) with creator as first MatchPlayer.
+    5. Return QueueStatus shape so the app's existing polling loop works.
+
+    Other users in the same region will see this match in GET /api/v1/matches/open
+    and can join via POST /api/v1/matches/{id}/join.
     """
     region_id = current_user.get("region_id")
     if not region_id:
-        # Fallback: try to resolve from user's city string for accounts created before region_id was set
-        city = current_user.get("city")
-        if city:
-            db = SessionLocal()
-            try:
-                from modules.location.model.location_model import Location
-                loc = db.query(Location).filter(Location.name.ilike(city)).first()
-                if loc:
-                    region_id = loc.id
-            finally:
-                db.close()
-    if not region_id:
-        return _error("Your account has no region set. Please update your profile.")
+        return _error("No region set on your account. Please update your profile first.")
 
-    # Resolve sport_id (cart_type_id) from name if only name was provided
-    sport_id = request.sport_id
-    if sport_id is None and request.sport:
-        db = SessionLocal()
-        try:
-            cart_type = db.query(CartType).filter(CartType.name.ilike(request.sport)).first()
-            if not cart_type:
-                return _error(f"Unknown sport: {request.sport}. Check admin app for available sports.")
-            sport_id = cart_type.id
-        finally:
-            db.close()
-    if sport_id is None:
-        return _error("Provide either sport (name) or sport_id.")
+    sport_name: str = request.get("sport", "")
+    if not sport_name:
+        return _error("sport is required.")
 
-    # Normalise skill_level casing — mobile sends "Intermediate", service expects "INTERMEDIATE"
-    skill_level = request.skill_level.upper()
+    db = SessionLocal()
+    try:
+        cart_type = db.query(CartType).filter(CartType.name.ilike(sport_name)).first()
+        if not cart_type:
+            return _error(f"Unknown sport: {sport_name}. Check the sports list.")
+        sport_id = cart_type.id
+
+        from modules.pricing.service.pricing_service import PricingService
+        pricing = PricingService(db).calculate_price(region_id, sport_id)
+        price = int(pricing["final_price"])
+    finally:
+        db.close()
+
+    # Guard: one active match at a time
+    active = match_repository.find_active_by_user(current_user["id"])
+    if active:
+        return _error(
+            "You already have an active match. Leave it before starting a new one."
+        )
 
     try:
-        result = matchmaking_service.join_queue(
+        match = match_repository.create_play_now(
             user_id=current_user["id"],
             region_id=region_id,
-            sport_id=sport_id,
-            skill_level=skill_level,
-            instant_captain=request.instant_captain,
+            cart_type_id=sport_id,
+            max_players=2,
         )
-    except ValueError as e:
-        status_code = 503 if "No captains are available" in str(e) else 400
-        return _error(str(e), status_code)
-
-    entry = result["entry"]
-    mode = result.get("mode", "STRANGER_MATCH")
-    match_id = result.get("match_id")
-
-    data: dict = {
-        "entry_id": entry["id"],
-        "in_queue": True,
-        "match_found": match_id is not None,
-        "match_id": match_id,
-        "players_searching": result["players_searching"],
-        "estimated_wait_seconds": result["estimated_wait_seconds"],
-        "mode": mode,
-        "price": int(result["pricing"]["final_price"]),
-    }
-    if mode == "INSTANT_CAPTAIN":
-        data["captain_id"] = result["captain_id"]
-
-    return _success(data, "Captain assigned! Head to your ground." if mode == "INSTANT_CAPTAIN" else "Joined queue.")
-
-
-@router.delete("/leave")
-def leave_queue(current_user: dict = Depends(require_user)):
-    """
-    Leave (cancel) the current user's active queue entry.
-
-    - Returns the cancelled QueueEntry dict.
-    - 400 if user has no active queue entry.
-    """
-    try:
-        updated = matchmaking_service.leave_queue(user_id=current_user["id"])
-    except ValueError as e:
+    except Exception as e:
         return _error(str(e))
 
-    return _success(updated, "You have left the queue.")
+    enriched = match_repository.find_by_id_enriched(match["id"])
+    data = _match_to_queue_status(enriched or match, price=price)
+
+    return _success(data, "Session created! Looking for players in your area…")
 
 
 @router.get("/status")
 def queue_status(current_user: dict = Depends(require_user)):
     """
-    Poll the current user's queue position and updated wait time.
-
-    - Returns entry, players_searching, estimated_wait_seconds, and current pricing.
-    - 400 if user has no active queue entry.
+    Return the current user's active match as a QueueStatus.
+    The app polls this every few seconds while on the QueueTrackerScreen.
     """
+    active = match_repository.find_active_by_user(current_user["id"])
+    if not active:
+        return _error("No active match.", status_code=404)
+
+    # Compute current price for the match sport + user's region
+    price = 200
+    region_id = current_user.get("region_id")
+    sport_id = active.get("cart_type_id")
+    if region_id and sport_id:
+        db = SessionLocal()
+        try:
+            from modules.pricing.service.pricing_service import PricingService
+            p = PricingService(db).calculate_price(region_id, sport_id)
+            price = int(p["final_price"])
+        except Exception:
+            pass
+        finally:
+            db.close()
+
+    data = _match_to_queue_status(active, price=price)
+    return _success(data, "Status retrieved.")
+
+
+@router.delete("/leave")
+def leave_queue(current_user: dict = Depends(require_user)):
+    """
+    Leave the user's current WAITING match.
+    If the creator leaves, the match is cancelled. Otherwise the player is removed.
+    """
+    active = match_repository.find_active_by_user(current_user["id"])
+    if not active:
+        return _error("No active match to leave.")
+
     try:
-        result = matchmaking_service.get_queue_status(user_id=current_user["id"])
+        result = match_service.leave_match(current_user["id"], active["id"])
     except ValueError as e:
         return _error(str(e))
 
-    entry = result["entry"]
-    match_id = result.get("match_id")
-    data = {
-        "entry_id": entry["id"],
-        "in_queue": True,
-        "match_found": match_id is not None,
-        "match_id": match_id,
-        "players_searching": result["players_searching"],
-        "estimated_wait_seconds": result["estimated_wait_seconds"],
-    }
-
-    return _success(data, "Queue status retrieved.")
+    return _success(result, "Left the match.")

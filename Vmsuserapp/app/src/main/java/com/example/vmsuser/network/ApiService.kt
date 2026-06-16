@@ -38,10 +38,17 @@ interface ApiService {
     suspend fun getQueueStatus(): ApiResponse<QueueStatus>
 
     @POST("api/v1/matchmaking/play-now")
-    suspend fun joinQueue(@Body request: JoinQueueRequest): ApiResponse<QueueStatus>
+    suspend fun joinQueue(@Body request: Map<String, String>): ApiResponse<QueueStatus>
 
     @DELETE("api/v1/matchmaking/leave")
     suspend fun leaveQueue(): ApiResponse<Unit>
+
+    // Open matches (browse + join)
+    @GET("api/v1/matches/open")
+    suspend fun getOpenMatches(@Query("sport") sport: String? = null): ApiResponse<List<OpenMatch>>
+
+    @POST("api/v1/matches/{id}/join")
+    suspend fun joinOpenMatch(@Path("id") id: Int): ApiResponse<Match>
 
     // Matches
     @GET("api/v1/matches/mine")

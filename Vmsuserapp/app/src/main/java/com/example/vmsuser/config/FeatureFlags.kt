@@ -32,6 +32,6 @@ object FeatureFlags {
     /** No /api/v1/captains/apply and no KYC upload endpoints. */
     const val CAPTAIN_ONBOARDING = false
 
-    /** OpenMatchesScreen still uses mock data — no backend browse-open-matches endpoint yet. */
-    const val OPEN_MATCHES = false
+    /** Browse open play-now sessions in user's region. Backend: GET /api/v1/matches/open. */
+    const val OPEN_MATCHES = true
 }

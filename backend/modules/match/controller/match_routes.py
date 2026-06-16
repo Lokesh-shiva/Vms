@@ -118,6 +118,35 @@ def finish_match(match_id: int, current_user: dict = Depends(require_user)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.get("/open")
+def get_open_matches(
+    sport: str = Query(None),
+    current_user: dict = Depends(require_user),
+):
+    """
+    List WAITING play-now sessions in the current user's region.
+    Used by OpenMatchesScreen so users can browse and join nearby games.
+    """
+    region_id = current_user.get("region_id")
+    if not region_id:
+        return _success([], "No region set — update your profile to see nearby matches.")
+
+    sport_id = None
+    if sport:
+        from core.database.db_connection import SessionLocal
+        from modules.cart_type.model.cart_type_model import CartType
+        db = SessionLocal()
+        try:
+            ct = db.query(CartType).filter(CartType.name.ilike(sport)).first()
+            if ct:
+                sport_id = ct.id
+        finally:
+            db.close()
+
+    matches = match_repository.find_waiting_in_region(region_id, sport_id)
+    return _success(matches)
+
+
 @router.get("/mine/active")
 def get_my_active_match(current_user: dict = Depends(require_user)):
     """Return the current user's most recent active match, or null."""

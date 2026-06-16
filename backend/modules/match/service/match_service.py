@@ -172,8 +172,8 @@ class MatchService(BaseService):
             if match_orm is None:
                 raise ValueError("Match not found.")
 
-            # 2. Status check
-            if match_orm.status != "OPEN":
+            # 2. Status check — OPEN (old booking) and WAITING (play-now) are both joinable
+            if match_orm.status not in ("OPEN", "WAITING"):
                 raise ValueError(f"Match is not joinable (status: {match_orm.status}).")
 
             # 3. Capacity check
@@ -194,25 +194,37 @@ class MatchService(BaseService):
             self.match_repo.add_player(match_id, user_id, session)
             self.match_repo.increment_player_count(match_id, session)
 
-            # 7. Check if full → lock cart
+            # 7. Check if full
             session.refresh(match_orm)
             if match_orm.joined_players >= match_orm.max_players:
-                match_orm.status = "FULL"
-                session.flush()
-
-                # Lock the cart (BUSY)
-                if match_orm.cart_id:
-                    from modules.cart.model.cart_model import Cart
-
-                    cart = (
-                        session.query(Cart).filter(Cart.id == match_orm.cart_id).first()
+                if match_orm.status == "WAITING":
+                    # Play-now model: auto-assign a captain and move to MATCHED
+                    from modules.captain.repository.captain_repository import captain_repository
+                    captain = captain_repository.find_available_captain(
+                        match_orm.region_id, session
                     )
-                    if cart:
+                    if captain:
+                        captain_repository.set_availability(
+                            captain_id=captain.id,
+                            available=False,
+                            match_id=match_orm.id,
+                            session=session,
+                        )
+                    match_orm.status = "MATCHED"
+                else:
+                    # Old VMS booking model: mark FULL, lock the cart
+                    match_orm.status = "FULL"
+                    if match_orm.cart_id:
+                        from modules.cart.model.cart_model import Cart
                         from datetime import datetime
 
-                        cart.status = "BUSY"
-                        cart.updated_at = datetime.utcnow()
-                        session.flush()
+                        cart = (
+                            session.query(Cart).filter(Cart.id == match_orm.cart_id).first()
+                        )
+                        if cart:
+                            cart.status = "BUSY"
+                            cart.updated_at = datetime.utcnow()
+                session.flush()
 
             # 8. Commit
             session.commit()
@@ -254,7 +266,7 @@ class MatchService(BaseService):
             if match_orm.status == "FULL":
                 raise ValueError("Cannot leave a match that is already full.")
 
-            if match_orm.status not in ("OPEN",):
+            if match_orm.status not in ("OPEN", "WAITING"):
                 raise ValueError(
                     f"Match is not in a leavable state (status: {match_orm.status})."
                 )

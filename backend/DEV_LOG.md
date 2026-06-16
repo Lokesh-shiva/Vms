@@ -1,6 +1,34 @@
 # Development Log
 
 ---
+## [2026-06-16] Core play-now model fix — Match(WAITING) not QueueEntry
+
+### The problem
+`POST /play-now` was creating a `QueueEntry` (blind queue model). Actual Plixo model:
+player creates an OPEN session → others browse it in "Open Matches" → join → captain auto-assigned when full.
+The `matches` + `match_players` tables were already perfectly suited. `queue_entries` was the wrong abstraction.
+
+### Changed
+**Backend**
+- `matchmaking_routes.py` — Full rewrite. `POST /play-now` now creates `Match(WAITING)` via `match_repository.create_play_now()` and returns QueueStatus shape. `GET /status` reads from `find_active_by_user`. `DELETE /leave` delegates to `match_service.leave_match`. `GET /price` kept.
+- `match_repository.py` — Added `create_play_now(user_id, region_id, cart_type_id, max_players)`: creates Match(WAITING) + MatchPlayer in one transaction. Added `find_waiting_in_region(region_id, sport_id)`: returns WAITING matches enriched, no timeslot join.
+- `match_service.py` — `join_match` now accepts WAITING (play-now) + OPEN (old VMS booking). When full: WAITING → captain auto-assigned → MATCHED; OPEN → FULL + cart locked (old behavior preserved). `leave_match` now accepts WAITING status.
+- `match_routes.py` — Added `GET /api/v1/matches/open`: lists WAITING matches in user's region with optional sport filter.
+
+**App**
+- `Models.kt` — Added `OpenMatch` model; removed unused `JoinQueueRequest`.
+- `ApiService.kt` — `joinQueue` now sends `Map<String,String>` (not JoinQueueRequest); added `getOpenMatches()` and `joinOpenMatch()`.
+- `MatchRepository.kt` — Updated joinQueue call; added `getOpenMatches()` and `joinOpenMatch()`.
+- `OpenMatchesScreen.kt` — Full rewrite with real API data, join flow, loading/empty/error states.
+- `FeatureFlags.kt` — `OPEN_MATCHES = true` (backend now exists).
+
+### Architectural decisions
+- `queue_entries` table kept in DB but matchmaking no longer writes to it — it's now audit/legacy only.
+- Old VMS booking flow (`POST /api/v1/matches` + OPEN + timeslot) is fully preserved.
+- FCM push notifications (ping nearby users on match creation) is stubbed — users discover open sessions via OpenMatchesScreen for now.
+- Captain assignment on play-now match full: best-effort (no captain available = match stays MATCHED, captain assigned manually later).
+
+---
 ## [2026-06-16] Real pricing endpoint + error display + match history wiring
 
 ### Added

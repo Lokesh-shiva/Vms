@@ -1,4 +1,4 @@
-﻿package com.example.vmsuser.ui.screens.play
+package com.example.vmsuser.ui.screens.play
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -7,67 +7,41 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.vmsuser.data.MatchRepository
+import com.example.vmsuser.models.OpenMatch
 import com.example.vmsuser.navigation.Screen
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
-
-private data class OpenMatch(
-    val id: Int,
-    val sport: String,
-    val ground: String,
-    val time: String,
-    val filled: Int,
-    val total: Int,
-    val price: Int,
-    val photoUrl: String,
-)
-
-private val MOCK_MATCHES = listOf(
-    OpenMatch(
-        id = 1,
-        sport = "Cricket",
-        ground = "BBMP Ground Koramangala",
-        time = "Today 4:00 PM",
-        filled = 8,
-        total = 11,
-        price = 200,
-        photoUrl = "https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=600&q=80",
-    ),
-    OpenMatch(
-        id = 2,
-        sport = "Football",
-        ground = "Bangalore Football Stadium",
-        time = "Today 6:00 PM",
-        filled = 12,
-        total = 22,
-        price = 150,
-        photoUrl = "https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=600&q=80",
-    ),
-    OpenMatch(
-        id = 3,
-        sport = "Badminton",
-        ground = "Kanteerava Annex",
-        time = "Tomorrow 7:00 AM",
-        filled = 2,
-        total = 4,
-        price = 400,
-        photoUrl = "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=600&q=80",
-    ),
-)
+import kotlinx.coroutines.launch
 
 @Composable
 fun OpenMatchesScreen(navController: NavController) {
+    val repo = remember { MatchRepository() }
+    val scope = rememberCoroutineScope()
+
+    var matches by remember { mutableStateOf<List<OpenMatch>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var joiningId by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(Unit) {
+        repo.getOpenMatches()
+            .onSuccess { matches = it }
+            .onFailure { error = it.message }
+        loading = false
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -75,23 +49,65 @@ fun OpenMatchesScreen(navController: NavController) {
             .statusBarsPadding(),
     ) {
         PlixoTopBar(title = "Open Matches", onBack = { navController.popBackStack() })
-        LazyColumn(
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            items(MOCK_MATCHES) { match ->
-                OpenMatchCard(
-                    match = match,
-                    onJoin = { navController.navigate(Screen.ActiveMatch.create(match.id)) },
-                )
+
+        when {
+            loading -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = PlixoPrimary)
+                }
             }
-            item { Spacer(Modifier.height(80.dp)) }
+            error != null -> {
+                Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        error ?: "Something went wrong",
+                        color = PlixoText2,
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 14.sp,
+                    )
+                }
+            }
+            matches.isEmpty() -> {
+                Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("No open matches near you", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = PlixoText)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Be the first — tap Play and create one!", fontFamily = PlusJakartaSans, fontSize = 14.sp, color = PlixoText2)
+                    }
+                }
+            }
+            else -> {
+                LazyColumn(
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(matches, key = { it.id }) { match ->
+                        OpenMatchCard(
+                            match = match,
+                            joining = joiningId == match.id,
+                            onJoin = {
+                                joiningId = match.id
+                                scope.launch {
+                                    repo.joinOpenMatch(match.id)
+                                        .onSuccess { joined ->
+                                            navController.navigate(
+                                                Screen.ActiveMatch.create(joined.id)
+                                            )
+                                        }
+                                        .onFailure { error = it.message }
+                                    joiningId = null
+                                }
+                            },
+                        )
+                    }
+                    item { Spacer(Modifier.height(80.dp)) }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun OpenMatchCard(match: OpenMatch, onJoin: () -> Unit) {
+private fun OpenMatchCard(match: OpenMatch, joining: Boolean, onJoin: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -99,16 +115,16 @@ private fun OpenMatchCard(match: OpenMatch, onJoin: () -> Unit) {
     ) {
         Box(modifier = Modifier.fillMaxWidth().height(120.dp)) {
             AsyncImage(
-                model = match.photoUrl,
+                model = sportPhoto(match.sport),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
             Box(modifier = Modifier.align(Alignment.TopStart).padding(10.dp)) {
                 PlixoPill(
-                    text = match.sport,
+                    text = match.sport.ifBlank { "Match" },
                     bg = sportColor(match.sport),
-                    fg = androidx.compose.ui.graphics.Color.White,
+                    fg = Color.White,
                 )
             }
         }
@@ -117,67 +133,42 @@ private fun OpenMatchCard(match: OpenMatch, onJoin: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Icon(
-                    Icons.Filled.LocationOn,
-                    contentDescription = null,
-                    tint = PlixoText3,
-                    modifier = Modifier.size(14.dp),
-                )
+                Icon(Icons.Filled.LocationOn, contentDescription = null, tint = PlixoText3, modifier = Modifier.size(14.dp))
                 Text(
-                    match.ground,
+                    match.regionName.ifBlank { "Nearby" },
                     fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp,
                     color = PlixoText,
                 )
             }
-            Spacer(Modifier.height(4.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(
-                    Icons.Filled.Schedule,
-                    contentDescription = null,
-                    tint = PlixoText3,
-                    modifier = Modifier.size(14.dp),
-                )
+            if (match.creatorName.isNotBlank()) {
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    match.time,
+                    "Started by ${match.creatorName}",
                     fontFamily = PlusJakartaSans,
-                    fontSize = 12.sp,
-                    color = PlixoText2,
+                    fontSize = 11.sp,
+                    color = PlixoText3,
                 )
-                Spacer(Modifier.weight(1f))
-                Icon(
-                    Icons.Filled.Group,
-                    contentDescription = null,
-                    tint = PlixoText3,
-                    modifier = Modifier.size(14.dp),
-                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Group, contentDescription = null, tint = PlixoText3, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
                 Text(
-                    "${match.filled}/${match.total}",
+                    "${match.joinedPlayers}/${match.maxPlayers} joined",
                     fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 12.sp,
                     color = PlixoText2,
                 )
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "₹${match.price}/player",
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = PlixoText,
-                )
                 Spacer(Modifier.weight(1f))
                 PlixoButton(
-                    label = "Join",
+                    label = if (joining) "Joining…" else "Join",
                     onClick = onJoin,
                     variant = PlixoButtonVariant.Soft,
                     fullWidth = false,
+                    enabled = !joining,
                     modifier = Modifier.width(100.dp),
                 )
             }
