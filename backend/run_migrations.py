@@ -162,15 +162,15 @@ cur.execute("""
 
 print("Running migration 13: seed Vizag locations ...")
 cur.execute("""
-    INSERT INTO locations (name) VALUES
-        ('Vizag Central'),
-        ('Gajuwaka'),
-        ('Vizag North Zone'),
-        ('Rushikonda'),
-        ('Madhurawada'),
-        ('Dwaraka Nagar'),
-        ('MVP Colony'),
-        ('Seethammadhara')
+    INSERT INTO locations (name, is_serviceable, created_at, updated_at) VALUES
+        ('Vizag Central',    TRUE, NOW(), NOW()),
+        ('Gajuwaka',         TRUE, NOW(), NOW()),
+        ('Vizag North Zone', TRUE, NOW(), NOW()),
+        ('Rushikonda',       TRUE, NOW(), NOW()),
+        ('Madhurawada',      TRUE, NOW(), NOW()),
+        ('Dwaraka Nagar',    TRUE, NOW(), NOW()),
+        ('MVP Colony',       TRUE, NOW(), NOW()),
+        ('Seethammadhara',   TRUE, NOW(), NOW())
     ON CONFLICT (name) DO NOTHING;
 """)
 
