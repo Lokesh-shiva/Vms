@@ -190,6 +190,22 @@ cur.execute("""
         FOREIGN KEY (sport_id) REFERENCES cart_types(id) ON DELETE SET NULL;
 """)
 
+print("Running migration 15: seed region_cart_type_configs for all Vizag locations x sports ...")
+cur.execute("""
+    INSERT INTO region_cart_type_configs
+        (region_id, cart_type_id, booking_fee, cancellation_fee_pct, platform_fee_pct,
+         matching_fee, rate_per_block, block_duration_minutes, max_duration_minutes,
+         surge_enabled, surge_multiplier, is_active, created_at, updated_at)
+    SELECT
+        l.id, ct.id,
+        0.00, 0.00, 10.00,
+        200.00, 0.00, 45, 180, FALSE, 1.0, TRUE, NOW(), NOW()
+    FROM locations l
+    CROSS JOIN cart_types ct
+    WHERE l.is_serviceable = TRUE AND ct.is_active = TRUE
+    ON CONFLICT (region_id, cart_type_id) DO NOTHING;
+""")
+
 conn.commit()
 cur.close()
 conn.close()

@@ -49,24 +49,15 @@ fun sportPhoto(name: String) = SPORT_PHOTO[name.lowercase()] ?: FALLBACK_PHOTO
 
 private val SKILLS = listOf("Beginner", "Mid", "Pro")
 
-private data class SportInfo(val players: Int, val wait: Int, val price: Int)
-private val SPORT_INFO = mapOf(
-    "Cricket" to SportInfo(5, 10, 120),
-    "Football" to SportInfo(12, 8, 80),
-    "Badminton" to SportInfo(2, 15, 200),
-    "Basketball" to SportInfo(4, 20, 60),
-    "Tennis" to SportInfo(1, 30, 350),
-    "Pickleball" to SportInfo(3, 12, 150),
-    "Table Tennis" to SportInfo(4, 8, 100),
-    "Running" to SportInfo(8, 5, 50),
-)
-
 @Composable
 fun PlayScreen(navController: NavController) {
     val vm: PlayViewModel = viewModel()
     val selectedSport by vm.selectedSport.collectAsState()
     val selectedSkill by vm.selectedSkill.collectAsState()
     val loading by vm.loading.collectAsState()
+    val price by vm.price.collectAsState()
+    val playersSearching by vm.playersSearching.collectAsState()
+    val error by vm.error.collectAsState()
 
     var sportNames by remember { mutableStateOf<List<String>>(emptyList()) }
     var sportsLoading by remember { mutableStateOf(true) }
@@ -79,13 +70,13 @@ fun PlayScreen(navController: NavController) {
                 sportNames = names
                 if (selectedSport.isBlank() || selectedSport !in names) {
                     names.firstOrNull()?.let { vm.selectSport(it) }
+                } else {
+                    vm.selectSport(selectedSport) // trigger price fetch for current selection
                 }
             }
         } catch (_: Exception) {}
         sportsLoading = false
     }
-
-    val info = SPORT_INFO[selectedSport] ?: SportInfo(3, 15, 100)
 
     Column(
         modifier = Modifier
@@ -258,9 +249,9 @@ fun PlayScreen(navController: NavController) {
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 listOf(
-                    Triple("${info.players}", "Searching", false),
-                    Triple("${info.wait}m", "Est. wait", false),
-                    Triple("₹${info.price}", "Per game", true),
+                    Triple("$playersSearching", "Searching", false),
+                    Triple("~${maxOf(1, playersSearching * 2)}m", "Est. wait", false),
+                    Triple("₹$price", "Per game", true),
                 ).forEach { (value, label, isPrimary) ->
                     Column(
                         modifier = Modifier
@@ -284,10 +275,31 @@ fun PlayScreen(navController: NavController) {
             }
             Spacer(Modifier.height(24.dp))
 
+            // Error display
+            error?.let { msg ->
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFFFEDED))
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                ) {
+                    Text(
+                        msg,
+                        color = Color(0xFFB00020),
+                        fontSize = 13.sp,
+                        fontFamily = PlusJakartaSans,
+                    )
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
             // CTA
             PlixoButton(
-                label = if (loading) "Joining…" else "Join $selectedSport queue · ₹${info.price}",
+                label = if (loading) "Joining…" else "Join $selectedSport queue · ₹$price",
                 onClick = {
+                    vm.clearError()
                     vm.joinQueue { sport -> navController.navigate(Screen.Queue.create(sport)) }
                 },
                 enabled = !loading,

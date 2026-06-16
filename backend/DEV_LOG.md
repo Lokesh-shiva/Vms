@@ -1,6 +1,29 @@
 # Development Log
 
 ---
+## [2026-06-16] Real pricing endpoint + error display + match history wiring
+
+### Added
+**Backend**
+- `GET /api/v1/matchmaking/price?sport=X` — returns `PricingService.calculate_price()` result (final_price, reason, players_searching) for the authenticated user's region. Used by PlayScreen to show real dynamic price before joining queue.
+- Migration 15: CROSS JOIN seed of `region_cart_type_configs` for all serviceable locations × active cart_types (`ON CONFLICT DO NOTHING`) — ensures fee config exists for all Vizag areas seeded in migration 13.
+- Join queue response now includes `price: int` (the calculated final_price) so QueueTrackerScreen can display it post-join.
+
+**App**
+- `MatchmakingPrice` model added to `Models.kt`; `QueueStatus` gains `price: Int = 200` field.
+- `ApiService.kt` — `getMatchmakingPrice(@Query sport)` endpoint added.
+- `PlayViewModel` — `_price: StateFlow<Int>` + `_playersSearching: StateFlow<Int>` + `_matchHistory: StateFlow<List<Match>>` replace hardcoded mock data; price fetched on sport selection via `fetchPrice()`; match history loaded from `GET /api/v1/matches/mine` on init.
+- `PlayScreen` — stats row uses real `price` and `playersSearching` from VM; error message displayed in red card when join fails (previously errors were swallowed silently); join button label uses real price.
+
+### Removed
+**App**
+- `SPORT_INFO` hardcoded map and `SportInfo` data class removed from `PlayScreen.kt` — all stats now API-driven.
+
+### Architectural decisions
+- PricingService (dynamic: base × time_factor × demand_factor) is what matchmaking uses — NOT `region_cart_type_configs.matching_fee` (that's for ground booking). The price endpoint wraps PricingService, not fee_config.
+- Error display is an inline red card above the CTA button (no Scaffold/SnackbarHost needed since PlayScreen isn't wrapped in Scaffold).
+
+---
 ## [2026-06-16] Critical fixes — DB seed + location picker + profile update
 
 ### Added

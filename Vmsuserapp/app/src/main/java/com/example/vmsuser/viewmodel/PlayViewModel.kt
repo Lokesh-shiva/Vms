@@ -1,4 +1,4 @@
-﻿package com.example.vmsuser.viewmodel
+package com.example.vmsuser.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.vmsuser.data.MatchRepository
 import com.example.vmsuser.models.Match
 import com.example.vmsuser.models.QueueStatus
+import com.example.vmsuser.network.RetrofitClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,14 +39,52 @@ class PlayViewModel : ViewModel() {
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
 
-    // Mock match history for UI
-    val matchHistory = listOf(
-        Match(id = 1, sport = "Badminton", status = "completed", groundName = "Kanteerava Annex", groundAddress = "Indiranagar, Bengaluru", scheduledAt = "2026-06-14T10:00:00", price = 400),
-        Match(id = 2, sport = "Cricket", status = "completed", groundName = "BBMP Ground", groundAddress = "Koramangala", scheduledAt = "2026-06-12T08:00:00", price = 500),
-    )
+    // Real price from backend pricing service (default ₹200)
+    private val _price = MutableStateFlow(200)
+    val price: StateFlow<Int> = _price
 
-    fun selectSport(sport: String) { _selectedSport.value = sport }
+    // Real players in queue for selected sport + region
+    private val _playersSearching = MutableStateFlow(0)
+    val playersSearching: StateFlow<Int> = _playersSearching
+
+    // Match history from API
+    private val _matchHistory = MutableStateFlow<List<Match>>(emptyList())
+    val matchHistory: StateFlow<List<Match>> = _matchHistory
+
+    init {
+        loadMatchHistory()
+    }
+
+    fun selectSport(sport: String) {
+        _selectedSport.value = sport
+        fetchPrice(sport)
+    }
+
     fun selectSkill(skill: String) { _selectedSkill.value = skill }
+
+    fun clearError() { _error.value = null }
+
+    private fun fetchPrice(sport: String) {
+        viewModelScope.launch {
+            try {
+                val res = RetrofitClient.api.getMatchmakingPrice(sport)
+                if (res.success && res.data != null) {
+                    _price.value = res.data.finalPrice
+                    _playersSearching.value = res.data.playersSearching
+                }
+            } catch (e: Exception) {
+                Log.w("PlayVM", "fetchPrice: ${e.message}")
+            }
+        }
+    }
+
+    private fun loadMatchHistory() {
+        viewModelScope.launch {
+            repo.getMyMatches()
+                .onSuccess { _matchHistory.value = it }
+                .onFailure { Log.w("PlayVM", "loadMatchHistory: ${it.message}") }
+        }
+    }
 
     fun joinQueue(onMatchFound: (Int) -> Unit = {}, onNavigate: (String) -> Unit) {
         viewModelScope.launch {

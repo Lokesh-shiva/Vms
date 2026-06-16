@@ -31,6 +31,9 @@ interface ApiService {
     suspend fun updateFcmToken(@Body body: Map<String, String>): ApiResponse<Unit>
 
     // Matchmaking
+    @GET("api/v1/matchmaking/price")
+    suspend fun getMatchmakingPrice(@Query("sport") sport: String): ApiResponse<MatchmakingPrice>
+
     @GET("api/v1/matchmaking/status")
     suspend fun getQueueStatus(): ApiResponse<QueueStatus>
 

@@ -74,6 +74,16 @@ data class QueueStatus(
     val sport: String? = null,
     @SerialName("match_found") val matchFound: Boolean = false,
     @SerialName("match_id") val matchId: Int? = null,
+    val price: Int = 200,
+)
+
+@Serializable
+data class MatchmakingPrice(
+    val sport: String = "",
+    @SerialName("final_price") val finalPrice: Int = 200,
+    @SerialName("base_price") val basePrice: Int = 200,
+    val reason: String = "Standard pricing",
+    @SerialName("players_searching") val playersSearching: Int = 0,
 )
 
 @Serializable

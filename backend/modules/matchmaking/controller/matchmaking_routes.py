@@ -27,6 +27,35 @@ def _error(message: str, status_code: int = 400):
 # -- Endpoints ──────────────────────────────────────────────────────────
 
 
+@router.get("/price")
+def get_price(sport: str, current_user: dict = Depends(require_user)):
+    """
+    Return the current dynamic price for a sport in the user's region.
+    Used by the mobile app to display the price before joining the queue.
+    """
+    region_id = current_user.get("region_id")
+    if not region_id:
+        return _error("No region set on your account. Update your profile first.")
+
+    db = SessionLocal()
+    try:
+        cart_type = db.query(CartType).filter(CartType.name.ilike(sport)).first()
+        if not cart_type:
+            return _error(f"Unknown sport: {sport}")
+        from modules.pricing.service.pricing_service import PricingService
+        pricing = PricingService(db).calculate_price(region_id, cart_type.id)
+    finally:
+        db.close()
+
+    return _success({
+        "sport": sport,
+        "final_price": int(pricing["final_price"]),
+        "base_price": int(pricing["base_price"]),
+        "reason": pricing["reason"],
+        "players_searching": pricing["queue_count"],
+    })
+
+
 @router.post("/play-now", status_code=201)
 def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_user)):
     """
@@ -93,6 +122,7 @@ def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_u
         "players_searching": result["players_searching"],
         "estimated_wait_seconds": result["estimated_wait_seconds"],
         "mode": mode,
+        "price": int(result["pricing"]["final_price"]),
     }
     if mode == "INSTANT_CAPTAIN":
         data["captain_id"] = result["captain_id"]
