@@ -1,10 +1,17 @@
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from core.database.db_connection import SessionLocal
 from modules.auth.dependencies.auth_dependencies import require_user
 from modules.match.repository.match_repository import match_repository
 from modules.match.service.match_service import match_service
 from modules.cart_type.model.cart_type_model import CartType
+
+
+class PlayNowRequest(BaseModel):
+    sport: str
+    skill_level: str = Field(default="Intermediate")
+    max_players: int = Field(default=2, ge=2, le=22)
 
 
 router = APIRouter(prefix="/api/v1/matchmaking", tags=["Matchmaking"])
@@ -73,7 +80,7 @@ def get_price(sport: str, current_user: dict = Depends(require_user)):
 
 
 @router.post("/play-now", status_code=201)
-def play_now(request: dict, current_user: dict = Depends(require_user)):
+def play_now(request: PlayNowRequest, current_user: dict = Depends(require_user)):
     """
     Create an open play-now session for a sport.
 
@@ -91,9 +98,7 @@ def play_now(request: dict, current_user: dict = Depends(require_user)):
     if not region_id:
         return _error("No region set on your account. Please update your profile first.")
 
-    sport_name: str = request.get("sport", "")
-    if not sport_name:
-        return _error("sport is required.")
+    sport_name: str = request.sport
 
     db = SessionLocal()
     try:
@@ -120,7 +125,7 @@ def play_now(request: dict, current_user: dict = Depends(require_user)):
             user_id=current_user["id"],
             region_id=region_id,
             cart_type_id=sport_id,
-            max_players=2,
+            max_players=request.max_players,
         )
     except Exception as e:
         return _error(str(e))

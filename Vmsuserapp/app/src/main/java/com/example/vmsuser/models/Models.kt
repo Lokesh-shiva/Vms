@@ -205,6 +205,13 @@ data class SportItem(
 )
 
 @Serializable
+data class PlayNowRequest(
+    val sport: String,
+    @SerialName("skill_level") val skillLevel: String = "Intermediate",
+    @SerialName("max_players") val maxPlayers: Int = 2,
+)
+
+@Serializable
 data class OpenMatch(
     val id: Int = 0,
     val sport: String = "",

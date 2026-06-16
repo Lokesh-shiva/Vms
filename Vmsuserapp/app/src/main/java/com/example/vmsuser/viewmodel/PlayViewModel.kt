@@ -55,12 +55,17 @@ class PlayViewModel : ViewModel() {
         loadMatchHistory()
     }
 
+    private val _maxPlayers = MutableStateFlow(2)
+    val maxPlayers: StateFlow<Int> = _maxPlayers
+
     fun selectSport(sport: String) {
         _selectedSport.value = sport
         fetchPrice(sport)
     }
 
     fun selectSkill(skill: String) { _selectedSkill.value = skill }
+
+    fun selectMaxPlayers(n: Int) { _maxPlayers.value = n }
 
     fun clearError() { _error.value = null }
 
@@ -90,7 +95,7 @@ class PlayViewModel : ViewModel() {
         viewModelScope.launch {
             _loading.value = true
             _error.value = null
-            repo.joinQueue(_selectedSport.value, _selectedSkill.value)
+            repo.joinQueue(_selectedSport.value, _selectedSkill.value, _maxPlayers.value)
                 .onSuccess { status ->
                     _inQueue.value = true
                     _queueStatus.value = status

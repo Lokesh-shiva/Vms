@@ -38,7 +38,7 @@ interface ApiService {
     suspend fun getQueueStatus(): ApiResponse<QueueStatus>
 
     @POST("api/v1/matchmaking/play-now")
-    suspend fun joinQueue(@Body request: Map<String, String>): ApiResponse<QueueStatus>
+    suspend fun joinQueue(@Body request: PlayNowRequest): ApiResponse<QueueStatus>
 
     @DELETE("api/v1/matchmaking/leave")
     suspend fun leaveQueue(): ApiResponse<Unit>
