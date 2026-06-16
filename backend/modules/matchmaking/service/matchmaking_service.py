@@ -164,11 +164,12 @@ class MatchmakingService:
                 )
 
             # Create match record: user + captain, immediately MATCHED
+            # sport_id IS a cart_type_id now (unified taxonomy, migration 14)
             match = Match(
                 created_by=user_id,
                 sport_id=sport_id,
+                cart_type_id=sport_id,   # same value — enables _enrich() sport name lookup
                 region_id=region_id,
-                cart_type_id=None,   # engine will fill on booking
                 skill_level=skill_level,
                 max_players=2,
                 joined_players=2,

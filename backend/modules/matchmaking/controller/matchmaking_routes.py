@@ -4,7 +4,7 @@ from core.database.db_connection import SessionLocal
 from modules.auth.dependencies.auth_dependencies import require_user
 from modules.matchmaking.service.matchmaking_service import matchmaking_service
 from modules.matchmaking.schemas.matchmaking_schema import JoinQueueRequest
-from modules.sport.model.sport_model import Sport
+from modules.cart_type.model.cart_type_model import CartType
 
 
 router = APIRouter(prefix="/api/v1/matchmaking", tags=["Matchmaking"])
@@ -52,15 +52,15 @@ def join_queue(request: JoinQueueRequest, current_user: dict = Depends(require_u
     if not region_id:
         return _error("Your account has no region set. Please update your profile.")
 
-    # Resolve sport_id from name if only name was provided
+    # Resolve sport_id (cart_type_id) from name if only name was provided
     sport_id = request.sport_id
     if sport_id is None and request.sport:
         db = SessionLocal()
         try:
-            sport_row = db.query(Sport).filter(Sport.name.ilike(request.sport)).first()
-            if not sport_row:
-                return _error(f"Unknown sport: {request.sport}")
-            sport_id = sport_row.id
+            cart_type = db.query(CartType).filter(CartType.name.ilike(request.sport)).first()
+            if not cart_type:
+                return _error(f"Unknown sport: {request.sport}. Check admin app for available sports.")
+            sport_id = cart_type.id
         finally:
             db.close()
     if sport_id is None:

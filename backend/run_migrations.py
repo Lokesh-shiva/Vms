@@ -174,6 +174,22 @@ cur.execute("""
     ON CONFLICT (name) DO NOTHING;
 """)
 
+print("Running migration 14: rebind queue_entries + matches sport_id FK to cart_types ...")
+cur.execute("""
+    ALTER TABLE queue_entries
+        DROP CONSTRAINT IF EXISTS queue_entries_sport_id_fkey;
+    ALTER TABLE queue_entries
+        ADD CONSTRAINT queue_entries_sport_id_fkey
+        FOREIGN KEY (sport_id) REFERENCES cart_types(id) ON DELETE RESTRICT;
+""")
+cur.execute("""
+    ALTER TABLE matches
+        DROP CONSTRAINT IF EXISTS matches_sport_id_fkey;
+    ALTER TABLE matches
+        ADD CONSTRAINT matches_sport_id_fkey
+        FOREIGN KEY (sport_id) REFERENCES cart_types(id) ON DELETE SET NULL;
+""")
+
 conn.commit()
 cur.close()
 conn.close()

@@ -194,6 +194,13 @@ data class LocationOption(
 )
 
 @Serializable
+data class SportItem(
+    val id: Int = 0,
+    val name: String = "",
+    @SerialName("is_active") val isActive: Boolean = true,
+)
+
+@Serializable
 data class CreateSocietyRequest(
     val name: String,
     val sport: String,

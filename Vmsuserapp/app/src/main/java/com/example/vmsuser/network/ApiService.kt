@@ -21,6 +21,9 @@ interface ApiService {
     @GET("api/v1/locations")
     suspend fun getLocations(): ApiResponse<List<LocationOption>>
 
+    @GET("api/v1/sports")
+    suspend fun getSports(): ApiResponse<List<SportItem>>
+
     @PUT("api/v1/users/me")
     suspend fun updateProfile(@Body body: Map<String, String>): ApiResponse<User>
 

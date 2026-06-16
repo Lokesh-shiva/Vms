@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from modules.auth.dependencies.auth_dependencies import require_role
+from modules.auth.dependencies.auth_dependencies import require_role, require_user
 from modules.tournament.schemas.tournament_schema import CreateTournamentSchema, UpdateTournamentSchema
 from modules.tournament.service.tournament_service import TournamentService
 from modules.user.model.user_model import UserRole

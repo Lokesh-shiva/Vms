@@ -28,20 +28,24 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.vmsuser.config.FeatureFlags
 import com.example.vmsuser.navigation.Screen
+import com.example.vmsuser.network.RetrofitClient
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
 import com.example.vmsuser.viewmodel.PlayViewModel
 
-private val SPORTS = listOf(
-    Triple("Badminton", "🏸", "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400&q=80"),
-    Triple("Cricket", "🏏", "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=400&q=80"),
-    Triple("Football", "⚽", "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=400&q=80"),
-    Triple("Tennis", "🎾", "https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=400&q=80"),
-    Triple("Basketball", "🏀", "https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=400&q=80"),
-    Triple("Pickleball", "🏓", "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400&q=80"),
-    Triple("Table Tennis", "🏓", "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400&q=80"),
-    Triple("Running", "🏃", "https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=400&q=80"),
+// Local display metadata — photo + emoji per sport name (case-insensitive key lookup)
+private val SPORT_PHOTO = mapOf(
+    "badminton"   to "https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400&q=80",
+    "cricket"     to "https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=400&q=80",
+    "football"    to "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=400&q=80",
+    "tennis"      to "https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=400&q=80",
+    "basketball"  to "https://images.unsplash.com/photo-1518063319789-7217e6706b04?w=400&q=80",
+    "volleyball"  to "https://images.unsplash.com/photo-1547919307-1ecb10702e6f?w=400&q=80",
+    "table tennis" to "https://images.unsplash.com/photo-1534158914592-062992fbe900?w=400&q=80",
+    "running"     to "https://images.unsplash.com/photo-1526232761682-d26e03ac148e?w=400&q=80",
 )
+private val FALLBACK_PHOTO = "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?w=400&q=80"
+fun sportPhoto(name: String) = SPORT_PHOTO[name.lowercase()] ?: FALLBACK_PHOTO
 
 private val SKILLS = listOf("Beginner", "Mid", "Pro")
 
@@ -63,6 +67,23 @@ fun PlayScreen(navController: NavController) {
     val selectedSport by vm.selectedSport.collectAsState()
     val selectedSkill by vm.selectedSkill.collectAsState()
     val loading by vm.loading.collectAsState()
+
+    var sportNames by remember { mutableStateOf<List<String>>(emptyList()) }
+    var sportsLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val res = RetrofitClient.api.getSports()
+            if (res.success && res.data != null) {
+                val names = res.data.filter { it.isActive }.map { it.name }
+                sportNames = names
+                if (selectedSport.isBlank() || selectedSport !in names) {
+                    names.firstOrNull()?.let { vm.selectSport(it) }
+                }
+            }
+        } catch (_: Exception) {}
+        sportsLoading = false
+    }
 
     val info = SPORT_INFO[selectedSport] ?: SportInfo(3, 15, 100)
 
@@ -117,13 +138,19 @@ fun PlayScreen(navController: NavController) {
             )
             Spacer(Modifier.height(12.dp))
 
-            // 2-col sport photo grid
-            SPORTS.chunked(2).forEach { row ->
+            // 2-col sport photo grid — sourced from admin-managed list
+            if (sportsLoading) {
+                Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = PlixoPrimary, modifier = Modifier.size(28.dp))
+                }
+            } else {
+            sportNames.chunked(2).forEach { row ->
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    row.forEach { (sport, _, photoUrl) ->
+                    row.forEach { sport ->
+                        val photoUrl = sportPhoto(sport)
                         val active = sport == selectedSport
                         Box(
                             modifier = Modifier
@@ -184,6 +211,7 @@ fun PlayScreen(navController: NavController) {
                 }
                 Spacer(Modifier.height(12.dp))
             }
+            } // end else (sports loaded)
 
             Spacer(Modifier.height(10.dp))
 
