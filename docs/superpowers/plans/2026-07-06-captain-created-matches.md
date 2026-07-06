@@ -142,8 +142,9 @@ class TestCaptainCreatedMatches(unittest.TestCase):
         session.close()
 
     def test_create_captain_match_open_no_player_row(self):
-        """OPEN captain match: captain_id set, no MatchPlayer row for captain."""
+        """OPEN captain match: created_by + captain_id set, no MatchPlayer row for captain."""
         match = self.repo.create_captain_match(
+            user_id=10,
             captain_id=1,
             region_id=1,
             cart_type_id=1,
@@ -151,6 +152,7 @@ class TestCaptainCreatedMatches(unittest.TestCase):
             visibility="OPEN",
         )
         self.assertEqual(match["status"], "WAITING")
+        self.assertEqual(match["created_by"], 10)
         self.assertEqual(match["captain_id"], 1)
         self.assertEqual(match["joined_players"], 0)
         self.assertEqual(match["visibility"], "OPEN")
@@ -160,8 +162,20 @@ class TestCaptainCreatedMatches(unittest.TestCase):
         self.assertEqual(len(players), 0)
         session.close()
 
+    def test_create_captain_match_sets_captain_busy(self):
+        """Creating a match immediately marks the organizing captain unavailable."""
+        match = self.repo.create_captain_match(
+            user_id=10, captain_id=1, region_id=1, cart_type_id=1, max_players=4, visibility="OPEN"
+        )
+        session = self.session_factory()
+        captain = session.query(Captain).filter(Captain.id == 1).first()
+        self.assertFalse(captain.is_available)
+        self.assertEqual(captain.current_match_id, match["id"])
+        session.close()
+
     def test_create_captain_match_society_sets_society_id(self):
         match = self.repo.create_captain_match(
+            user_id=10,
             captain_id=1,
             region_id=1,
             cart_type_id=1,
@@ -174,6 +188,7 @@ class TestCaptainCreatedMatches(unittest.TestCase):
 
     def test_create_captain_match_private_generates_invite_code(self):
         match = self.repo.create_captain_match(
+            user_id=10,
             captain_id=1,
             region_id=1,
             cart_type_id=1,
@@ -187,14 +202,14 @@ class TestCaptainCreatedMatches(unittest.TestCase):
     def test_find_waiting_in_region_only_returns_open(self):
         """SOCIETY and PRIVATE matches must not appear in the public open-matches feed."""
         self.repo.create_captain_match(
-            captain_id=1, region_id=1, cart_type_id=1, max_players=4, visibility="OPEN"
+            user_id=10, captain_id=1, region_id=1, cart_type_id=1, max_players=4, visibility="OPEN"
         )
         self.repo.create_captain_match(
-            captain_id=1, region_id=1, cart_type_id=1, max_players=4,
+            user_id=10, captain_id=1, region_id=1, cart_type_id=1, max_players=4,
             visibility="SOCIETY", society_id=1,
         )
         self.repo.create_captain_match(
-            captain_id=1, region_id=1, cart_type_id=1, max_players=4, visibility="PRIVATE"
+            user_id=10, captain_id=1, region_id=1, cart_type_id=1, max_players=4, visibility="PRIVATE"
         )
         results = self.repo.find_waiting_in_region(region_id=1)
         self.assertEqual(len(results), 1)
@@ -202,7 +217,7 @@ class TestCaptainCreatedMatches(unittest.TestCase):
 
     def test_find_society_matches_returns_only_that_society(self):
         match = self.repo.create_captain_match(
-            captain_id=1, region_id=1, cart_type_id=1, max_players=4,
+            user_id=10, captain_id=1, region_id=1, cart_type_id=1, max_players=4,
             visibility="SOCIETY", society_id=1,
         )
         results = self.repo.find_society_matches(society_id=1)
@@ -211,7 +226,7 @@ class TestCaptainCreatedMatches(unittest.TestCase):
 
     def test_find_by_invite_code_returns_match(self):
         match = self.repo.create_captain_match(
-            captain_id=1, region_id=1, cart_type_id=1, max_players=4, visibility="PRIVATE"
+            user_id=10, captain_id=1, region_id=1, cart_type_id=1, max_players=4, visibility="PRIVATE"
         )
         found = self.repo.find_by_invite_code(match["invite_code"])
         self.assertIsNotNone(found)
@@ -236,9 +251,12 @@ Expected: FAIL — `AttributeError: 'MatchRepository' object has no attribute 'c
 
 In `backend/modules/match/repository/match_repository.py`, add these methods after `create_play_now` (after line 125, before `find_waiting_in_region`):
 
+**Important — no `Match.captain_id` column exists in this codebase.** Captain assignment is tracked on the `Captain` side via `Captain.current_match_id`/`Captain.is_available` (toggled through `CaptainRepository.set_availability`/`release_captain_for_match`), not via a FK column on `Match`. The organizing captain's identity goes on the existing `Match.created_by` field (the same field regular matches already use for their creator) — `MatchRepository._enrich()` already aliases this as `"captain_id"` in enriched responses. `create_captain_match` below takes both `user_id` (for `created_by`) and `captain_id` (for `CaptainRepository.set_availability`), and manually adds a `"captain_id"` key to its return dict so callers get the same shape as enriched matches without needing to enrich:
+
 ```python
     def create_captain_match(
         self,
+        user_id: int,
         captain_id: int,
         region_id: int,
         cart_type_id: int,
@@ -251,10 +269,17 @@ In `backend/modules/match/repository/match_repository.py`, add these methods aft
         Create a captain-organized WAITING match. Unlike create_play_now, the
         captain is NOT added as a MatchPlayer — they organize, they don't play.
 
+        Sets created_by to the captain's own user_id (same field regular matches
+        use for their creator) and immediately marks the captain busy via
+        CaptainRepository.set_availability — mirroring the play-now auto-assign
+        pattern, but applied at creation time instead of when the match fills up.
+
         For PRIVATE visibility, generates a unique 6-char alphanumeric invite_code.
         """
         import random
         import string
+
+        from modules.captain.repository.captain_repository import captain_repository
 
         invite_code = None
         if visibility == "PRIVATE":
@@ -265,22 +290,28 @@ In `backend/modules/match/repository/match_repository.py`, add these methods aft
         session = self._session_factory()
         try:
             match = Match(
+                created_by=user_id,
                 region_id=region_id,
                 cart_type_id=cart_type_id,
                 sport_id=cart_type_id,
                 max_players=max_players,
                 joined_players=0,
                 status="WAITING",
-                captain_id=captain_id,
                 skill_level=skill_level,
                 visibility=visibility,
                 society_id=society_id,
                 invite_code=invite_code,
             )
             session.add(match)
+            session.flush()
+            captain_repository.set_availability(
+                captain_id=captain_id, available=False, match_id=match.id, session=session
+            )
             session.commit()
             session.refresh(match)
-            return match.to_dict()
+            result = match.to_dict()
+            result["captain_id"] = captain_id
+            return result
         except Exception:
             session.rollback()
             raise
@@ -648,6 +679,7 @@ Add these two methods after `create_match` (after the existing `create_match` me
                 raise ValueError("You are not a member of this society.")
 
         match = self.match_repo.create_captain_match(
+            user_id=user_id,
             captain_id=captain["id"],
             region_id=data["region_id"],
             cart_type_id=data["cart_type_id"],
@@ -667,6 +699,78 @@ Add these two methods after `create_match` (after the existing `create_match` me
         if match is None:
             raise ValueError("Invalid invite code.")
         return self.join_match(user_id, match["id"])
+```
+
+**Also required — patch `join_match` to not steal an already-assigned captain.** Captain-created matches already have a captain assigned via `Captain.current_match_id` from the moment they're created (see `create_captain_match` above). The existing `join_match` method (already in `match_service.py`, not shown above — find it by its `# 7. Check if full` comment) has this block when a `WAITING` match becomes full:
+
+```python
+                if match_orm.status == "WAITING":
+                    # Play-now model: auto-assign a captain and move to MATCHED
+                    from modules.captain.repository.captain_repository import captain_repository
+                    captain = captain_repository.find_available_captain(
+                        match_orm.region_id, session
+                    )
+                    if captain:
+                        captain_repository.set_availability(
+                            captain_id=captain.id,
+                            available=False,
+                            match_id=match_orm.id,
+                            session=session,
+                        )
+                    match_orm.status = "MATCHED"
+```
+
+Replace it with this version, which skips auto-assignment when a captain is already linked to the match:
+
+```python
+                if match_orm.status == "WAITING":
+                    from modules.captain.model.captain_model import Captain
+                    from modules.captain.repository.captain_repository import captain_repository
+
+                    already_assigned = (
+                        session.query(Captain)
+                        .filter(Captain.current_match_id == match_orm.id)
+                        .first()
+                    )
+                    if already_assigned is None:
+                        # Play-now model: auto-assign a captain and move to MATCHED
+                        captain = captain_repository.find_available_captain(
+                            match_orm.region_id, session
+                        )
+                        if captain:
+                            captain_repository.set_availability(
+                                captain_id=captain.id,
+                                available=False,
+                                match_id=match_orm.id,
+                                session=session,
+                            )
+                    match_orm.status = "MATCHED"
+```
+
+Add a test for this to the `TestCaptainCreateMatchService` class (after `test_join_by_code_unknown_raises`):
+
+```python
+    def test_join_match_does_not_reassign_existing_captain(self):
+        """Filling a captain-created OPEN match must not touch the captain's slot."""
+        match = self.service.captain_create_match(
+            user_id=10,
+            data={
+                "cart_type_id": 1, "region_id": 1, "max_players": 1,
+                "visibility": "OPEN", "society_id": None, "skill_level": None,
+            },
+        )
+        session = self.session_factory()
+        captain_before = session.query(Captain).filter(Captain.id == 1).first()
+        self.assertEqual(captain_before.current_match_id, match["id"])
+        session.close()
+
+        self.service.join_match(20, match["id"])
+
+        session = self.session_factory()
+        captain_after = session.query(Captain).filter(Captain.id == 1).first()
+        self.assertEqual(captain_after.current_match_id, match["id"])
+        self.assertFalse(captain_after.is_available)
+        session.close()
 ```
 
 - [ ] **Step 5: Run tests to verify they pass**
@@ -881,7 +985,7 @@ data class MySociety(
 
 - [ ] **Step 2: Add Retrofit endpoints**
 
-In `ApiService.kt`, add after the existing `getMatch` endpoint (after line 63, before the `// Chat` section):
+In `ApiService.kt`, add after the existing `getMatch` endpoint, before the `// Tournaments` section:
 
 ```kotlin
     @POST("api/v1/matches/captain-create")
@@ -899,7 +1003,7 @@ In `ApiService.kt`, add after the existing `getMatch` endpoint (after line 63, b
 
 - [ ] **Step 3: Verify the app still compiles**
 
-Do NOT run `gradlew assembleDebug` (per project rules — the user builds via Android Studio). Instead, visually double-check: `Match(...)` is constructed with positional/named args elsewhere (e.g., `CaptainViewModel.kt` line 108: `Match(1, "Badminton", "confirmed", "Kanteerava Annex", "Indiranagar", "Today 6 PM", price = 400)`). Confirm this still compiles by counting positional args against the new field order — the mock data uses named `price =` for the last arg, and all fields before it are unchanged in order, so the new trailing fields (`visibility`, `societyId`, `inviteCode`, `maxPlayers`, `joinedPlayers`) all have defaults and don't break this call site.
+Do NOT run `gradlew assembleDebug` (per project rules — the user builds via Android Studio). Instead, visually double-check: `Match(...)` is constructed with positional/named args elsewhere (in `CaptainViewModel.kt`'s `mockStats()` function: `Match(1, "Badminton", "confirmed", "Kanteerava Annex", "Indiranagar", "Today 6 PM", price = 400)`). Confirm this still compiles by counting positional args against the new field order — the mock data uses named `price =` for the last arg, and all fields before it are unchanged in order, so the new trailing fields (`visibility`, `societyId`, `inviteCode`, `maxPlayers`, `joinedPlayers`) all have defaults and don't break this call site.
 
 - [ ] **Step 4: Commit**
 
@@ -926,7 +1030,7 @@ import com.example.vmsuser.models.Match
 import com.example.vmsuser.models.MySociety
 ```
 
-Add these methods at the end of the `CaptainRepository` class (after `updatePayoutUpi`, before the closing `}`):
+Add these methods at the end of the `CaptainRepository` class (after `apply`, before the closing `}`):
 
 ```kotlin
     suspend fun createMatch(request: CaptainCreateMatchRequest): Result<Match> = try {
@@ -951,7 +1055,7 @@ import com.example.vmsuser.models.CaptainCreateMatchRequest
 import com.example.vmsuser.models.MySociety
 ```
 
-Add new state flows after the existing `_updatingUpi` flow (after line 36):
+Add new state flows after the existing `_error` flow:
 
 ```kotlin
     private val _mySocieties = MutableStateFlow<List<MySociety>>(emptyList())
@@ -964,7 +1068,7 @@ Add new state flows after the existing `_updatingUpi` flow (after line 36):
     val createdMatch: StateFlow<com.example.vmsuser.models.Match?> = _createdMatch
 ```
 
-Add new functions after `updatePayoutUpi` (after line 100, before `private fun mockStats()`):
+Add new functions after `apply`, before `private fun mockStats()`:
 
 ```kotlin
     fun clearCreatedMatch() { _createdMatch.value = null }
