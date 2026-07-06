@@ -288,6 +288,39 @@ class TestCaptainCreateMatchService(unittest.TestCase):
         self.assertFalse(captain_after.is_available)
         session.close()
 
+    def test_captain_create_match_rejected_while_already_organizing(self):
+        """A captain already organizing a match cannot create a second one."""
+        self.service.captain_create_match(
+            user_id=10,
+            data={
+                "cart_type_id": 1, "region_id": 1, "max_players": 4,
+                "visibility": "OPEN", "society_id": None, "skill_level": None,
+            },
+        )
+        with self.assertRaises(ValueError) as ctx:
+            self.service.captain_create_match(
+                user_id=10,
+                data={
+                    "cart_type_id": 1, "region_id": 1, "max_players": 4,
+                    "visibility": "OPEN", "society_id": None, "skill_level": None,
+                },
+            )
+        self.assertIn("already organizing another match", str(ctx.exception))
+
+    def test_join_by_code_full_match_raises(self):
+        """join_by_code on an already-full match surfaces join_match's capacity error."""
+        created = self.service.captain_create_match(
+            user_id=10,
+            data={
+                "cart_type_id": 1, "region_id": 1, "max_players": 1,
+                "visibility": "PRIVATE", "society_id": None, "skill_level": None,
+            },
+        )
+        self.service.join_by_code(user_id=20, invite_code=created["invite_code"])
+        with self.assertRaises(ValueError) as ctx:
+            self.service.join_by_code(user_id=21, invite_code=created["invite_code"])
+        self.assertIn("not joinable", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

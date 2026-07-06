@@ -177,6 +177,8 @@ class MatchService(BaseService):
             raise ValueError("Captain profile not found.")
         if captain["status"] != "ACTIVE":
             raise ValueError("Your captain profile is not active.")
+        if not captain["is_available"]:
+            raise ValueError("You are already organizing another match.")
 
         self._get_cart_type(data["cart_type_id"])
         self._get_region(data["region_id"])
