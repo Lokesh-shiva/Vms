@@ -124,15 +124,106 @@ class MatchRepository:
         finally:
             session.close()
 
+    def create_captain_match(
+        self,
+        user_id: int,
+        captain_id: int,
+        region_id: int,
+        cart_type_id: int,
+        max_players: int,
+        visibility: str,
+        skill_level: str | None = None,
+        society_id: int | None = None,
+    ) -> dict:
+        """
+        Create a captain-organized WAITING match. Unlike create_play_now, the
+        captain is NOT added as a MatchPlayer — they organize, they don't play.
+
+        Sets created_by to the captain's own user_id (same field regular matches
+        use for their creator) and immediately marks the captain busy via
+        CaptainRepository.set_availability — mirroring the play-now auto-assign
+        pattern, but applied at creation time instead of when the match fills up.
+
+        For PRIVATE visibility, generates a unique 6-char alphanumeric invite_code.
+        """
+        import random
+        import string
+
+        from modules.captain.repository.captain_repository import captain_repository
+
+        invite_code = None
+        if visibility == "PRIVATE":
+            invite_code = "".join(
+                random.choices(string.ascii_uppercase + string.digits, k=6)
+            )
+
+        session = self._session_factory()
+        try:
+            match = Match(
+                created_by=user_id,
+                region_id=region_id,
+                cart_type_id=cart_type_id,
+                sport_id=cart_type_id,
+                max_players=max_players,
+                joined_players=0,
+                status="WAITING",
+                skill_level=skill_level,
+                visibility=visibility,
+                society_id=society_id,
+                invite_code=invite_code,
+            )
+            session.add(match)
+            session.flush()
+            captain_repository.set_availability(
+                captain_id=captain_id, available=False, match_id=match.id, session=session
+            )
+            session.commit()
+            session.refresh(match)
+            result = match.to_dict()
+            result["captain_id"] = captain_id
+            return result
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+    def find_society_matches(self, society_id: int) -> list[dict]:
+        """Return WAITING/MATCHED matches for a specific society, newest first."""
+        session = self._session_factory()
+        try:
+            rows = (
+                session.query(Match)
+                .filter(
+                    Match.society_id == society_id,
+                    Match.status.in_(["WAITING", "MATCHED"]),
+                )
+                .order_by(Match.created_at.desc())
+                .all()
+            )
+            return [self._enrich(m, session) for m in rows]
+        finally:
+            session.close()
+
+    def find_by_invite_code(self, invite_code: str) -> dict | None:
+        """Look up a match by its private invite code."""
+        session = self._session_factory()
+        try:
+            m = session.query(Match).filter(Match.invite_code == invite_code).first()
+            return m.to_dict() if m else None
+        finally:
+            session.close()
+
     def find_waiting_in_region(
         self, region_id: int, sport_id: int | None = None
     ) -> list[dict]:
-        """Return WAITING matches in a region, newest first. No timeslot join needed."""
+        """Return OPEN-visibility WAITING matches in a region, newest first."""
         session = self._session_factory()
         try:
             query = session.query(Match).filter(
                 Match.region_id == region_id,
                 Match.status == "WAITING",
+                Match.visibility == "OPEN",
             )
             if sport_id:
                 query = query.filter(Match.cart_type_id == sport_id)
