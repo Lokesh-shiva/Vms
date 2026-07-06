@@ -66,12 +66,6 @@ interface ApiService {
     @POST("api/v1/matches/join-by-code")
     suspend fun joinMatchByCode(@Body request: JoinByCodeRequest): ApiResponse<Match>
 
-    @GET("api/v1/societies/{id}/matches")
-    suspend fun getSocietyMatches(@Path("id") id: Int): ApiResponse<List<Match>>
-
-    @GET("api/v1/societies/mine")
-    suspend fun getMySocieties(): ApiResponse<List<MySociety>>
-
     // Tournaments
     @GET("api/v1/tournaments")
     suspend fun getTournaments(): ApiResponse<List<Tournament>>
@@ -100,6 +94,12 @@ interface ApiService {
 
     @POST("api/v1/societies")
     suspend fun createSociety(@Body request: CreateSocietyRequest): ApiResponse<Society>
+
+    @GET("api/v1/societies/{id}/matches")
+    suspend fun getSocietyMatches(@Path("id") id: Int): ApiResponse<List<Match>>
+
+    @GET("api/v1/societies/mine")
+    suspend fun getMySocieties(): ApiResponse<List<MySociety>>
 
     // Wallet
     @GET("api/v1/wallet/transactions")
