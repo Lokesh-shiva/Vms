@@ -8,7 +8,7 @@ from modules.auth.dependencies.auth_dependencies import (
 from modules.match.service.match_service import match_service
 from modules.match.repository.match_repository import match_repository
 from modules.match.repository.match_event_repository import match_event_repository
-from modules.match.schemas.match_schema import CreateMatchSchema, MatchArriveSchema
+from modules.match.schemas.match_schema import CreateMatchSchema, MatchArriveSchema, CaptainCreateMatchSchema
 
 
 router = APIRouter(prefix="/api/v1/matches", tags=["Matches"])
@@ -38,6 +38,35 @@ def create_match(request_data: dict, current_user: dict = Depends(require_user))
         return _success(match, "Match created successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/captain-create", status_code=201)
+def captain_create_match(request_data: dict, current_user: dict = Depends(require_user)):
+    """Create a captain-organized match (Open, Society, or Private). Captain only."""
+    schema = CaptainCreateMatchSchema(request_data)
+    if not schema.is_valid():
+        raise HTTPException(status_code=400, detail=schema.errors)
+
+    try:
+        match = match_service.captain_create_match(current_user["id"], schema.validated_data)
+        return _success(match, "Match created successfully.")
+    except ValueError as e:
+        code = 403 if "not a member" in str(e) or "not active" in str(e) or "Captain profile not found" in str(e) else 400
+        raise HTTPException(status_code=code, detail=str(e))
+
+
+@router.post("/join-by-code")
+def join_by_code(request_data: dict, current_user: dict = Depends(require_user)):
+    """Join a PRIVATE match by its invite code."""
+    invite_code = request_data.get("invite_code")
+    if not invite_code or not isinstance(invite_code, str):
+        raise HTTPException(status_code=400, detail="'invite_code' is required.")
+    try:
+        match = match_service.join_by_code(current_user["id"], invite_code)
+        return _success(match, "Joined match successfully.")
+    except ValueError as e:
+        code = 404 if e.args and "Invalid invite code" in str(e) else 400
+        raise HTTPException(status_code=code, detail=str(e))
 
 
 @router.post("/{match_id}/join")

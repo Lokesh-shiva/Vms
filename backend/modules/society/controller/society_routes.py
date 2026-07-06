@@ -62,6 +62,12 @@ def list_societies(
     return _success(society_service.list(region_id=region_id, sport_id=sport_id))
 
 
+@router.get("/mine")
+def get_my_societies(current_user: dict = Depends(require_user)):
+    """Return societies the current user belongs to — used for the captain society picker."""
+    return _success(society_member_service.get_my_societies(current_user["id"]))
+
+
 @router.get("/{society_id}")
 def get_society(
     society_id: int,
@@ -200,6 +206,20 @@ def get_leaderboard(
         return _success(society_member_service.get_leaderboard(society_id))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/{society_id}/matches")
+def get_society_matches(
+    society_id: int,
+    current_user: dict = Depends(require_user),
+):
+    """List WAITING/MATCHED matches for a society. Members only."""
+    member = society_member_service.member_repository.find_member(society_id, current_user["id"])
+    if member is None:
+        raise HTTPException(status_code=403, detail="You are not a member of this society.")
+
+    from modules.match.repository.match_repository import match_repository
+    return _success(match_repository.find_society_matches(society_id))
 
 
 @router.post("/{society_id}/tournament-register", status_code=201)

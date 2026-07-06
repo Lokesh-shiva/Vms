@@ -108,5 +108,18 @@ class SocietyMemberRepository:
         finally:
             session.close()
 
+    def find_by_user(self, user_id: int) -> list[dict]:
+        """Return all society_member rows for a user (their society memberships)."""
+        session = self._session_factory()
+        try:
+            rows = (
+                session.query(SocietyMember)
+                .filter(SocietyMember.user_id == user_id)
+                .all()
+            )
+            return [m.to_dict() for m in rows]
+        finally:
+            session.close()
+
 
 society_member_repository = SocietyMemberRepository()

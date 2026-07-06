@@ -148,5 +148,15 @@ class SocietyMemberService:
         result.sort(key=lambda x: (x["total_points"], x["matches_played"]), reverse=True)
         return result
 
+    def get_my_societies(self, user_id: int) -> list[dict]:
+        """Return the societies the current user is a member of."""
+        memberships = self.member_repository.find_by_user(user_id)
+        result = []
+        for m in memberships:
+            society = self.society_repository.find_by_id(m["society_id"])
+            if society is not None:
+                result.append(society)
+        return result
+
 
 society_member_service = SocietyMemberService()
