@@ -1,7 +1,10 @@
 ﻿package com.example.vmsuser.data
 
 import android.util.Log
+import com.example.vmsuser.models.CaptainCreateMatchRequest
 import com.example.vmsuser.models.CaptainStats
+import com.example.vmsuser.models.Match
+import com.example.vmsuser.models.MySociety
 import com.example.vmsuser.network.RetrofitClient
 
 class CaptainRepository {
@@ -17,4 +20,16 @@ class CaptainRepository {
         val res = api.applyCaptain(mapOf("bio" to bio, "sports" to sports.joinToString(",")))
         if (res.success) Result.success(Unit) else Result.failure(Exception(res.message ?: "Failed"))
     } catch (e: Exception) { Log.e("CaptainRepo", "apply", e); Result.failure(e) }
+
+    suspend fun createMatch(request: CaptainCreateMatchRequest): Result<Match> = try {
+        val res = api.captainCreateMatch(request)
+        if (res.success && res.data != null) Result.success(res.data)
+        else Result.failure(Exception(res.message ?: "Could not create match."))
+    } catch (e: Exception) { Log.e("CaptainRepo", "createMatch", e); Result.failure(e) }
+
+    suspend fun getMySocieties(): Result<List<MySociety>> = try {
+        val res = api.getMySocieties()
+        if (res.success && res.data != null) Result.success(res.data)
+        else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: Exception) { Log.e("CaptainRepo", "getMySocieties", e); Result.failure(e) }
 }
