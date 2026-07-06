@@ -2390,3 +2390,37 @@ No backend changes this session — tournament endpoints expected at `/api/v1/to
 
 ### Architectural decisions
 - Purely additive schema change — no existing behavior modified. Sets up columns for later tasks (repository/service/route logic) in the captain-created-matches feature (see `docs/superpowers/plans/2026-07-06-captain-created-matches.md`).
+
+---
+## [2026-07-06] Phase 02 — Captain-created matches: full feature (Tasks 2-7 of 8)
+
+Captain-initiated match creation — the "Open match / Society match / Tournament / Private" tab in the captain dashboard (`CreateMatchTab`), previously 4 no-op buttons, now creates real matches. Tournament redirects to the existing tournament flow (no new backend — tournaments are organizer-created bracket entities, not something a captain spins up instantly like a match).
+
+### Added
+**Backend:**
+- `MatchRepository.create_captain_match()` (`backend/modules/match/repository/match_repository.py`) — creates a `WAITING` match with `created_by=user_id`, no `MatchPlayer` row for the captain (they organize, don't play), a 6-char alphanumeric `invite_code` when `visibility == PRIVATE`, and immediately marks the organizing captain busy via `CaptainRepository.set_availability(match_id=...)` — since this codebase has no `Match.captain_id` column, captain identity is `created_by` + `Captain.current_match_id`.
+- `MatchRepository.find_society_matches()` / `find_by_invite_code()` — society-scoped and invite-code lookups.
+- `MatchService.captain_create_match()` / `join_by_code()` (`backend/modules/match/service/match_service.py`) — validates active captain profile, cart type, region, and (for SOCIETY) society existence + membership; delegates to the repository and logs a `MATCH_CREATED` event.
+- `CaptainCreateMatchSchema` (`backend/modules/match/schemas/match_schema.py`) — validates `cart_type_id`/`region_id`/`max_players`/`visibility`, conditionally requires `society_id` for SOCIETY, optional `skill_level`.
+- Routes: `POST /api/v1/matches/captain-create`, `POST /api/v1/matches/join-by-code`, `GET /api/v1/societies/{id}/matches` (member-only), `GET /api/v1/societies/mine` (`backend/modules/match/controller/match_routes.py`, `backend/modules/society/controller/society_routes.py`).
+- `SocietyMemberRepository.find_by_user()` / `SocietyMemberService.get_my_societies()` — support the app's society picker.
+- Test coverage: `backend/modules/match/tests/test_captain_created_matches.py` — 19 tests across repository and service layers (captain-create for all 3 visibilities, membership/active-captain gating, invite-code join, and a regression test confirming `join_match`'s auto-assign no longer steals an already-linked captain).
+
+**App (Vmsuserapp):**
+- `CaptainCreateMatchRequest`, `JoinByCodeRequest`, `MySociety` models; `Match` extended with `visibility`/`societyId`/`inviteCode`/`maxPlayers`/`joinedPlayers` (`models/Models.kt`).
+- 4 new `ApiService` Retrofit endpoints (`network/ApiService.kt`).
+- `CaptainRepository.createMatch()` / `getMySocieties()`; `CaptainViewModel` state (`mySocieties`, `creatingMatch`, `createdMatch`, `sports`, `regions`) and actions (`createMatch`, `loadMySocieties`, `loadSportsAndRegions`, `clearCreatedMatch`).
+- `CreateMatchTab` (`ui/screens/captain/CaptainDashboardScreen.kt`) rewritten: Open/Private open a confirm bottom sheet (sport picker, region picker, max-players stepper); Society opens a society picker first, then the same confirm sheet; Tournament navigates to the existing Tournaments screen. Private match creation shows the returned invite code with a copy action instead of auto-navigating away.
+
+### Modified
+**Backend:**
+- `MatchRepository.find_waiting_in_region()` — now filters `visibility == "OPEN"`, so SOCIETY/PRIVATE matches never leak into the public open-matches browse feed used by `GET /matches/open`.
+- `MatchService.join_match()` — the WAITING→full auto-assign-captain branch now checks whether a captain is already linked (`Captain.current_match_id == match.id`) before calling `find_available_captain`, so filling a captain-created match doesn't reassign/steal the organizing captain's slot.
+- `MatchService.__init__` — added 3 injectable constructor params (`captain_repository`, `society_member_repository`, `society_repository`), following the existing `param or _default_repo` fallback pattern already used for the original 5.
+
+### Architectural decisions
+- **No `Match.captain_id` column.** An earlier draft of this plan assumed one existed (based on files read from an uncommitted, never-merged WIP branch state on the developer's main checkout — not what's actually in this branch's git history). Corrected mid-implementation: captain identity for a match is `Match.created_by` (reused, same field regular matches already use for their creator) plus `Captain.current_match_id`/`is_available`, toggled via the existing `CaptainRepository.set_availability`/`release_captain_for_match`.
+- **Captain-created matches assign the captain immediately, not on fill.** Unlike play-now (where a captain is auto-assigned only once the match reaches capacity), a captain-created match has its organizer linked from creation — `join_match`'s auto-assign path had to be patched to not clobber this.
+- **Tournament is a redirect, not a new feature.** Tournaments are separate bracket entities (`Tournament`/`TournamentMatch`/`TournamentTeam`, organizer-created, with start/end dates and registration via `SocietyTournamentService`) — fundamentally different from a captain spinning up an ad-hoc match. Tapping "Tournament" just navigates to the existing tournament browse/registration screen.
+- **Region/sport picked explicitly in the app**, not inferred from the logged-in user's profile — `User.region` in the app is a display string, not an id, and plumbing that through was out of scope. The confirm sheet reuses `ApiService.getLocations()`/`getSports()`, the same sources already used during profile setup.
+- Full design rationale: `docs/superpowers/specs/2026-07-06-captain-created-matches-design.md`. Full task-by-task plan: `docs/superpowers/plans/2026-07-06-captain-created-matches.md`.
