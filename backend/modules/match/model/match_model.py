@@ -42,6 +42,7 @@ class Match(Base):
         "CANCELLED_NO_SHOW",
     }
     VALID_SKILL_LEVELS = {"BEGINNER", "INTERMEDIATE", "ADVANCED"}
+    VALID_VISIBILITIES = {"OPEN", "SOCIETY", "PRIVATE"}
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
@@ -53,6 +54,9 @@ class Match(Base):
     cart_id = Column(Integer, ForeignKey("carts.id"), nullable=True, index=True)
     timeslot_id = Column(Integer, ForeignKey("timeslots.id"), nullable=True, index=True)
     booking_id = Column(Integer, ForeignKey("bookings.id"), nullable=True, index=True)
+    visibility = Column(String(20), nullable=False, default="OPEN")
+    society_id = Column(Integer, ForeignKey("societies.id", ondelete="SET NULL"), nullable=True, index=True)
+    invite_code = Column(String(8), nullable=True, unique=True, index=True)
     skill_level = Column(String, nullable=True)
     max_players = Column(Integer, nullable=False, default=2)
     joined_players = Column(Integer, nullable=False, default=0)
@@ -74,6 +78,9 @@ class Match(Base):
             "cart_id": self.cart_id,
             "timeslot_id": self.timeslot_id,
             "booking_id": self.booking_id,
+            "visibility": self.visibility,
+            "society_id": self.society_id,
+            "invite_code": self.invite_code,
             "skill_level": self.skill_level,
             "max_players": self.max_players,
             "joined_players": self.joined_players,

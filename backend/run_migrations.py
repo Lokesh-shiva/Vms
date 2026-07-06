@@ -206,6 +206,18 @@ cur.execute("""
     ON CONFLICT (region_id, cart_type_id) DO NOTHING;
 """)
 
+print("Running migration 21: add match visibility, society_id, invite_code ...")
+cur.execute("""
+    ALTER TABLE matches
+        ADD COLUMN IF NOT EXISTS visibility VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+        ADD COLUMN IF NOT EXISTS society_id INTEGER REFERENCES societies(id) ON DELETE SET NULL,
+        ADD COLUMN IF NOT EXISTS invite_code VARCHAR(8);
+""")
+cur.execute("""
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_matches_invite_code
+        ON matches (invite_code) WHERE invite_code IS NOT NULL;
+""")
+
 conn.commit()
 cur.close()
 conn.close()
