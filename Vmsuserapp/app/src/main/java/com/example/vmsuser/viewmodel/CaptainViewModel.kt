@@ -30,8 +30,8 @@ class CaptainViewModel : ViewModel() {
     private val _creatingMatch = MutableStateFlow(false)
     val creatingMatch: StateFlow<Boolean> = _creatingMatch
 
-    private val _createdMatch = MutableStateFlow<com.example.vmsuser.models.Match?>(null)
-    val createdMatch: StateFlow<com.example.vmsuser.models.Match?> = _createdMatch
+    private val _createdMatch = MutableStateFlow<Match?>(null)
+    val createdMatch: StateFlow<Match?> = _createdMatch
 
     init { loadStats() }
 
@@ -80,19 +80,22 @@ class CaptainViewModel : ViewModel() {
         viewModelScope.launch {
             _creatingMatch.value = true
             _error.value = null
-            repo.createMatch(
-                CaptainCreateMatchRequest(
-                    cartTypeId = cartTypeId,
-                    regionId = regionId,
-                    maxPlayers = maxPlayers,
-                    visibility = visibility,
-                    societyId = societyId,
-                    skillLevel = skillLevel,
+            try {
+                repo.createMatch(
+                    CaptainCreateMatchRequest(
+                        cartTypeId = cartTypeId,
+                        regionId = regionId,
+                        maxPlayers = maxPlayers,
+                        visibility = visibility,
+                        societyId = societyId,
+                        skillLevel = skillLevel,
+                    )
                 )
-            )
-                .onSuccess { _createdMatch.value = it; onSuccess() }
-                .onFailure { _error.value = it.message ?: "Could not create match." }
-            _creatingMatch.value = false
+                    .onSuccess { _createdMatch.value = it; onSuccess() }
+                    .onFailure { _error.value = it.message ?: "Could not create match." }
+            } finally {
+                _creatingMatch.value = false
+            }
         }
     }
 
