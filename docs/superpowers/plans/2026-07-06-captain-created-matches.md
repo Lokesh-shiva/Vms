@@ -654,8 +654,9 @@ Add these two methods after `create_match` (after the existing `create_match` me
         """
         Create a captain-organized match (Open, Society, or Private).
 
-        The captain is set as Match.captain_id but is NOT added as a player —
-        they organize, players fill all max_players slots via join.
+        The captain is set via created_by + Captain.current_match_id (there is
+        no Match.captain_id column) but is NOT added as a player — they
+        organize, players fill all max_players slots via join.
         """
         captain = self.captain_repo.get_by_user_id(user_id)
         if not captain:
