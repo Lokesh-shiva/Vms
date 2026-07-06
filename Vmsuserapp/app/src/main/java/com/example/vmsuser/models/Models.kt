@@ -98,6 +98,11 @@ data class Match(
     @SerialName("captain_id") val captainId: Int? = null,
     @SerialName("player_ids") val playerIds: List<Int> = emptyList(),
     val price: Int = 0,
+    val visibility: String = "OPEN",
+    @SerialName("society_id") val societyId: Int? = null,
+    @SerialName("invite_code") val inviteCode: String? = null,
+    @SerialName("max_players") val maxPlayers: Int = 2,
+    @SerialName("joined_players") val joinedPlayers: Int = 0,
 )
 
 @Serializable
@@ -230,4 +235,25 @@ data class CreateSocietyRequest(
     val sport: String,
     val description: String,
     val visibility: String = "public",
+)
+
+@Serializable
+data class CaptainCreateMatchRequest(
+    @SerialName("cart_type_id") val cartTypeId: Int,
+    @SerialName("region_id") val regionId: Int,
+    @SerialName("max_players") val maxPlayers: Int,
+    val visibility: String,
+    @SerialName("society_id") val societyId: Int? = null,
+    @SerialName("skill_level") val skillLevel: String? = null,
+)
+
+@Serializable
+data class JoinByCodeRequest(
+    @SerialName("invite_code") val inviteCode: String,
+)
+
+@Serializable
+data class MySociety(
+    val id: Int = 0,
+    val name: String = "",
 )

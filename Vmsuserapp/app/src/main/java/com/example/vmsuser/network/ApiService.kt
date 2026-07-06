@@ -60,6 +60,18 @@ interface ApiService {
     @GET("api/v1/matches/{id}")
     suspend fun getMatch(@Path("id") id: Int): ApiResponse<Match>
 
+    @POST("api/v1/matches/captain-create")
+    suspend fun captainCreateMatch(@Body request: CaptainCreateMatchRequest): ApiResponse<Match>
+
+    @POST("api/v1/matches/join-by-code")
+    suspend fun joinMatchByCode(@Body request: JoinByCodeRequest): ApiResponse<Match>
+
+    @GET("api/v1/societies/{id}/matches")
+    suspend fun getSocietyMatches(@Path("id") id: Int): ApiResponse<List<Match>>
+
+    @GET("api/v1/societies/mine")
+    suspend fun getMySocieties(): ApiResponse<List<MySociety>>
+
     // Tournaments
     @GET("api/v1/tournaments")
     suspend fun getTournaments(): ApiResponse<List<Tournament>>
