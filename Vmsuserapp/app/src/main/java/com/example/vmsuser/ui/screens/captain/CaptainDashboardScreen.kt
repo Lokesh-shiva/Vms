@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,12 +18,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.example.vmsuser.models.MySociety
 import com.example.vmsuser.navigation.Screen
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
@@ -168,8 +173,36 @@ private fun ActiveMatchesTab(matches: List<com.example.vmsuser.models.Match>, na
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CreateMatchTab(navController: NavController) {
+    val vm: CaptainViewModel = viewModel()
+    val sports by vm.sports.collectAsState()
+    val regions by vm.regions.collectAsState()
+    val mySocieties by vm.mySocieties.collectAsState()
+    val creating by vm.creatingMatch.collectAsState()
+    val createdMatch by vm.createdMatch.collectAsState()
+    val error by vm.error.collectAsState()
+
+    var sheetVisibility by remember { mutableStateOf<String?>(null) } // "OPEN" | "SOCIETY" | "PRIVATE"
+    var showSocietyPicker by remember { mutableStateOf(false) }
+    var selectedSocietyId by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(Unit) {
+        vm.loadSportsAndRegions()
+        vm.loadMySocieties()
+    }
+
+    LaunchedEffect(createdMatch) {
+        createdMatch?.let {
+            if (it.visibility != "PRIVATE") {
+                navController.navigate(Screen.CaptainMatch.create(it.id))
+                vm.clearCreatedMatch()
+                sheetVisibility = null
+            }
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -185,7 +218,14 @@ private fun CreateMatchTab(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(bg, PlixoShape.Card)
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                        when (title) {
+                            "Open match" -> sheetVisibility = "OPEN"
+                            "Private" -> sheetVisibility = "PRIVATE"
+                            "Society match" -> showSocietyPicker = true
+                            "Tournament" -> navController.navigate(Screen.Tournaments.route)
+                        }
+                    }
                     .padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -194,6 +234,142 @@ private fun CreateMatchTab(navController: NavController) {
                     Text(desc, fontFamily = PlusJakartaSans, fontSize = 12.sp, color = PlixoText2)
                 }
                 Icon(Icons.Filled.ChevronRight, null, tint = PlixoText3)
+            }
+        }
+    }
+
+    if (showSocietyPicker) {
+        ModalBottomSheet(onDismissRequest = { showSocietyPicker = false }) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("Choose a society", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = PlixoText)
+                Spacer(Modifier.height(12.dp))
+                if (mySocieties.isEmpty()) {
+                    Text("You're not a member of any society yet.", fontFamily = PlusJakartaSans, fontSize = 13.sp, color = PlixoText2)
+                } else {
+                    mySocieties.forEach { society: MySociety ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedSocietyId = society.id
+                                    showSocietyPicker = false
+                                    sheetVisibility = "SOCIETY"
+                                }
+                                .padding(vertical = 12.dp),
+                        ) {
+                            Text(society.name, fontFamily = PlusJakartaSans, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = PlixoText)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+            }
+        }
+    }
+
+    if (sheetVisibility != null) {
+        val visibility = sheetVisibility!!
+        ModalBottomSheet(onDismissRequest = { sheetVisibility = null; vm.clearCreatedMatch() }) {
+            if (createdMatch != null && createdMatch!!.visibility == "PRIVATE") {
+                val clipboard = LocalClipboardManager.current
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("Match created!", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = PlixoText)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Share this code so others can join:", fontFamily = PlusJakartaSans, fontSize = 13.sp, color = PlixoText2)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        createdMatch!!.inviteCode ?: "",
+                        fontFamily = BricolageGrotesque,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 32.sp,
+                        color = PlixoPrimary,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    PlixoButton(
+                        "Copy code",
+                        onClick = { clipboard.setText(AnnotatedString(createdMatch!!.inviteCode ?: "")) },
+                        variant = PlixoButtonVariant.Soft,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    PlixoButton(
+                        "Done",
+                        onClick = {
+                            navController.navigate(Screen.CaptainMatch.create(createdMatch!!.id))
+                            vm.clearCreatedMatch()
+                            sheetVisibility = null
+                        },
+                    )
+                }
+            } else {
+                var selectedSportId by remember { mutableStateOf<Int?>(sports.firstOrNull()?.id) }
+                var selectedRegionId by remember { mutableStateOf<Int?>(regions.firstOrNull()?.id) }
+                var maxPlayers by remember { mutableStateOf(4) }
+
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        when (visibility) { "PRIVATE" -> "Create private match"; "SOCIETY" -> "Create society match"; else -> "Create open match" },
+                        fontFamily = BricolageGrotesque,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = PlixoText,
+                    )
+                    Spacer(Modifier.height(16.dp))
+
+                    Text("Sport", fontFamily = PlusJakartaSans, fontSize = 12.sp, color = PlixoText2)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        sports.forEach { sport ->
+                            SkillLevelChip(
+                                level = sport.name,
+                                selected = selectedSportId == sport.id,
+                                onClick = { selectedSportId = sport.id },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+
+                    Text("Region", fontFamily = PlusJakartaSans, fontSize = 12.sp, color = PlixoText2)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        regions.forEach { region ->
+                            SkillLevelChip(
+                                level = region.name,
+                                selected = selectedRegionId == region.id,
+                                onClick = { selectedRegionId = region.id },
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Max players", fontFamily = PlusJakartaSans, fontSize = 13.sp, color = PlixoText, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { if (maxPlayers > 2) maxPlayers-- }) { Icon(Icons.Filled.Remove, null) }
+                        Text("$maxPlayers", fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        IconButton(onClick = { if (maxPlayers < 22) maxPlayers++ }) { Icon(Icons.Filled.Add, null) }
+                    }
+                    Spacer(Modifier.height(16.dp))
+
+                    error?.let {
+                        Text(it, fontFamily = PlusJakartaSans, fontSize = 12.sp, color = Color.Red)
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    PlixoButton(
+                        if (creating) "Creating…" else "Create match",
+                        onClick = {
+                            val sportId = selectedSportId
+                            val regionId = selectedRegionId
+                            if (sportId != null && regionId != null) {
+                                vm.createMatch(
+                                    cartTypeId = sportId,
+                                    regionId = regionId,
+                                    maxPlayers = maxPlayers,
+                                    visibility = visibility,
+                                    societyId = if (visibility == "SOCIETY") selectedSocietyId else null,
+                                ) {
+                                    if (visibility != "PRIVATE") sheetVisibility = null
+                                }
+                            }
+                        },
+                    )
+                }
             }
         }
     }

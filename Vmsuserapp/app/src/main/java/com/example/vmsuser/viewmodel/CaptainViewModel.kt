@@ -6,8 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.vmsuser.data.CaptainRepository
 import com.example.vmsuser.models.CaptainCreateMatchRequest
 import com.example.vmsuser.models.CaptainStats
+import com.example.vmsuser.models.LocationOption
 import com.example.vmsuser.models.Match
 import com.example.vmsuser.models.MySociety
+import com.example.vmsuser.models.SportItem
+import com.example.vmsuser.network.RetrofitClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -65,6 +68,23 @@ class CaptainViewModel : ViewModel() {
             repo.getMySocieties()
                 .onSuccess { _mySocieties.value = it }
                 .onFailure { Log.w("CaptainVM", "loadMySocieties: ${it.message}") }
+        }
+    }
+
+    private val _sports = MutableStateFlow<List<SportItem>>(emptyList())
+    val sports: StateFlow<List<SportItem>> = _sports
+
+    private val _regions = MutableStateFlow<List<LocationOption>>(emptyList())
+    val regions: StateFlow<List<LocationOption>> = _regions
+
+    fun loadSportsAndRegions() {
+        viewModelScope.launch {
+            try {
+                val sportsRes = RetrofitClient.api.getSports()
+                if (sportsRes.success && sportsRes.data != null) _sports.value = sportsRes.data
+                val locationsRes = RetrofitClient.api.getLocations()
+                if (locationsRes.success && locationsRes.data != null) _regions.value = locationsRes.data
+            } catch (e: Exception) { Log.e("CaptainVM", "loadSportsAndRegions", e) }
         }
     }
 
