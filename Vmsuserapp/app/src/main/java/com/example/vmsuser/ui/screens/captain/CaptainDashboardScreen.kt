@@ -173,6 +173,8 @@ private fun ActiveMatchesTab(matches: List<com.example.vmsuser.models.Match>, na
     }
 }
 
+private data class MatchOptionRow(val kind: String, val title: String, val desc: String, val bg: Color)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun CreateMatchTab(navController: NavController) {
@@ -209,29 +211,29 @@ private fun CreateMatchTab(navController: NavController) {
     ) {
         Spacer(Modifier.height(8.dp))
         listOf(
-            Triple("Open match", "Anyone can join via the app", PlixoPrimaryLight),
-            Triple("Society match", "Exclusive to your society members", BlockSkyBg),
-            Triple("Tournament", "Official Plixo tournament format", BlockLilacBg),
-            Triple("Private", "Invite-only with a code", PlixoSurface2),
-        ).forEach { (title, desc, bg) ->
+            MatchOptionRow("OPEN", "Open match", "Anyone can join via the app", PlixoPrimaryLight),
+            MatchOptionRow("SOCIETY_PICKER", "Society match", "Exclusive to your society members", BlockSkyBg),
+            MatchOptionRow("TOURNAMENT", "Tournament", "Official Plixo tournament format", BlockLilacBg),
+            MatchOptionRow("PRIVATE", "Private", "Invite-only with a code", PlixoSurface2),
+        ).forEach { option ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(bg, PlixoShape.Card)
+                    .background(option.bg, PlixoShape.Card)
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                        when (title) {
-                            "Open match" -> sheetVisibility = "OPEN"
-                            "Private" -> sheetVisibility = "PRIVATE"
-                            "Society match" -> showSocietyPicker = true
-                            "Tournament" -> navController.navigate(Screen.Tournaments.route)
+                        when (option.kind) {
+                            "OPEN" -> sheetVisibility = "OPEN"
+                            "PRIVATE" -> sheetVisibility = "PRIVATE"
+                            "SOCIETY_PICKER" -> showSocietyPicker = true
+                            "TOURNAMENT" -> navController.navigate(Screen.Tournaments.route)
                         }
                     }
                     .padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(title, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = PlixoText)
-                    Text(desc, fontFamily = PlusJakartaSans, fontSize = 12.sp, color = PlixoText2)
+                    Text(option.title, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = PlixoText)
+                    Text(option.desc, fontFamily = PlusJakartaSans, fontSize = 12.sp, color = PlixoText2)
                 }
                 Icon(Icons.Filled.ChevronRight, null, tint = PlixoText3)
             }
@@ -269,7 +271,8 @@ private fun CreateMatchTab(navController: NavController) {
     if (sheetVisibility != null) {
         val visibility = sheetVisibility!!
         ModalBottomSheet(onDismissRequest = { sheetVisibility = null; vm.clearCreatedMatch() }) {
-            if (createdMatch != null && createdMatch!!.visibility == "PRIVATE") {
+            val privateResult = createdMatch?.takeIf { it.visibility == "PRIVATE" }
+            if (privateResult != null) {
                 val clipboard = LocalClipboardManager.current
                 Column(modifier = Modifier.padding(20.dp)) {
                     Text("Match created!", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = PlixoText)
@@ -277,7 +280,7 @@ private fun CreateMatchTab(navController: NavController) {
                     Text("Share this code so others can join:", fontFamily = PlusJakartaSans, fontSize = 13.sp, color = PlixoText2)
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        createdMatch!!.inviteCode ?: "",
+                        privateResult.inviteCode ?: "",
                         fontFamily = BricolageGrotesque,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 32.sp,
@@ -286,14 +289,14 @@ private fun CreateMatchTab(navController: NavController) {
                     Spacer(Modifier.height(16.dp))
                     PlixoButton(
                         "Copy code",
-                        onClick = { clipboard.setText(AnnotatedString(createdMatch!!.inviteCode ?: "")) },
+                        onClick = { clipboard.setText(AnnotatedString(privateResult.inviteCode ?: "")) },
                         variant = PlixoButtonVariant.Soft,
                     )
                     Spacer(Modifier.height(10.dp))
                     PlixoButton(
                         "Done",
                         onClick = {
-                            navController.navigate(Screen.CaptainMatch.create(createdMatch!!.id))
+                            navController.navigate(Screen.CaptainMatch.create(privateResult.id))
                             vm.clearCreatedMatch()
                             sheetVisibility = null
                         },
