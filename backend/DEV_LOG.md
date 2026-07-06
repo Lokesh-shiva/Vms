@@ -2373,3 +2373,20 @@ No backend changes this session — tournament endpoints expected at `/api/v1/to
 ### Architectural decisions
 - Wallet routes are a stub returning empty data; no DB table created yet (Phase 02 scope)
 - Captain `/me/stats` looks up captain by `user_id` from JWT rather than requiring a captain_id param
+
+---
+## [2026-07-06] Phase 02 — Captain-created matches: schema (Task 1 of 8)
+
+### Added
+**Backend:**
+- Migration 21 in `backend/run_migrations.py` — adds `matches.visibility` (VARCHAR(20) NOT NULL DEFAULT 'OPEN'), `matches.society_id` (INTEGER FK -> societies.id ON DELETE SET NULL), `matches.invite_code` (VARCHAR(8)), plus a partial unique index `uq_matches_invite_code` on `invite_code` (only enforced when non-null).
+
+### Modified
+**Backend:**
+- `backend/modules/match/model/match_model.py` — added `visibility`, `society_id`, `invite_code` columns (placed after `booking_id`; note: the task spec referenced a `captain_id` column as the anchor point, but no such column exists on `Match` — placed new columns after the last existing FK column, `booking_id`, instead); added `VALID_VISIBILITIES = {"OPEN", "SOCIETY", "PRIVATE"}` class attribute; added all 3 fields to `to_dict()`.
+
+### Backend changes
+- Ran `run_migrations.py` against the dev Postgres DB (via main project's `venv`, since this worktree lacks its own `venv`/`backend/.env` — copied `backend/.env` from the main worktree to run the migration). Migration 21 applied cleanly; verified via `information_schema.columns` that `visibility`, `society_id`, `invite_code` exist on `matches`.
+
+### Architectural decisions
+- Purely additive schema change — no existing behavior modified. Sets up columns for later tasks (repository/service/route logic) in the captain-created-matches feature (see `docs/superpowers/plans/2026-07-06-captain-created-matches.md`).
