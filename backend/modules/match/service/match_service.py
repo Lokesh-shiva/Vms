@@ -17,6 +17,15 @@ from modules.cart_type.repository.cart_type_repository import (
 from modules.location.repository.location_repository import (
     location_repository as _default_location_repo,
 )
+from modules.captain.repository.captain_repository import (
+    captain_repository as _default_captain_repo,
+)
+from modules.society.repository.society_member_repository import (
+    society_member_repository as _default_society_member_repo,
+)
+from modules.society.repository.society_repository import (
+    society_repository as _default_society_repo,
+)
 
 
 class MatchService(BaseService):
@@ -39,6 +48,9 @@ class MatchService(BaseService):
         cart_type_repository=None,
         location_repository=None,
         event_repository=None,
+        captain_repository=None,
+        society_member_repository=None,
+        society_repository=None,
     ):
         super().__init__()
         self.match_repo = match_repository or _default_match_repo
@@ -47,6 +59,9 @@ class MatchService(BaseService):
         self.cart_type_repo = cart_type_repository or _default_cart_type_repo
         self.location_repo = location_repository or _default_location_repo
         self.event_repo = event_repository or _default_event_repo
+        self.captain_repo = captain_repository or _default_captain_repo
+        self.society_member_repo = society_member_repository or _default_society_member_repo
+        self.society_repo = society_repository or _default_society_repo
 
     # ── Helpers ───────────────────────────────────────────────────────
 
@@ -147,6 +162,57 @@ class MatchService(BaseService):
         finally:
             session.close()
 
+    # ── Captain-created matches ───────────────────────────────────────
+
+    def captain_create_match(self, user_id: int, data: dict) -> dict:
+        """
+        Create a captain-organized match (Open, Society, or Private).
+
+        The captain is set via created_by + Captain.current_match_id (there is
+        no Match.captain_id column) but is NOT added as a player — they
+        organize, players fill all max_players slots via join.
+        """
+        captain = self.captain_repo.get_by_user_id(user_id)
+        if not captain:
+            raise ValueError("Captain profile not found.")
+        if captain["status"] != "ACTIVE":
+            raise ValueError("Your captain profile is not active.")
+
+        self._get_cart_type(data["cart_type_id"])
+        self._get_region(data["region_id"])
+
+        visibility = data["visibility"]
+        society_id = data.get("society_id")
+        if visibility == "SOCIETY":
+            society = self.society_repo.find_by_id(society_id)
+            if society is None:
+                raise ValueError("Society not found.")
+            member = self.society_member_repo.find_member(society_id, user_id)
+            if member is None:
+                raise ValueError("You are not a member of this society.")
+
+        match = self.match_repo.create_captain_match(
+            user_id=user_id,
+            captain_id=captain["id"],
+            region_id=data["region_id"],
+            cart_type_id=data["cart_type_id"],
+            max_players=data["max_players"],
+            visibility=visibility,
+            skill_level=data.get("skill_level"),
+            society_id=society_id,
+        )
+        self.event_repo.log(
+            match["id"], "MATCH_CREATED", user_id=user_id, meta={"visibility": visibility}
+        )
+        return match
+
+    def join_by_code(self, user_id: int, invite_code: str) -> dict:
+        """Join a PRIVATE match using its invite code."""
+        match = self.match_repo.find_by_invite_code(invite_code)
+        if match is None:
+            raise ValueError("Invalid invite code.")
+        return self.join_match(user_id, match["id"])
+
     # ── Join ──────────────────────────────────────────────────────────
 
     def join_match(self, user_id: int, match_id: int) -> dict:
@@ -198,18 +264,26 @@ class MatchService(BaseService):
             session.refresh(match_orm)
             if match_orm.joined_players >= match_orm.max_players:
                 if match_orm.status == "WAITING":
-                    # Play-now model: auto-assign a captain and move to MATCHED
+                    from modules.captain.model.captain_model import Captain
                     from modules.captain.repository.captain_repository import captain_repository
-                    captain = captain_repository.find_available_captain(
-                        match_orm.region_id, session
+
+                    already_assigned = (
+                        session.query(Captain)
+                        .filter(Captain.current_match_id == match_orm.id)
+                        .first()
                     )
-                    if captain:
-                        captain_repository.set_availability(
-                            captain_id=captain.id,
-                            available=False,
-                            match_id=match_orm.id,
-                            session=session,
+                    if already_assigned is None:
+                        # Play-now model: auto-assign a captain and move to MATCHED
+                        captain = captain_repository.find_available_captain(
+                            match_orm.region_id, session
                         )
+                        if captain:
+                            captain_repository.set_availability(
+                                captain_id=captain.id,
+                                available=False,
+                                match_id=match_orm.id,
+                                session=session,
+                            )
                     match_orm.status = "MATCHED"
                 else:
                     # Old VMS booking model: mark FULL, lock the cart
