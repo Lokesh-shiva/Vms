@@ -17,17 +17,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vmsadmin.models.Payment
+import com.example.vmsadmin.models.PaymentReportEntry
 import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.ui.components.StatusBadge
 import com.example.vmsadmin.ui.components.shimmerEffect
 import com.example.vmsadmin.viewmodel.PaymentFilter
 import com.example.vmsadmin.viewmodel.PaymentViewModel
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PaymentsScreen(viewModel: PaymentViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     var visible by remember { mutableStateOf(false) }
+    var topTab by remember { mutableIntStateOf(0) } // 0 = Payments, 1 = Reports
 
     LaunchedEffect(Unit) {
         viewModel.loadPayments()
@@ -64,6 +67,21 @@ fun PaymentsScreen(viewModel: PaymentViewModel) {
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
+        TabRow(selectedTabIndex = topTab) {
+            Tab(selected = topTab == 0, onClick = { topTab = 0 }, text = { Text("Payments") })
+            Tab(selected = topTab == 1, onClick = { topTab = 1 }, text = { Text("Reports") })
+        }
+
+        if (topTab == 1) {
+            PaymentReportTab(
+                report = uiState.report,
+                isLoading = uiState.reportLoading,
+                error = uiState.reportError,
+                onQuery = { start, end -> viewModel.loadReport(start, end) },
+            )
+            return@Column
+        }
+
         // ── Revenue summary + filter tabs (always visible) ───────────────
         RevenueSummaryCard(
             totalRevenue = uiState.totalRevenue,
@@ -318,5 +336,99 @@ private fun InfoRow(label: String, value: String) {
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+@Composable
+private fun PaymentReportTab(
+    report: List<PaymentReportEntry>,
+    isLoading: Boolean,
+    error: String?,
+    onQuery: (startDate: String, endDate: String) -> Unit,
+) {
+    var startDate by remember { mutableStateOf(LocalDate.now().minusDays(6).toString()) }
+    var endDate by remember { mutableStateOf(LocalDate.now().toString()) }
+
+    LaunchedEffect(Unit) { onQuery(startDate, endDate) }
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(
+                value = startDate,
+                onValueChange = { startDate = it },
+                label = { Text("From (YYYY-MM-DD)") },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+            )
+            OutlinedTextField(
+                value = endDate,
+                onValueChange = { endDate = it },
+                label = { Text("To (YYYY-MM-DD)") },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Button(
+            onClick = { onQuery(startDate, endDate) },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Run report") }
+
+        Spacer(Modifier.height(16.dp))
+
+        when {
+            isLoading -> Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            error != null -> Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+            report.isEmpty() -> Text(
+                "No payments in this range.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            else -> {
+                val totalRevenue = report.sumOf { it.revenue }
+                val totalRefunded = report.sumOf { it.refunded }
+
+                AppCard {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column {
+                            Text("Total Revenue", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("₹${String.format("%.2f", totalRevenue)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("Total Refunded", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("₹${String.format("%.2f", totalRefunded)}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(report, key = { it.period }) { entry ->
+                        AppCard {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(entry.period, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text("₹${String.format("%.2f", entry.revenue)} revenue", style = MaterialTheme.typography.bodySmall)
+                                    if (entry.refunded > 0) {
+                                        Text(
+                                            "₹${String.format("%.2f", entry.refunded)} refunded",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

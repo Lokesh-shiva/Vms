@@ -1,4 +1,9 @@
+import csv
+import io
+from datetime import date, datetime
+
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from modules.audit.service.audit_service import audit_service
 from modules.auth.dependencies.auth_dependencies import (
     require_role,
@@ -46,6 +51,49 @@ def get_payment_summary(
         return _success(summary)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def _parse_report_range(start_date: date | None, end_date: date | None) -> tuple[datetime, datetime]:
+    if start_date is None or end_date is None:
+        raise HTTPException(status_code=400, detail="start_date and end_date are required (YYYY-MM-DD).")
+    if start_date > end_date:
+        raise HTTPException(status_code=400, detail="start_date must be on or before end_date.")
+    return datetime.combine(start_date, datetime.min.time()), datetime.combine(end_date, datetime.max.time())
+
+
+@router.get("/report")
+def get_payment_report(
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    current_user: dict = require_role(UserRole.FINANCE, UserRole.SUPER_ADMIN),
+):
+    """Daily revenue/refund report for a date range. Restricted to FINANCE and SUPER_ADMIN."""
+    start_dt, end_dt = _parse_report_range(start_date, end_date)
+    return _success(payment_service.get_report(start_dt, end_dt))
+
+
+@router.get("/report/export")
+def export_payment_report(
+    start_date: date = Query(...),
+    end_date: date = Query(...),
+    current_user: dict = require_role(UserRole.FINANCE, UserRole.SUPER_ADMIN),
+):
+    """Same report as /report, as a downloadable CSV. Restricted to FINANCE and SUPER_ADMIN."""
+    start_dt, end_dt = _parse_report_range(start_date, end_date)
+    rows = payment_service.get_report(start_dt, end_dt)
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=["period", "revenue", "refunded", "count"])
+    writer.writeheader()
+    writer.writerows(rows)
+    buffer.seek(0)
+
+    filename = f"payment-report-{start_date.isoformat()}-to-{end_date.isoformat()}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.get("/")

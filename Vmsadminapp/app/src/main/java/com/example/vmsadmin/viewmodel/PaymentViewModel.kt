@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.PaymentRepository
 import com.example.vmsadmin.models.Payment
+import com.example.vmsadmin.models.PaymentReportEntry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +21,10 @@ data class PaymentUiState(
     val pendingReviewCount: Int = 0,
     val refundedCount: Int = 0,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val report: List<PaymentReportEntry> = emptyList(),
+    val reportLoading: Boolean = false,
+    val reportError: String? = null,
 )
 
 class PaymentViewModel(
@@ -80,6 +84,21 @@ class PaymentViewModel(
             filter = filter,
             error = null
         )
+    }
+
+    fun loadReport(startDate: String, endDate: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(reportLoading = true, reportError = null)
+            try {
+                val report = paymentRepository.fetchReport(startDate, endDate)
+                _uiState.value = _uiState.value.copy(report = report, reportLoading = false)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    reportLoading = false,
+                    reportError = e.message ?: "Failed to load report"
+                )
+            }
+        }
     }
 
     fun approvePayment(paymentId: Int) {

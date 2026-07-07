@@ -2577,6 +2577,48 @@ forward.
 - Date filters are plain `YYYY-MM-DD` text fields, not a Compose `DatePicker` — kept scope tight;
   swap in a real date picker if manual entry becomes a complaint.
 
+---
+## [2026-07-07] Phase 02 — Finance reporting: daily revenue/refund report + CSV export
+
+### Added
+**Backend**
+- `payment_repository.find_between(start_date, end_date)` — SUCCESS/REFUNDED payments in a
+  date range.
+- `payment_service.get_report(start_date, end_date)` — buckets payments by calendar day
+  (`{period, revenue, refunded, count}`), bucketed in Python rather than SQL `date_trunc`/
+  `strftime` so the exact same code path runs against Postgres in prod and SQLite in tests.
+- `GET /api/v1/payments/report?start_date=&end_date=` — FINANCE/SUPER_ADMIN only.
+- `GET /api/v1/payments/report/export?start_date=&end_date=` — same data as CSV via
+  `StreamingResponse`, `Content-Disposition: attachment`.
+- `backend/modules/payment/tests/test_payment_report.py` — 3 tests (day bucketing, excludes
+  pending/out-of-range, empty range).
+
+**Admin app**
+- `PaymentsScreen.kt` — added a top-level Payments/Reports tab. Reports tab has a from/to date
+  range (defaults to the last 7 days), a revenue/refund summary card, and a per-day breakdown
+  list.
+- `PaymentViewModel.kt` — `loadReport(startDate, endDate)`; report state added to `PaymentUiState`.
+- `PaymentRepository.kt`/`ApiService.kt`/`Models.kt` — `fetchReport()`, `getPaymentReport()`,
+  `PaymentReportEntry`. Also fixed `getPaymentSummary()`'s endpoint path — same bare-path bug as
+  yesterday's `audit-logs` fix (`@GET("payments/summary")` with no `/api/v1` prefix).
+
+### Architectural decisions
+- Daily granularity only (no weekly/monthly `group_by` param) — this is the smallest useful
+  slice per the Finance-reporting gap in `.claude/context/memory.md` (revenue-over-time +
+  refund history); a coarser grouping can be added as a query param later without a schema
+  change.
+- No in-app CSV download — the export endpoint exists and is reachable by any authenticated
+  FINANCE/SUPER_ADMIN HTTP client (e.g. a browser with the bearer token, or `curl`), but wiring
+  Android file-save/share intents was out of scope for this slice.
+
+### Verified
+- New tests: 3 passed. Full backend suite: 434 passed.
+- CSR_PARTNER screens gap investigated but deliberately not started this session — the backend
+  has no concept of tournament sponsorship/CSR allocation at all (no `sponsor`/`csr` field
+  anywhere in the tournament module), and the existing `CsrScreen.kt` is a placeholder that
+  leaks unscoped match data via `MatchViewModel`. This needs a product decision on the
+  CSR-to-tournament data model before any code — see DEV_LOG follow-up / ask the user.
+
 ### Verified
 - Full backend suite: 431 passed.
 - This was the last item on the audit-log punch list (backend filters/pagination/coverage +

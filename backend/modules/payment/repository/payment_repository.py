@@ -168,6 +168,21 @@ class PaymentRepository:
             if own_session:
                 session.close()
 
+    def find_between(self, start_date, end_date, session=None) -> list[dict]:
+        """Return SUCCESS/REFUNDED payments with created_at in [start_date, end_date]."""
+        own_session = session is None
+        session = session or self._session_factory()
+        try:
+            query = session.query(Payment).filter(
+                Payment.status.in_(["SUCCESS", "REFUNDED"]),
+                Payment.created_at >= start_date,
+                Payment.created_at <= end_date,
+            )
+            return [p.to_dict() for p in query.order_by(Payment.created_at.asc()).all()]
+        finally:
+            if own_session:
+                session.close()
+
     def update(self, payment_id: int, update_data: dict, session=None) -> dict | None:
         """Update an existing payment record. Automatically refreshes updated_at."""
         own_session = session is None

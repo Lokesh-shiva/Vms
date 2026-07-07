@@ -149,6 +149,27 @@ class PaymentService(BaseService):
         """Return aggregate payment statistics."""
         return self.payment_repository.get_summary()
 
+    def get_report(self, start_date, end_date) -> list[dict]:
+        """
+        Daily revenue/refund report between start_date and end_date (inclusive).
+
+        Bucketed in Python rather than SQL (date_trunc/strftime) so the same
+        code path works identically against Postgres and the SQLite test DB.
+        """
+        payments = self.payment_repository.find_between(start_date, end_date)
+
+        buckets: dict[str, dict] = {}
+        for p in payments:
+            day = p["created_at"][:10] if p["created_at"] else "unknown"
+            bucket = buckets.setdefault(day, {"period": day, "revenue": 0.0, "refunded": 0.0, "count": 0})
+            if p["status"] == "SUCCESS":
+                bucket["revenue"] += p["amount"]
+            elif p["status"] == "REFUNDED":
+                bucket["refunded"] += p["amount"]
+            bucket["count"] += 1
+
+        return [buckets[day] for day in sorted(buckets)]
+
     # ── Reference Code Generator ───────────────────────────────────────
 
     def _generate_reference_code(self, booking_id: int) -> str:

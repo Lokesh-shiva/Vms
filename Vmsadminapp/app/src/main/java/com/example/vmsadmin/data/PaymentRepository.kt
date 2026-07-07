@@ -1,6 +1,7 @@
 package com.example.vmsadmin.data
 
 import com.example.vmsadmin.models.Payment
+import com.example.vmsadmin.models.PaymentReportEntry
 import com.example.vmsadmin.models.PaymentSummary
 import com.example.vmsadmin.network.ApiService
 
@@ -20,6 +21,14 @@ class PaymentRepository(private val apiService: ApiService) {
             return response.data
         }
         throw Exception(response.message ?: "Failed to fetch summary")
+    }
+
+    suspend fun fetchReport(startDate: String, endDate: String): List<PaymentReportEntry> {
+        val response = apiService.getPaymentReport(startDate, endDate)
+        if (response.success && response.data != null) {
+            return response.data
+        }
+        throw Exception(response.message ?: "Failed to fetch report")
     }
 
     suspend fun approvePayment(paymentId: Int) {

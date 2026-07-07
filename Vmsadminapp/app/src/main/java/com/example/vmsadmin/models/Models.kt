@@ -103,6 +103,14 @@ data class PaymentConfig(
 )
 
 @Serializable
+data class PaymentReportEntry(
+    val period: String,
+    val revenue: Double = 0.0,
+    val refunded: Double = 0.0,
+    val count: Int = 0
+)
+
+@Serializable
 data class Region(
     val id: Int,
     val name: String,
