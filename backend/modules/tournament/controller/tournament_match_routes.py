@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from modules.audit.service.audit_service import audit_service
 from modules.auth.dependencies.auth_dependencies import require_role, require_user
 from modules.tournament.service.tournament_match_service import tournament_match_service
 from modules.tournament.service.tournament_standing_service import tournament_standing_service
@@ -48,6 +49,17 @@ def record_result(
             home_score=request_data["home_score"],
             away_score=request_data["away_score"],
             overrides=request_data.get("overrides"),
+        )
+        audit_service.log(
+            action="TOURNAMENT_MATCH_RESULT_RECORDED",
+            actor_user_id=current_user["id"],
+            target_resource_type="tournament_match",
+            target_resource_id=match_id,
+            details={
+                "tournament_id": tournament_id,
+                "home_score": request_data["home_score"],
+                "away_score": request_data["away_score"],
+            },
         )
         return _success(result, "Result recorded.")
     except (ValueError, KeyError) as e:

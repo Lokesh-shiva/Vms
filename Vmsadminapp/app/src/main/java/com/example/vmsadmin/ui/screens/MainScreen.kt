@@ -357,6 +357,14 @@ fun MainScreen(
                     if (role !in TOURNAMENT_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
                     else TournamentsScreen(
                         viewModel = tournamentViewModel,
+                        onBack = { navController.popBackStack() },
+                        onOpenDetail = { navController.navigate("manage/tournaments/detail") }
+                    )
+                }
+                composable("manage/tournaments/detail") {
+                    if (role !in TOURNAMENT_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else TournamentDetailScreen(
+                        viewModel = tournamentViewModel,
                         onBack = { navController.popBackStack() }
                     )
                 }

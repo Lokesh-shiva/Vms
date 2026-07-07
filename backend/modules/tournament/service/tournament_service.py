@@ -8,10 +8,15 @@ from modules.tournament.model.tournament_participant_model import ParticipantSta
 
 
 class TournamentService:
-    def __init__(self, repository=None, team_repository=None, participant_repository=None):
+    def __init__(self, repository=None, team_repository=None, participant_repository=None, user_repository=None):
         self.repository = repository or _default_repo
         self.team_repository = team_repository or _default_team_repo
         self.participant_repository = participant_repository or _default_participant_repo
+        if user_repository is not None:
+            self.user_repository = user_repository
+        else:
+            from modules.user.repository.user_repository import user_repository as _default_user_repo
+            self.user_repository = _default_user_repo
 
     def _merge_rules(self, rules_input: dict | None) -> dict:
         merged = dict(RULES_JSON_DEFAULTS)
@@ -121,3 +126,49 @@ class TournamentService:
         if not existing or existing["status"] != ParticipantStatus.REGISTERED:
             raise ValueError("User is not registered in this tournament.")
         return self.participant_repository.update_status(tournament_id, user_id, ParticipantStatus.WITHDRAWN)
+
+    def list_registrations(self, tournament_id: int) -> list[dict]:
+        """
+        Admin-facing view of who's registered for a tournament.
+
+        For TEAM tournaments, groups participants under their team with
+        member names. For INDIVIDUAL tournaments, returns a flat list of
+        registered players. Enriches every entry with the user's name.
+        """
+        tournament = self.repository.find_by_id(tournament_id)
+        if not tournament:
+            raise ValueError("Tournament not found.")
+
+        participants = self.participant_repository.find_by_tournament(tournament_id)
+        name_by_user_id: dict[int, str] = {}
+        for p in participants:
+            user = self.user_repository.find_by_id(p["user_id"])
+            name_by_user_id[p["user_id"]] = user["name"] if user else "Unknown"
+
+        if tournament["participant_type"] != TournamentParticipantType.TEAM:
+            return [
+                {
+                    "user_id": p["user_id"],
+                    "name": name_by_user_id[p["user_id"]],
+                    "team_id": None,
+                    "team_name": None,
+                    "joined_at": p["joined_at"],
+                }
+                for p in participants
+            ]
+
+        teams = self.team_repository.find_by_tournament(tournament_id)
+        result: list[dict] = []
+        for team in teams:
+            members = [p for p in participants if p["team_id"] == team["id"]]
+            result.append({
+                "team_id": team["id"],
+                "team_name": team["name"],
+                "captain_user_id": team["captain_user_id"],
+                "captain_name": name_by_user_id.get(team["captain_user_id"], "Unknown"),
+                "members": [
+                    {"user_id": m["user_id"], "name": name_by_user_id[m["user_id"]]}
+                    for m in members
+                ],
+            })
+        return result

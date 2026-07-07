@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from modules.audit.service.audit_service import audit_service
 from modules.auth.dependencies.auth_dependencies import require_role, require_user
 from modules.tournament.schemas.tournament_schema import CreateTournamentSchema, UpdateTournamentSchema
 from modules.tournament.service.tournament_service import TournamentService
@@ -31,6 +32,13 @@ def create_tournament(
         raise HTTPException(status_code=400, detail=schema.errors)
     try:
         t = tournament_service.create_tournament(schema.validated_data)
+        audit_service.log(
+            action="TOURNAMENT_CREATED",
+            actor_user_id=current_user["id"],
+            target_resource_type="tournament",
+            target_resource_id=t["id"],
+            details={"name": t["name"]},
+        )
         return _success(t, "Tournament created successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -60,6 +68,13 @@ def update_tournament(
         raise HTTPException(status_code=400, detail=schema.errors)
     try:
         t = tournament_service.update_tournament(tournament_id, schema.validated_data)
+        audit_service.log(
+            action="TOURNAMENT_UPDATED",
+            actor_user_id=current_user["id"],
+            target_resource_type="tournament",
+            target_resource_id=tournament_id,
+            details={"fields": list(request_data.keys())},
+        )
         return _success(t, "Tournament updated successfully.")
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -72,6 +87,12 @@ def delete_tournament(
 ):
     try:
         tournament_service.delete_tournament(tournament_id)
+        audit_service.log(
+            action="TOURNAMENT_DELETED",
+            actor_user_id=current_user["id"],
+            target_resource_type="tournament",
+            target_resource_id=tournament_id,
+        )
         return _success(None, "Tournament deleted successfully.")
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

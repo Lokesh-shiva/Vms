@@ -43,6 +43,18 @@ class TournamentParticipantRepository:
         finally:
             session.close()
 
+    def find_by_tournament(self, tournament_id: int, status: str | None = ParticipantStatus.REGISTERED) -> list[dict]:
+        session = self._session_factory()
+        try:
+            query = session.query(TournamentParticipant).filter(
+                TournamentParticipant.tournament_id == tournament_id,
+            )
+            if status is not None:
+                query = query.filter(TournamentParticipant.status == status)
+            return [p.to_dict() for p in query.all()]
+        finally:
+            session.close()
+
     def find_by_team(self, team_id: int) -> list[dict]:
         session = self._session_factory()
         try:

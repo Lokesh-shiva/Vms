@@ -8,6 +8,13 @@ env/
 **/.env.*
 !**/.env.example
 
+# Firebase service account keys — never commit
+**/*firebase-adminsdk*.json
+**/serviceAccountKey.json
+
+# User-uploaded KYC documents — never commit, contains sensitive ID scans
+backend/uploads/
+
 # Python cache and build artifacts
 __pycache__/
 *.py[cod]

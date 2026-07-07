@@ -1,3 +1,4 @@
+from datetime import datetime
 from core.database.db_connection import SessionLocal
 from modules.audit.model.audit_model import AuditLog
 
@@ -26,12 +27,32 @@ class AuditRepository:
         finally:
             session.close()
 
-    def find_all(self, limit: int = 200) -> list[dict]:
+    def find_all(
+        self,
+        limit: int = 200,
+        offset: int = 0,
+        action: str | None = None,
+        actor_user_id: int | None = None,
+        target_resource_type: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> list[dict]:
         session = self._session_factory()
         try:
+            query = session.query(AuditLog)
+            if action is not None:
+                query = query.filter(AuditLog.action == action)
+            if actor_user_id is not None:
+                query = query.filter(AuditLog.actor_user_id == actor_user_id)
+            if target_resource_type is not None:
+                query = query.filter(AuditLog.target_resource_type == target_resource_type)
+            if start_date is not None:
+                query = query.filter(AuditLog.created_at >= start_date)
+            if end_date is not None:
+                query = query.filter(AuditLog.created_at <= end_date)
             entries = (
-                session.query(AuditLog)
-                .order_by(AuditLog.id.desc())
+                query.order_by(AuditLog.id.desc())
+                .offset(offset)
                 .limit(limit)
                 .all()
             )

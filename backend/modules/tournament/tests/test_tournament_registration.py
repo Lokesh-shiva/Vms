@@ -67,3 +67,60 @@ class TestTournamentRegistration(unittest.TestCase):
     def test_withdraw_not_registered_raises(self):
         with self.assertRaises(ValueError):
             self.service.withdraw(self.tournament["id"], user_id=999)
+
+
+class _FakeUserRepository:
+    def __init__(self, names: dict[int, str]):
+        self.names = names
+
+    def find_by_id(self, user_id: int) -> dict | None:
+        name = self.names.get(user_id)
+        return {"id": user_id, "name": name} if name else None
+
+
+class TestTournamentRegistrationsList(unittest.TestCase):
+    def setUp(self):
+        factory = _factory()
+        self.t_repo = TournamentRepository(session_factory=factory)
+        self.team_repo = TournamentTeamRepository(session_factory=factory)
+        self.p_repo = TournamentParticipantRepository(session_factory=factory)
+        self.user_repo = _FakeUserRepository({1: "Aarav", 2: "Priya", 3: "Rahul"})
+        self.service = TournamentService(
+            repository=self.t_repo,
+            team_repository=self.team_repo,
+            participant_repository=self.p_repo,
+            user_repository=self.user_repo,
+        )
+
+    def test_list_registrations_individual_tournament(self):
+        tournament = self.service.create_tournament({
+            "name": "Solo Cup", "organizer": "Plixo",
+            "start_date": date(2026, 8, 1), "end_date": date(2026, 8, 31),
+            "max_teams": 8, "format_type": "LEAGUE", "participant_type": "INDIVIDUAL", "team_size": 1,
+        })
+        self.service.register(tournament["id"], user_id=1)
+        self.service.register(tournament["id"], user_id=2)
+
+        registrations = self.service.list_registrations(tournament["id"])
+        self.assertEqual(len(registrations), 2)
+        names = {r["name"] for r in registrations}
+        self.assertEqual(names, {"Aarav", "Priya"})
+
+    def test_list_registrations_team_tournament_groups_members(self):
+        tournament = self.service.create_tournament({
+            "name": "Team Cup", "organizer": "Plixo",
+            "start_date": date(2026, 8, 1), "end_date": date(2026, 8, 31),
+            "max_teams": 4, "format_type": "KNOCKOUT", "participant_type": "TEAM", "team_size": 2,
+        })
+        self.service.register(tournament["id"], user_id=1, team_data={"team_name": "Falcons", "member_user_ids": [2]})
+
+        registrations = self.service.list_registrations(tournament["id"])
+        self.assertEqual(len(registrations), 1)
+        self.assertEqual(registrations[0]["team_name"], "Falcons")
+        self.assertEqual(registrations[0]["captain_name"], "Aarav")
+        member_names = {m["name"] for m in registrations[0]["members"]}
+        self.assertEqual(member_names, {"Aarav", "Priya"})
+
+    def test_list_registrations_unknown_tournament_raises(self):
+        with self.assertRaises(ValueError):
+            self.service.list_registrations(999)
