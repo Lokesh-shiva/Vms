@@ -47,6 +47,7 @@ Finance reporting · CSR_PARTNER screens
 - Tournament pricing fields — `entry_fee`/`prize_pool`/`banner_url`/`description`, public listing endpoint
 - Dispute self-service — `GET/POST /api/v1/disputes/mine` for regular users to raise/view their own tickets
 - Society leaderboard/member name enrichment — member `name` field was missing, now populated
+- Audit log — full coverage (added payment approve/reject/refund, booking cancellation) + admin app filter/pagination UI
 
 **2026-07-06 → 2026-07-07 incident note**: what looked like a code-loss incident was actually
 an unpopped `git stash` (git auto-stashes uncommitted tracked-file changes before a

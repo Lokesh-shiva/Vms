@@ -2545,3 +2545,39 @@ forward.
 - `python -c "import backend.main"` succeeds.
 - Full backend suite: 431 passed.
 - This closes out the "Still to rebuild" list from the 2026-07-06 incident entirely.
+
+---
+## [2026-07-07] Phase 02 — Audit log: final coverage + admin app filter/pagination UI
+
+### Added
+**Backend**
+- `PAYMENT_APPROVED`/`PAYMENT_REJECTED`/`PAYMENT_REFUNDED` audit logging in
+  `backend/modules/payment/controller/payment_routes.py` (approve/reject/refund routes).
+- `BOOKING_CANCELLED` audit logging in `backend/modules/booking/controller/booking_routes.py`,
+  tagged with `by_admin` so admin-initiated vs. self-cancellations are distinguishable.
+
+**Admin app**
+- `AuditLogScreen.kt` — filter bottom sheet (action dropdown, resource-type dropdown, actor
+  user ID, from/to date range) and infinite-scroll pagination (loads the next page when the
+  list is scrolled within 5 items of the end). Empty state now distinguishes "no entries at
+  all" from "no entries match these filters" with a clear-filters action.
+- `AuditLogViewModel.kt` — rewritten around an `AuditLogFilters` value object; `loadLogs`/
+  `refresh` reset to offset 0, `loadMore` appends, `applyFilters`/`clearFilters` re-query from
+  offset 0 with the new filter set.
+- `AuditLogRepository.kt` / `ApiService.kt` — `getAuditLogs()` now takes `limit`/`offset`/
+  `action`/`actorUserId`/`targetResourceType`/`startDate`/`endDate`, matching the backend's
+  existing filter/pagination support. Also fixed the endpoint path — it was `@GET("audit-logs")`
+  with no `/api/v1` prefix and no leading slash, inconsistent with every other endpoint in the
+  file; corrected to `/api/v1/audit-logs`.
+
+### Architectural decisions
+- Pagination is offset-based (matches the backend's `limit`/`offset` query params) rather than
+  cursor-based — audit logs are append-only and never reordered, so offset drift from concurrent
+  writes is a non-issue here.
+- Date filters are plain `YYYY-MM-DD` text fields, not a Compose `DatePicker` — kept scope tight;
+  swap in a real date picker if manual entry becomes a complaint.
+
+### Verified
+- Full backend suite: 431 passed.
+- This was the last item on the audit-log punch list (backend filters/pagination/coverage +
+  admin app UI) — both tracked tasks are now complete.
