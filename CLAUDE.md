@@ -27,7 +27,20 @@ Project pivot: the existing **VMS Admin App** is being restructured into the **P
 - DB migrations: `venv\Scripts\python.exe backend/run_migrations.py`
 
 ## Current focus — Phase 02
-Ground Owner panel · Finance reporting · Tournament backend · Dispute/ticket (Support) · Audit log · CSR_PARTNER screens
+Finance reporting · CSR_PARTNER screens
+
+## Known gaps (priority order)
+
+### Needs rebuild — DB schema exists, source code was lost uncommitted (see DEV_LOG 2026-07-06 incident)
+1. **Notifications module** (`backend/modules/notification/`) — `notifications`/`fcm_tokens` tables exist, no code
+2. **Chat module** (`backend/modules/chat/`) — `messages` table exists, no code
+3. **Captain KYC onboarding** — `captains.kyc_document_url/kyc_status/payout_upi_id/verification_method` columns exist, `captain_model.py` back to 3-field original
+4. **Captain earnings wallet** — `captain_earnings` table + `system_configs.CAPTAIN_FEE_PER_MATCH` exist, no model/repo/service/routes; `matches.captain_id` column exists, unused
+
+### Done ✓
+- Tournament admin management — match scheduling, result entry, standings, registrations wired into a new admin `TournamentDetailScreen`; `GET /tournaments/{id}/registrations` added
+- Audit log — filtering (action/actor/resource type/date range) + pagination; expanded coverage (tournament CRUD, match results, ground edits)
+- Ground Owner panel — `GROUND_OWNER` was in `_ADMIN_ROLES`, so `require_admin` let any ground owner edit any ground with full field access; now scoped to own grounds + `is_active`/lat/long only; admin app gets a working Active/Offline switch
 
 ## RBAC roles (full rules in [.claude/context/rbac-roles.md](.claude/context/rbac-roles.md))
 SUPER_ADMIN · OPS_MANAGER · GROUND_OWNER · TOURNAMENT_MANAGER · SUPPORT · FINANCE · CSR_PARTNER
@@ -55,6 +68,7 @@ Every change set must append an entry to `backend/DEV_LOG.md` with date, phase t
 - Ground Owner data isolation enforced at **repository / query level**, not just route filtering
 - Permission middleware lives in `backend/core/security/` and `backend/core/middleware/`; extend, don't fork
 - Git identity per-repo: `git config user.email lokeshwara.rao2972005@gmail.com && git config user.name Lokesh`
+- **Commit after every completed vertical slice** — do not batch a full session's work uncommitted. An entire day of work (Notifications, Chat, Captain KYC/wallet) was lost on 2026-07-06 because it sat uncommitted and got overwritten by a separate session. Ask before committing per the user's standing workflow preferences, but raise it — don't silently let hours of work stay uncommitted.
 
 ## Persistent memory
 - Read `.claude/context/memory.md` at the start of every session before doing anything

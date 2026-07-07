@@ -2424,3 +2424,27 @@ Captain-initiated match creation — the "Open match / Society match / Tournamen
 - **Tournament is a redirect, not a new feature.** Tournaments are separate bracket entities (`Tournament`/`TournamentMatch`/`TournamentTeam`, organizer-created, with start/end dates and registration via `SocietyTournamentService`) — fundamentally different from a captain spinning up an ad-hoc match. Tapping "Tournament" just navigates to the existing tournament browse/registration screen.
 - **Region/sport picked explicitly in the app**, not inferred from the logged-in user's profile — `User.region` in the app is a display string, not an id, and plumbing that through was out of scope. The confirm sheet reuses `ApiService.getLocations()`/`getSports()`, the same sources already used during profile setup.
 - Full design rationale: `docs/superpowers/specs/2026-07-06-captain-created-matches-design.md`. Full task-by-task plan: `docs/superpowers/plans/2026-07-06-captain-created-matches.md`.
+
+---
+## [2026-07-06] Incident — uncommitted work from a prior session was lost, DB schema survived
+
+### What happened
+A large amount of work (Notifications module, Chat module, Captain KYC fields + earnings wallet, Ground Owner authorization fix, FCM push notifications, several dashboard bug fixes) was built in an earlier session but never committed to git. Before it was committed, the working tree was reset/overwritten — git history jumps directly from `b7e7c08` to an unrelated "captain-created matches" feature line, whose own commits confirm it started from a clean `b7e7c08` checkout with no knowledge of the intervening work (e.g. "docs: correct plan — Match has no captain_id column on this branch").
+
+### What survived
+The live Neon database still has the full schema from the lost migrations: `notifications`, `fcm_tokens`, `messages`, `captain_earnings` tables; `captains.kyc_document_url/kyc_status/payout_upi_id/verification_method`; `matches.captain_id`; `system_configs.CAPTAIN_FEE_PER_MATCH`. All tables confirmed empty (0 rows) — no user data was ever written against this schema, so this is a pure code-loss incident, not a data-loss incident.
+
+### Fixed immediately
+- Re-applied the Ground Owner authorization fix (`ground_routes.py` — `GROUND_OWNER` was in `_ADMIN_ROLES`, letting any ground owner edit any ground with full field access)
+- Re-added `.gitignore` rules for the Firebase service account key and `backend/uploads/` (KYC docs) — these were also reverted and the key briefly had no ignore protection
+- Committed today's tournament-admin + audit-log work immediately (commit `042b28d`) rather than leaving it uncommitted
+
+### Still to rebuild (schema already exists, only code is missing)
+- `backend/modules/notification/` — model/repo/service/routes, Firebase Admin SDK wiring
+- `backend/modules/chat/` — model/repo/service/routes
+- Captain KYC fields on `captain_model.py` + onboarding flow (apply/upload-kyc/review)
+- Captain earnings ledger (`captain_earning_model.py`) + payout flow
+- Corresponding Vmsuserapp/Vmsadminapp screens for all of the above
+
+### Lesson
+Commit incrementally instead of batching a full day's work uncommitted — from now on, commit after each completed vertical slice.
