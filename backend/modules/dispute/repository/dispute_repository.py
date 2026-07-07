@@ -43,6 +43,19 @@ class DisputeRepository:
         finally:
             session.close()
 
+    def find_by_raised_by(self, user_id: int) -> list[dict]:
+        session = self._session_factory()
+        try:
+            rows = (
+                session.query(Dispute)
+                .filter(Dispute.raised_by == user_id)
+                .order_by(Dispute.id.desc())
+                .all()
+            )
+            return [d.to_dict() for d in rows]
+        finally:
+            session.close()
+
     def update(self, dispute_id: int, data: dict) -> dict | None:
         session = self._session_factory()
         try:

@@ -31,16 +31,30 @@ Finance reporting · CSR_PARTNER screens
 
 ## Known gaps (priority order)
 
-### Needs rebuild — DB schema exists, source code was lost uncommitted (see DEV_LOG 2026-07-06 incident)
-1. **Notifications module** (`backend/modules/notification/`) — `notifications`/`fcm_tokens` tables exist, no code
-2. **Chat module** (`backend/modules/chat/`) — `messages` table exists, no code
-3. **Captain KYC onboarding** — `captains.kyc_document_url/kyc_status/payout_upi_id/verification_method` columns exist, `captain_model.py` back to 3-field original
-4. **Captain earnings wallet** — `captain_earnings` table + `system_configs.CAPTAIN_FEE_PER_MATCH` exist, no model/repo/service/routes; `matches.captain_id` column exists, unused
+### Medium — stubs / deferred by product decision
+1. **Wallet** — backend returns `{balance:0}` / `[]`; no ledger table; keep `WALLET=false` (deferred, not a bug — this is the player-facing coin wallet, unrelated to the captain earnings wallet below)
+2. **Captain KYC storage** — local disk (`backend/uploads/kyc/`, gitignored). Ephemeral on Render — files lost on redeploy. Move to S3/Cloudinary before real scale.
+3. **Captain KYC verification** — manual admin review only (`verification_method=MANUAL`).
 
 ### Done ✓
 - Tournament admin management — match scheduling, result entry, standings, registrations wired into a new admin `TournamentDetailScreen`; `GET /tournaments/{id}/registrations` added
 - Audit log — filtering (action/actor/resource type/date range) + pagination; expanded coverage (tournament CRUD, match results, ground edits)
 - Ground Owner panel — `GROUND_OWNER` was in `_ADMIN_ROLES`, so `require_admin` let any ground owner edit any ground with full field access; now scoped to own grounds + `is_active`/lat/long only; admin app gets a working Active/Offline switch
+- Notifications module — real Firebase Admin SDK push, `PUT /api/v1/users/me/fcm-token`, tap-to-navigate on both apps
+- Chat module — polling-based, scoped to match participants (`GET/POST /api/v1/matches/{id}/messages`, `GET /api/v1/chat/threads`)
+- Captain KYC onboarding + earnings wallet — `POST /captains/apply` (3+ completed matches), KYC upload/review, `CaptainEarning` ledger, manual UPI/bank payout settlement, admin Payouts tab
+- Session reaper — WAITING matches with ≤1 player auto-cancel after 15 min (APScheduler, 5-min interval)
+- Tournament pricing fields — `entry_fee`/`prize_pool`/`banner_url`/`description`, public listing endpoint
+- Dispute self-service — `GET/POST /api/v1/disputes/mine` for regular users to raise/view their own tickets
+- Society leaderboard/member name enrichment — member `name` field was missing, now populated
+
+**2026-07-06 → 2026-07-07 incident note**: what looked like a code-loss incident was actually
+an unpopped `git stash` (git auto-stashes uncommitted tracked-file changes before a
+fast-forward merge it can't do with a dirty tree). Tracked-file changes were recovered intact
+from the stash; only genuinely untracked-at-the-time files (chat module, session reaper) needed
+a real rebuild. Full root cause in `DEV_LOG.md` 2026-07-07 "Correction" entry. Lesson: run
+`git stash list` before assuming work is gone, and pop/drop stashes promptly instead of letting
+them sit.
 
 ## RBAC roles (full rules in [.claude/context/rbac-roles.md](.claude/context/rbac-roles.md))
 SUPER_ADMIN · OPS_MANAGER · GROUND_OWNER · TOURNAMENT_MANAGER · SUPPORT · FINANCE · CSR_PARTNER

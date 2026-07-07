@@ -3,6 +3,7 @@ from modules.audit.service.audit_service import audit_service
 from modules.auth.dependencies.auth_dependencies import require_role, require_user
 from modules.tournament.schemas.tournament_schema import CreateTournamentSchema, UpdateTournamentSchema
 from modules.tournament.service.tournament_service import TournamentService
+from modules.tournament.repository.tournament_repository import tournament_repository
 from modules.user.model.user_model import UserRole
 
 router = APIRouter(prefix="/api/v1/tournaments", tags=["Tournaments"])
@@ -11,6 +12,14 @@ tournament_service = TournamentService()
 
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
+
+
+@router.get("/public")
+def list_tournaments_public(current_user: dict = Depends(require_user)):
+    """All UPCOMING and ONGOING tournaments — open to any authenticated user."""
+    all_t = tournament_repository.find_all_enriched()
+    visible = [t for t in all_t if t["status"] in ("UPCOMING", "ONGOING")]
+    return _success(visible)
 
 
 @router.get("")

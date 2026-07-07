@@ -314,6 +314,24 @@ class MatchService(BaseService):
             session.close()
 
         self.event_repo.log(match_id, "PLAYER_JOINED", user_id=user_id)
+
+        # Non-fatal — a notification failure must never undo a successful join.
+        if result.get("status") == "MATCHED" and result.get("created_by"):
+            try:
+                from modules.notification.service.notification_service import notification_service
+                notification_service.send(
+                    user_id=result["created_by"],
+                    title="Player found!",
+                    body="Someone joined your session — you're all set to play.",
+                    type_="MATCH_FOUND",
+                    data={"match_id": match_id},
+                )
+            except Exception:
+                import logging
+                logging.getLogger(__name__).exception(
+                    "join_match: notification send failed for match %d (non-fatal)", match_id
+                )
+
         return result
 
     # ── Leave ─────────────────────────────────────────────────────────
@@ -453,6 +471,56 @@ class MatchService(BaseService):
         self.event_repo.log(
             match_id, "MATCH_CANCELLED", user_id=user_id, meta={"by_admin": is_admin}
         )
+        return result
+
+    def system_cancel_abandoned(self, match_id: int) -> dict:
+        """
+        Auto-cancel an abandoned WAITING session (no ownership check — called
+        by the background session reaper, not a user-initiated action).
+        """
+        session = self.match_repo._session_factory()
+        try:
+            from modules.match.model.match_model import Match as MatchORM
+
+            match_orm = (
+                session.query(MatchORM)
+                .filter(MatchORM.id == match_id)
+                .with_for_update()
+                .first()
+            )
+            if match_orm is None:
+                raise ValueError("Match not found.")
+
+            if match_orm.status != "WAITING":
+                raise ValueError(f"Match is no longer WAITING (status={match_orm.status}).")
+
+            match_orm.status = "CANCELLED"
+
+            if match_orm.cart_id:
+                from modules.cart.model.cart_model import Cart
+                from datetime import datetime
+
+                cart = session.query(Cart).filter(Cart.id == match_orm.cart_id).first()
+                if cart:
+                    cart.status = "AVAILABLE"
+                    cart.updated_at = datetime.utcnow()
+
+            from modules.captain.repository.captain_repository import captain_repository
+            captain_repository.release_captain_for_match(match_id, session)
+
+            from datetime import datetime
+
+            match_orm.updated_at = datetime.utcnow()
+            session.commit()
+            session.refresh(match_orm)
+            result = match_orm.to_dict()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
+        self.event_repo.log(match_id, "MATCH_CANCELLED", user_id=None, meta={"reason": "abandoned_session_reaper"})
         return result
 
     # ── Complete (Admin) ──────────────────────────────────────────────

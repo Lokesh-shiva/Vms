@@ -2482,3 +2482,66 @@ Commit incrementally instead of batching a full day's work uncommitted — from 
 - `python -c "import backend.main"` succeeds.
 - Full backend suite: 431 passed.
 - This closes out the majority of the "Still to rebuild" list from the incident above. Remaining: `backend/modules/chat/` module, and all Vmsuserapp/Vmsadminapp Kotlin screens for KYC/earnings/chat/notifications.
+
+---
+## [2026-07-07] Correction — the "lost" work was never deleted, it was an unpopped stash
+
+### Root cause, finally found
+`git reflog` and `git stash list` revealed `stash@{0}: On main: WIP before merging claude/charming-dhawan-2898ff` —
+git auto-stashes uncommitted changes when a merge/pull can't fast-forward through a dirty
+working tree. The stash was created, the merge landed, and the stash was never popped back.
+The next session started clean from the merge commit with no idea the stash existed.
+
+**Critical nuance**: `git stash` (without `-u`) only captures changes to *already-tracked*
+files. Brand-new files — the entire `notification/`, `chat/` module directories,
+`captain_earning_model.py`, and every new Kotlin screen — were untracked at stash time, so
+they were left behind in the working tree and separately wiped (most likely `git clean -fd`
+from the other session/worktree). Everything that touched an *existing* tracked file survived
+perfectly in the stash.
+
+### What this changes about yesterday's incident report
+Not a code-loss incident for tracked files — a stash-hygiene incident. All Kotlin app work
+(admin CaptainScreen Payouts tab + KYC review dialog, user app CaptainEarningsScreen,
+KycUploadScreen, chat screens, PlixoMessagingService, NotificationsScreen tap-nav, etc.) was
+recovered byte-for-byte via `git checkout stash@{0} -- <path>` instead of being rebuilt from
+scratch — see the app-recovery commit. Backend tracked-file changes in the stash were diffed
+against the already-rebuilt backend (which had since gained tournament/audit features the
+stash predates) and merged in piece by piece; only genuinely new backend surface was pulled
+forward.
+
+### Added (backend, pulled from the stash + net-new)
+- Tournament pricing/marketing fields — `entry_fee`, `prize_pool`, `banner_url`, `description`
+  on `Tournament` model/schema/repository; `GET /api/v1/tournaments/public` (any authenticated
+  user, UPCOMING/ONGOING only); `tournament_repository.find_all_enriched/find_by_id_enriched`
+  (sport name, location name, registered-team count).
+- Dispute self-service — `GET/POST /api/v1/disputes/mine`, `dispute_repository.find_by_raised_by`,
+  `dispute_service.list_my_disputes` — lets a regular user raise/view their own support tickets
+  without a SUPPORT/OPS_MANAGER role.
+- Society leaderboard/member name enrichment — `society_member_service._attach_user_names()`;
+  `get_members`/`get_leaderboard` now return each member's display `name` (was missing).
+- Session reaper — `backend/modules/match/service/session_reaper_service.py`: WAITING matches
+  with ≤1 player auto-cancel after 15 minutes. Wired into `main.py`'s lifespan via
+  APScheduler (`BackgroundScheduler`, 5-minute interval). New repository method
+  `match_repository.find_abandoned_waiting(cutoff)` and service method
+  `match_service.system_cancel_abandoned(match_id)` (mirrors `cancel_match` without the
+  ownership check, since this is a system action).
+- Chat module (`backend/modules/chat/`) — full rebuild from scratch (genuinely lost, was
+  never tracked so never stashed). `Message` model, `MessageRepository`, `ChatService`
+  (participant-scoped: sender must be the match creator or a `MatchPlayer`), routes
+  `GET /api/v1/chat/threads`, `GET/POST /api/v1/matches/{match_id}/messages`. One thread per
+  match a user participates in; sending a message pushes a notification to the other
+  participant(s) via the already-rebuilt notification service. Polling-based, no websockets —
+  matches the pre-incident design noted in `CLAUDE.md`.
+- `match_service.join_match()` — sends a "Player found!" push notification to the match
+  creator when the session fills and moves WAITING → MATCHED (wrapped non-fatally, matching
+  the existing `finish_match()` earnings-hook pattern, after it broke test isolation once).
+- `run_migrations.py` — migrations 22 (`messages` table) and 23 (tournament pricing columns),
+  applied to the live Neon DB.
+- `requirements.txt` — added `apscheduler`, `firebase-admin`, `python-multipart` (all were
+  already installed in the venv from the earlier rebuild but missing from the manifest).
+
+### Verified
+- `python run_migrations.py` — all 23 migrations applied cleanly against the live DB.
+- `python -c "import backend.main"` succeeds.
+- Full backend suite: 431 passed.
+- This closes out the "Still to rebuild" list from the 2026-07-06 incident entirely.

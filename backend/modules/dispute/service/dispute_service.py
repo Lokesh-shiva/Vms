@@ -9,6 +9,9 @@ class DisputeService:
     def list_disputes(self) -> list[dict]:
         return self.repository.find_all()
 
+    def list_my_disputes(self, user_id: int) -> list[dict]:
+        return self.repository.find_by_raised_by(user_id)
+
     def get_dispute(self, dispute_id: int) -> dict | None:
         return self.repository.find_by_id(dispute_id)
 

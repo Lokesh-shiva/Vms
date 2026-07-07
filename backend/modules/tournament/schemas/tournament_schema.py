@@ -69,6 +69,17 @@ class CreateTournamentSchema:
             else:
                 self.validated_data["team_size"] = ts
 
+        if "entry_fee" in self._data:
+            ef = self._data["entry_fee"]
+            if not isinstance(ef, int) or ef < 0:
+                self.errors.append("'entry_fee' must be a non-negative integer.")
+            else:
+                self.validated_data["entry_fee"] = ef
+
+        for field in ("prize_pool", "description", "banner_url"):
+            if field in self._data and self._data[field] is not None:
+                self.validated_data[field] = str(self._data[field])
+
         if "rules_json" in self._data:
             rj = self._data["rules_json"]
             if rj is not None and not isinstance(rj, dict):
@@ -138,6 +149,17 @@ class UpdateTournamentSchema:
                 self.errors.append("'team_size' must be a positive integer.")
             else:
                 self.validated_data["team_size"] = ts
+
+        if "entry_fee" in self._data:
+            ef = self._data["entry_fee"]
+            if not isinstance(ef, int) or ef < 0:
+                self.errors.append("'entry_fee' must be a non-negative integer.")
+            else:
+                self.validated_data["entry_fee"] = ef
+
+        for field in ("prize_pool", "description", "banner_url"):
+            if field in self._data and self._data[field] is not None:
+                self.validated_data[field] = str(self._data[field])
 
         if "rules_json" in self._data:
             rj = self._data["rules_json"]

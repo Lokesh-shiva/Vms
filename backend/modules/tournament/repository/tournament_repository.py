@@ -1,6 +1,7 @@
 from datetime import datetime
 from core.database.db_connection import SessionLocal
 from modules.tournament.model.tournament_model import Tournament
+from modules.tournament.model.tournament_participant_model import TournamentParticipant
 
 
 class TournamentRepository:
@@ -22,6 +23,10 @@ class TournamentRepository:
                 format_type=data.get("format_type", "LEAGUE"),
                 participant_type=data.get("participant_type", "INDIVIDUAL"),
                 team_size=data.get("team_size", 1),
+                entry_fee=data.get("entry_fee", 0),
+                prize_pool=data.get("prize_pool", ""),
+                banner_url=data.get("banner_url"),
+                description=data.get("description"),
                 rules_json=data.get("rules_json", {}),
             )
             session.add(t)
@@ -80,6 +85,61 @@ class TournamentRepository:
         except Exception:
             session.rollback()
             raise
+        finally:
+            session.close()
+
+    def _enrich(self, t: Tournament, session) -> dict:
+        """Augment a tournament dict with sport name, location name, and registered count."""
+        from modules.tournament.model.tournament_participant_model import ParticipantStatus
+        base = t.to_dict()
+
+        if t.sport_id:
+            from modules.cart_type.model.cart_type_model import CartType
+            sport = session.query(CartType).filter(CartType.id == t.sport_id).first()
+            if not sport:
+                # fall back to the sports table (tournament FK points there)
+                from sqlalchemy import text
+                row = session.execute(
+                    text("SELECT name FROM sports WHERE id = :sid"),
+                    {"sid": t.sport_id},
+                ).fetchone()
+                base["sport"] = row[0] if row else ""
+            else:
+                base["sport"] = sport.name
+        else:
+            base["sport"] = ""
+
+        if t.region_id:
+            from modules.location.model.location_model import Location
+            loc = session.query(Location).filter(Location.id == t.region_id).first()
+            base["location"] = loc.name if loc else ""
+        else:
+            base["location"] = ""
+
+        registered = (
+            session.query(TournamentParticipant)
+            .filter(
+                TournamentParticipant.tournament_id == t.id,
+                TournamentParticipant.status == ParticipantStatus.REGISTERED,
+            )
+            .count()
+        )
+        base["registered_teams"] = registered
+        return base
+
+    def find_all_enriched(self) -> list[dict]:
+        session = self._session_factory()
+        try:
+            rows = session.query(Tournament).order_by(Tournament.id.desc()).all()
+            return [self._enrich(t, session) for t in rows]
+        finally:
+            session.close()
+
+    def find_by_id_enriched(self, tournament_id: int) -> dict | None:
+        session = self._session_factory()
+        try:
+            t = session.query(Tournament).filter(Tournament.id == tournament_id).first()
+            return self._enrich(t, session) if t else None
         finally:
             session.close()
 

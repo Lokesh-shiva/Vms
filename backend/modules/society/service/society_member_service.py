@@ -12,6 +12,10 @@ from modules.tournament.repository.player_score_repository import (
     player_score_repository,
 )
 from modules.user.model.user_model import UserRole
+from modules.user.repository.user_repository import (
+    UserRepository,
+    user_repository as _default_user_repository,
+)
 
 
 class SocietyMemberService:
@@ -20,6 +24,7 @@ class SocietyMemberService:
         society_repository: SocietyRepository | None = None,
         member_repository: SocietyMemberRepository | None = None,
         player_score_repository: PlayerScoreRepository | None = None,
+        user_repository: UserRepository | None = None,
     ) -> None:
         self.society_repository: SocietyRepository = (
             society_repository or globals()["society_repository"]
@@ -30,6 +35,7 @@ class SocietyMemberService:
         self.player_score_repository: PlayerScoreRepository = (
             player_score_repository or globals()["player_score_repository"]
         )
+        self.user_repository: UserRepository = user_repository or _default_user_repository
 
     def join(self, society_id: int, user_id: int) -> dict:
         """Join a public, active society that is not yet at capacity."""
@@ -112,12 +118,20 @@ class SocietyMemberService:
         )
         return updated  # type: ignore[return-value]
 
+    def _attach_user_names(self, members: list[dict]) -> list[dict]:
+        """Enrich member dicts with the user's display name (app-facing 'name' field)."""
+        for m in members:
+            user = self.user_repository.find_by_id(m["user_id"])
+            m["name"] = user["name"] if user else ""
+        return members
+
     def get_members(self, society_id: int) -> list[dict]:
         """Return all members of a society. Raises ValueError if society does not exist."""
         society: dict | None = self.society_repository.find_by_id(society_id)
         if society is None:
             raise ValueError("Society not found.")
-        return self.member_repository.get_members(society_id)
+        members = self.member_repository.get_members(society_id)
+        return self._attach_user_names(members)
 
     def get_leaderboard(self, society_id: int) -> list[dict]:
         """Return members sorted by total_points DESC, then matches_played DESC."""
@@ -125,7 +139,9 @@ class SocietyMemberService:
         if society is None:
             raise ValueError("Society not found.")
 
-        members: list[dict] = self.member_repository.get_members(society_id)
+        members: list[dict] = self._attach_user_names(
+            self.member_repository.get_members(society_id)
+        )
         user_ids: list[int] = [m["user_id"] for m in members]
 
         scores: list[dict] = self.player_score_repository.get_leaderboard(
@@ -138,6 +154,7 @@ class SocietyMemberService:
         result: list[dict] = [
             {
                 "user_id": m["user_id"],
+                "name": m["name"],
                 "society_member_role": m["role"],
                 "total_points": score_map.get(m["user_id"], {}).get("total_points", 0),
                 "matches_played": score_map.get(m["user_id"], {}).get("matches_played", 0),

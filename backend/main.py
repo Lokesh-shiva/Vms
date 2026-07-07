@@ -14,6 +14,8 @@ import os
 import sys
 from contextlib import asynccontextmanager
 
+from apscheduler.schedulers.background import BackgroundScheduler
+
 # Ensure the backend package is importable when running from project root.
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -56,6 +58,8 @@ from modules.captain.model.captain_earning_model import CaptainEarning  # noqa: 
 from modules.notification.controller.notification_routes import router as notification_router
 from modules.notification.model.notification_model import Notification  # noqa: F401 — registers model
 from modules.notification.model.fcm_token_model import FcmToken  # noqa: F401 — registers model
+from modules.chat.controller.chat_routes import router as chat_router
+from modules.chat.model.message_model import Message  # noqa: F401 — registers model
 from modules.tournament.controller.tournament_routes import router as tournament_router
 from modules.tournament.controller.tournament_registration_routes import router as tournament_registration_router
 from modules.tournament.controller.tournament_match_routes import router as tournament_match_router
@@ -79,10 +83,12 @@ from modules.otp.model.otp_model import OtpCode  # noqa: F401 — registers mode
 
 # ── Lifespan ──────────────────────────────────────────────────────────
 
+_scheduler = BackgroundScheduler(daemon=True)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Create all ORM tables and run idempotent schema migrations on startup."""
+    """Create all ORM tables, run idempotent schema migrations, start background jobs."""
     Base.metadata.create_all(bind=engine)
     with engine.connect() as conn:
         # Add columns that may be missing from pre-existing tables (no Alembic)
@@ -105,7 +111,15 @@ async def lifespan(app: FastAPI):
             text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_profile_complete BOOLEAN NOT NULL DEFAULT FALSE")
         )
         conn.commit()
+
+    from core.push.firebase_client import is_available as firebase_is_available
+    firebase_is_available()  # trigger lazy init now so failures surface at boot, not on first push
+
+    from modules.match.service.session_reaper_service import reap_abandoned_sessions
+    _scheduler.add_job(reap_abandoned_sessions, "interval", minutes=5, id="session_reaper", replace_existing=True)
+    _scheduler.start()
     yield
+    _scheduler.shutdown(wait=False)
 
 
 # ── Application ───────────────────────────────────────────────────────
@@ -194,6 +208,7 @@ app.include_router(audit_router)
 app.include_router(society_router)
 app.include_router(wallet_router)
 app.include_router(notification_router)
+app.include_router(chat_router)
 
 
 # ── Health Check ──────────────────────────────────────────────────────

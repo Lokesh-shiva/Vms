@@ -274,6 +274,26 @@ cur.execute("""
         ON matches (invite_code) WHERE invite_code IS NOT NULL;
 """)
 
+print("Running migration 22: create messages table ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS messages (
+        id         SERIAL PRIMARY KEY,
+        match_id   INT NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+        sender_id  INT REFERENCES users(id) ON DELETE SET NULL,
+        body       TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+
+print("Running migration 23: add pricing/description columns to tournaments ...")
+cur.execute("""
+    ALTER TABLE tournaments
+        ADD COLUMN IF NOT EXISTS entry_fee INT NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS prize_pool VARCHAR(100) NOT NULL DEFAULT '',
+        ADD COLUMN IF NOT EXISTS banner_url VARCHAR(500),
+        ADD COLUMN IF NOT EXISTS description TEXT;
+""")
+
 conn.commit()
 cur.close()
 conn.close()

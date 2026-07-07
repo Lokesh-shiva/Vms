@@ -14,6 +14,7 @@ import modules.location.model.location_model  # noqa: F401
 from modules.society.repository.society_repository import SocietyRepository
 from modules.society.repository.society_member_repository import SocietyMemberRepository
 from modules.tournament.repository.player_score_repository import PlayerScoreRepository
+from modules.user.repository.user_repository import UserRepository
 from modules.society.service.society_member_service import SocietyMemberService
 
 
@@ -34,10 +35,12 @@ class TestSocietyMemberService(unittest.TestCase):
         self.s_repo = SocietyRepository(session_factory=factory)
         self.m_repo = SocietyMemberRepository(session_factory=factory)
         self.ps_repo = PlayerScoreRepository(session_factory=factory)
+        self.u_repo = UserRepository(session_factory=factory)
         self.service = SocietyMemberService(
             society_repository=self.s_repo,
             member_repository=self.m_repo,
             player_score_repository=self.ps_repo,
+            user_repository=self.u_repo,
         )
 
         # Create a default public, active society with owner_user_id=1

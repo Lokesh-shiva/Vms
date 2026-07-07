@@ -231,6 +231,23 @@ class MatchRepository:
         finally:
             session.close()
 
+    def find_abandoned_waiting(self, cutoff: datetime) -> list[dict]:
+        """WAITING matches with <=1 player, created before the cutoff — candidates for auto-cancel."""
+        session = self._session_factory()
+        try:
+            rows = (
+                session.query(Match)
+                .filter(
+                    Match.status == "WAITING",
+                    Match.joined_players <= 1,
+                    Match.created_at < cutoff,
+                )
+                .all()
+            )
+            return [m.to_dict() for m in rows]
+        finally:
+            session.close()
+
     def find_all_matches(self) -> list[dict]:
         """Return all matches across all statuses, newest first."""
         session = self._session_factory()

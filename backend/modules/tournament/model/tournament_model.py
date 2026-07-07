@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, JSON, String
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, JSON, String, Text
 from core.database.db_connection import Base
 
 
@@ -50,6 +50,10 @@ class Tournament(Base):
     format_type = Column(String(50), nullable=False, default=TournamentFormat.LEAGUE)
     participant_type = Column(String(50), nullable=False, default=TournamentParticipantType.INDIVIDUAL)
     team_size = Column(Integer, nullable=False, default=1)
+    entry_fee = Column(Integer, nullable=False, default=0)
+    prize_pool = Column(String(100), nullable=False, default="")
+    banner_url = Column(String(500), nullable=True)
+    description = Column(Text, nullable=True)
     rules_json = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -61,13 +65,19 @@ class Tournament(Base):
             "sport_id": self.sport_id,
             "region_id": self.region_id,
             "organizer": self.organizer,
+            "organizer_name": self.organizer,
             "start_date": self.start_date.isoformat() if self.start_date else None,
             "end_date": self.end_date.isoformat() if self.end_date else None,
             "max_teams": self.max_teams,
             "status": self.status,
             "format_type": self.format_type,
+            "format": self.format_type,
             "participant_type": self.participant_type,
             "team_size": self.team_size,
+            "entry_fee": self.entry_fee or 0,
+            "prize_pool": self.prize_pool or "",
+            "banner_url": self.banner_url,
+            "description": self.description or "",
             "rules_json": self.rules_json or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

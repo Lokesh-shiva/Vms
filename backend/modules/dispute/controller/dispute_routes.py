@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from modules.audit.service.audit_service import audit_service
-from modules.auth.dependencies.auth_dependencies import require_role
+from modules.auth.dependencies.auth_dependencies import require_role, require_user
 from modules.dispute.schemas.dispute_schema import CreateDisputeSchema, UpdateDisputeSchema
 from modules.dispute.service.dispute_service import DisputeService
 from modules.user.model.user_model import UserRole
@@ -11,6 +11,31 @@ dispute_service = DisputeService()
 
 def _success(data, message: str = "Success") -> dict:
     return {"success": True, "data": data, "message": message}
+
+
+@router.get("/mine")
+def list_my_disputes(current_user: dict = Depends(require_user)):
+    """Return the authenticated user's own support tickets."""
+    return _success(dispute_service.list_my_disputes(current_user["id"]))
+
+
+@router.post("/mine", status_code=201)
+def create_my_dispute(
+    request_data: dict,
+    current_user: dict = Depends(require_user),
+):
+    """Raise a support ticket as the authenticated user (self-service, no role required)."""
+    request_data["user_id"] = current_user["id"]
+    request_data["raised_by"] = current_user["id"]
+    request_data.pop("booking_id", None)
+    schema = CreateDisputeSchema(request_data)
+    if not schema.is_valid():
+        raise HTTPException(status_code=400, detail=schema.errors)
+    try:
+        d = dispute_service.create_dispute(schema.validated_data)
+        return _success(d, "Support ticket raised. We'll get back to you soon.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("")
