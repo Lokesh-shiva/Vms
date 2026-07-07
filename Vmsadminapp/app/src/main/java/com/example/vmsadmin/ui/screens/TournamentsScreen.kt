@@ -4,8 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
@@ -28,8 +30,7 @@ import com.example.vmsadmin.ui.components.AppCard
 @Composable
 fun TournamentsScreen(
     viewModel: TournamentViewModel,
-    onBack: () -> Unit = {},
-    onOpenDetail: () -> Unit = {}
+    onBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -94,9 +95,7 @@ fun TournamentsScreen(
                             TournamentCard(
                                 tournament = tournament,
                                 isUpdating = tournament.id in uiState.updatingIds,
-                                onStatusChange = { newStatus -> viewModel.updateStatus(tournament.id, newStatus) },
-                                onOpenDetail = { viewModel.selectTournament(tournament); onOpenDetail() },
-                                onDelete = { viewModel.deleteTournament(tournament.id) },
+                                onStatusChange = { newStatus -> viewModel.updateStatus(tournament.id, newStatus) }
                             )
                         }
                         item { Spacer(Modifier.height(72.dp)) }
@@ -111,29 +110,11 @@ fun TournamentsScreen(
 private fun TournamentCard(
     tournament: Tournament,
     isUpdating: Boolean,
-    onStatusChange: (String) -> Unit,
-    onOpenDetail: () -> Unit = {},
-    onDelete: () -> Unit = {},
+    onStatusChange: (String) -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
-    var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete tournament") },
-            text = { Text("Delete \"${tournament.name}\"? This cannot be undone.") },
-            confirmButton = {
-                Button(
-                    onClick = { onDelete(); showDeleteConfirm = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Delete") }
-            },
-            dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } }
-        )
-    }
-
-    AppCard(onClick = onOpenDetail) {
+    AppCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
@@ -187,11 +168,6 @@ private fun TournamentCard(
                             )
                         }
                     }
-                    HorizontalDivider()
-                    DropdownMenuItem(
-                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
-                        onClick = { showDeleteConfirm = true; showMenu = false }
-                    )
                 }
             }
         }
@@ -228,12 +204,18 @@ private fun CreateTournamentDialog(
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
     var maxTeams by remember { mutableStateOf("8") }
+    var entryFee by remember { mutableStateOf("0") }
+    var prizePool by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Create Tournament") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -272,6 +254,30 @@ private fun CreateTournamentDialog(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                 )
+                OutlinedTextField(
+                    value = entryFee,
+                    onValueChange = { entryFee = it },
+                    label = { Text("Entry fee (₹)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                )
+                OutlinedTextField(
+                    value = prizePool,
+                    onValueChange = { prizePool = it },
+                    label = { Text("Prize pool · optional") },
+                    placeholder = { Text("e.g. ₹5,000 cash") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description · optional") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4
+                )
             }
         },
         confirmButton = {
@@ -283,7 +289,10 @@ private fun CreateTournamentDialog(
                             organizer = organizer.trim(),
                             start_date = startDate.trim(),
                             end_date = endDate.trim(),
-                            max_teams = maxTeams.toIntOrNull() ?: 8
+                            max_teams = maxTeams.toIntOrNull() ?: 8,
+                            entry_fee = entryFee.toIntOrNull() ?: 0,
+                            prize_pool = prizePool.trim(),
+                            description = description.trim()
                         )
                     )
                 },

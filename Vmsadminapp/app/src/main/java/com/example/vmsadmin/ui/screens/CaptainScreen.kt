@@ -1,5 +1,7 @@
 package com.example.vmsadmin.ui.screens
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -46,9 +49,25 @@ fun CaptainScreen(
     val regionState by regionViewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showAddDialog by remember { mutableStateOf(false) }
+    var reviewTarget by remember { mutableStateOf<Captain?>(null) }
+    var viewDocumentTarget by remember { mutableStateOf<Captain?>(null) }
+    var payoutTarget by remember { mutableStateOf<Captain?>(null) }
+    var selectedTab by remember { mutableIntStateOf(0) } // 0=All, 1=Pending Applications, 2=Payouts
 
     LaunchedEffect(Unit) {
         if (regionState.regions.isEmpty()) regionViewModel.loadRegions()
+    }
+
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == 2) viewModel.loadPayouts()
+    }
+
+    payoutTarget?.let { captain ->
+        MarkPaidDialog(
+            captain = captain,
+            onConfirm = { reference -> viewModel.markPaid(captain.id, reference); payoutTarget = null },
+            onDismiss = { payoutTarget = null },
+        )
     }
 
     LaunchedEffect(uiState.snackbar) {
@@ -56,6 +75,26 @@ fun CaptainScreen(
             snackbarHostState.showSnackbar(it)
             viewModel.clearSnackbar()
         }
+    }
+
+    reviewTarget?.let { captain ->
+        ReviewCaptainDialog(
+            captain = captain,
+            onApprove = { viewModel.reviewCaptain(captain.id, approve = true, reason = null); reviewTarget = null },
+            onReject = { reason -> viewModel.reviewCaptain(captain.id, approve = false, reason = reason); reviewTarget = null },
+            onViewDocument = { viewDocumentTarget = captain },
+            onDismiss = { reviewTarget = null },
+        )
+    }
+
+    viewDocumentTarget?.let { captain ->
+        LaunchedEffect(captain.id) { viewModel.loadKycDocument(captain.id) }
+        KycDocumentDialog(
+            documentType = captain.kyc_document_type,
+            bytes = uiState.kycDocumentBytes,
+            loading = uiState.kycDocumentLoading,
+            onDismiss = { viewDocumentTarget = null; viewModel.clearKycDocument() },
+        )
     }
 
     if (showAddDialog) {
@@ -96,30 +135,67 @@ fun CaptainScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        when {
-            uiState.isLoading -> LoadingCaptains(Modifier.padding(padding))
-            uiState.error != null -> ErrorState(
-                message = uiState.error!!,
-                onRetry = { viewModel.load() },
-                modifier = Modifier.padding(padding)
-            )
-            uiState.captains.isEmpty() -> EmptyCaptains(Modifier.padding(padding))
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(uiState.captains, key = { it.id }) { captain ->
-                    val regionName = regionState.regions.find { it.id == captain.region_id }?.name
-                    CaptainCard(
-                        captain = captain,
-                        regionName = regionName,
-                        canDelete = currentUserRole == "super_admin",
-                        onStatusChange = { newStatus -> viewModel.updateStatus(captain.id, newStatus) },
-                        onDelete = { viewModel.delete(captain.id) }
-                    )
+        Column(modifier = Modifier.padding(padding)) {
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0; viewModel.setFilter(null) },
+                    text = { Text("All Captains") },
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1; viewModel.setFilter("PENDING_REVIEW") },
+                    text = { Text("Pending Applications") },
+                )
+                Tab(
+                    selected = selectedTab == 2,
+                    onClick = { selectedTab = 2 },
+                    text = { Text("Payouts") },
+                )
+            }
+            if (selectedTab == 2) {
+                when {
+                    uiState.payoutsLoading -> LoadingCaptains(Modifier)
+                    uiState.payouts.isEmpty() -> EmptyCaptains(Modifier, message = "No pending payouts.")
+                    else -> LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(uiState.payouts, key = { it.id }) { captain ->
+                            PayoutCard(captain = captain, onMarkPaid = { payoutTarget = captain })
+                        }
+                        item { Spacer(Modifier.height(72.dp)) }
+                    }
                 }
-                item { Spacer(Modifier.height(72.dp)) }
+            } else {
+                when {
+                    uiState.isLoading -> LoadingCaptains(Modifier)
+                    uiState.error != null -> ErrorState(
+                        message = uiState.error!!,
+                        onRetry = { viewModel.load() },
+                        modifier = Modifier
+                    )
+                    uiState.captains.isEmpty() -> EmptyCaptains(Modifier)
+                    else -> LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(uiState.captains, key = { it.id }) { captain ->
+                            val regionName = regionState.regions.find { it.id == captain.region_id }?.name
+                            CaptainCard(
+                                captain = captain,
+                                regionName = regionName,
+                                canDelete = currentUserRole == "super_admin",
+                                onStatusChange = { newStatus -> viewModel.updateStatus(captain.id, newStatus) },
+                                onDelete = { viewModel.delete(captain.id) },
+                                onReview = { reviewTarget = captain },
+                            )
+                        }
+                        item { Spacer(Modifier.height(72.dp)) }
+                    }
+                }
             }
         }
     }
@@ -131,7 +207,8 @@ private fun CaptainCard(
     regionName: String?,
     canDelete: Boolean,
     onStatusChange: (String) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onReview: () -> Unit,
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -216,28 +293,32 @@ private fun CaptainCard(
                 }
             }
 
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(Icons.Outlined.MoreVert, contentDescription = "Options")
-                }
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    listOf("ACTIVE", "INACTIVE", "SUSPENDED").forEach { s ->
-                        if (s != captain.status) {
+            if (captain.status == "PENDING_REVIEW") {
+                Button(onClick = onReview) { Text("Review") }
+            } else {
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Outlined.MoreVert, contentDescription = "Options")
+                    }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        listOf("ACTIVE", "INACTIVE", "SUSPENDED").forEach { s ->
+                            if (s != captain.status) {
+                                DropdownMenuItem(
+                                    text = { Text("Set $s") },
+                                    onClick = { onStatusChange(s); showMenu = false }
+                                )
+                            }
+                        }
+                        if (canDelete) {
+                            HorizontalDivider()
                             DropdownMenuItem(
-                                text = { Text("Set $s") },
-                                onClick = { onStatusChange(s); showMenu = false }
+                                text = { Text("Remove", color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = {
+                                    Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error)
+                                },
+                                onClick = { showDeleteConfirm = true; showMenu = false }
                             )
                         }
-                    }
-                    if (canDelete) {
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text("Remove", color = MaterialTheme.colorScheme.error) },
-                            leadingIcon = {
-                                Icon(Icons.Outlined.Delete, null, tint = MaterialTheme.colorScheme.error)
-                            },
-                            onClick = { showDeleteConfirm = true; showMenu = false }
-                        )
                     }
                 }
             }
@@ -248,10 +329,12 @@ private fun CaptainCard(
 @Composable
 private fun StatusChip(status: String) {
     val (bg, fg) = when (status) {
-        "ACTIVE"    -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) to MaterialTheme.colorScheme.primary
-        "INACTIVE"  -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
-        "SUSPENDED" -> MaterialTheme.colorScheme.error.copy(alpha = 0.12f) to MaterialTheme.colorScheme.error
-        else        -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+        "ACTIVE"         -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) to MaterialTheme.colorScheme.primary
+        "INACTIVE"       -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+        "SUSPENDED"      -> MaterialTheme.colorScheme.error.copy(alpha = 0.12f) to MaterialTheme.colorScheme.error
+        "REJECTED"       -> MaterialTheme.colorScheme.error.copy(alpha = 0.12f) to MaterialTheme.colorScheme.error
+        "PENDING_REVIEW" -> Color(0xFFFFF3CD) to Color(0xFF856404)
+        else             -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Surface(shape = RoundedCornerShape(6.dp), color = bg) {
         Text(
@@ -420,13 +503,17 @@ private fun LoadingCaptains(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun EmptyCaptains(modifier: Modifier = Modifier) {
+private fun EmptyCaptains(modifier: Modifier = Modifier, message: String? = null) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Outlined.Person, null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
             Spacer(Modifier.height(12.dp))
-            Text("No captains yet", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("Tap + to add one", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+            if (message != null) {
+                Text(message, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Text("No captains yet", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Tap + to add one", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+            }
         }
     }
 }
@@ -440,4 +527,157 @@ private fun ErrorState(message: String, onRetry: () -> Unit, modifier: Modifier 
             Button(onClick = onRetry) { Text("Retry") }
         }
     }
+}
+
+@Composable
+private fun ReviewCaptainDialog(
+    captain: Captain,
+    onApprove: () -> Unit,
+    onReject: (reason: String) -> Unit,
+    onViewDocument: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var reason by remember { mutableStateOf("") }
+    var showRejectInput by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Review Application") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(captain.name ?: "Unknown applicant", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(captain.phone ?: "—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (!captain.bio.isNullOrBlank()) {
+                    Text(captain.bio, style = MaterialTheme.typography.bodyMedium)
+                }
+                Text(
+                    "Document: ${captain.kyc_document_type ?: "not uploaded"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (captain.kyc_document_url != null) {
+                    OutlinedButton(onClick = onViewDocument) { Text("View Document") }
+                }
+                if (showRejectInput) {
+                    OutlinedTextField(
+                        value = reason,
+                        onValueChange = { reason = it },
+                        label = { Text("Rejection reason") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (showRejectInput) {
+                Button(
+                    onClick = { onReject(reason.trim()) },
+                    enabled = reason.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                ) { Text("Confirm Reject") }
+            } else {
+                Button(onClick = onApprove) { Text("Approve") }
+            }
+        },
+        dismissButton = {
+            if (showRejectInput) {
+                OutlinedButton(onClick = { showRejectInput = false }) { Text("Back") }
+            } else {
+                OutlinedButton(onClick = { showRejectInput = true }) { Text("Reject") }
+            }
+        },
+    )
+}
+
+@Composable
+private fun KycDocumentDialog(
+    documentType: String?,
+    bytes: ByteArray?,
+    loading: Boolean,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(documentType ?: "KYC Document") },
+        text = {
+            Box(modifier = Modifier.fillMaxWidth().height(320.dp), contentAlignment = Alignment.Center) {
+                when {
+                    loading -> CircularProgressIndicator()
+                    bytes != null -> {
+                        val bitmap = remember(bytes) { BitmapFactory.decodeByteArray(bytes, 0, bytes.size) }
+                        if (bitmap != null) {
+                            Image(bitmap = bitmap.asImageBitmap(), contentDescription = "KYC document", modifier = Modifier.fillMaxSize())
+                        } else {
+                            Text("Could not render document.", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    else -> Text("Document unavailable.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        },
+        confirmButton = { Button(onClick = onDismiss) { Text("Close") } },
+    )
+}
+
+@Composable
+private fun PayoutCard(captain: Captain, onMarkPaid: () -> Unit) {
+    AppCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(captain.name ?: "Unknown", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(captain.phone ?: "—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    captain.payout_upi_id ?: "No UPI ID on file",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (captain.payout_upi_id != null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                )
+                Text(
+                    "₹${captain.wallet_balance ?: 0} owed",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Button(onClick = onMarkPaid) { Text("Mark Paid") }
+        }
+    }
+}
+
+@Composable
+private fun MarkPaidDialog(
+    captain: Captain,
+    onConfirm: (reference: String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var reference by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Mark payout as sent") },
+        text = {
+            Column {
+                Text(
+                    "Confirming that ₹${captain.wallet_balance ?: 0} was sent to ${captain.name ?: "this captain"}" +
+                        (captain.payout_upi_id?.let { " ($it)" } ?: "") + " via UPI/bank transfer.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = reference,
+                    onValueChange = { reference = it },
+                    label = { Text("Reference / txn ID (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onConfirm(reference.trim().ifBlank { null }) }) { Text("Confirm") }
+        },
+        dismissButton = { OutlinedButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }

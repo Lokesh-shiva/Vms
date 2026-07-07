@@ -2,6 +2,7 @@
 
 import android.util.Log
 import com.example.vmsuser.models.CreateSocietyRequest
+import com.example.vmsuser.models.LeaderboardEntry
 import com.example.vmsuser.models.Society
 import com.example.vmsuser.models.SocietyMember
 import com.example.vmsuser.network.RetrofitClient
@@ -26,6 +27,12 @@ class SocialRepository {
         if (res.success && res.data != null) Result.success(res.data)
         else Result.failure(Exception(res.message ?: "Failed"))
     } catch (e: Exception) { Log.e("SocialRepo", "getMembers", e); Result.failure(e) }
+
+    suspend fun getLeaderboard(id: Int): Result<List<LeaderboardEntry>> = try {
+        val res = api.getSocietyLeaderboard(id)
+        if (res.success && res.data != null) Result.success(res.data)
+        else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: Exception) { Log.e("SocialRepo", "getLeaderboard", e); Result.failure(e) }
 
     suspend fun join(id: Int): Result<Unit> = try {
         val res = api.joinSociety(id)

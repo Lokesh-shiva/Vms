@@ -21,6 +21,11 @@ class ProfileRepository {
         else Result.failure(Exception(res.message ?: "Failed"))
     } catch (e: Exception) { Log.e("ProfileRepo", "getNotifications", e); Result.failure(e) }
 
+    suspend fun markNotificationRead(id: Int): Result<Unit> = try {
+        val res = api.markNotificationRead(id)
+        if (res.success) Result.success(Unit) else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: Exception) { Log.e("ProfileRepo", "markNotificationRead", e); Result.failure(e) }
+
     suspend fun getWalletTransactions(): Result<List<WalletTransaction>> = try {
         val res = api.getWalletTransactions()
         if (res.success && res.data != null) Result.success(res.data)

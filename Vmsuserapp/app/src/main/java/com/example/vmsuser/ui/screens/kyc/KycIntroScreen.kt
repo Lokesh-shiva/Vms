@@ -71,9 +71,7 @@ fun KycIntroScreen(navController: NavController) {
                 )
                 Spacer(Modifier.height(14.dp))
                 listOf(
-                    Icons.Filled.Badge to "Government ID (Aadhaar, PAN, or Passport)",
-                    Icons.Filled.CameraAlt to "Clear selfie photo",
-                    Icons.Filled.Home to "Address proof",
+                    Icons.Filled.Badge to "A photo of your Aadhaar, PAN, or Driving License",
                 ).forEach { (icon, text) ->
                     Row(
                         modifier = Modifier.padding(vertical = 8.dp),

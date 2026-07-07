@@ -1,20 +1,43 @@
-﻿package com.example.vmsuser.data
+package com.example.vmsuser.data
 
+import android.util.Log
 import com.example.vmsuser.models.ChatMessage
+import com.example.vmsuser.models.ChatMessageDto
 import com.example.vmsuser.models.ChatThread
+import com.example.vmsuser.models.SendMessageRequest
+import com.example.vmsuser.network.RetrofitClient
+import com.example.vmsuser.network.UserSession
 
 class ChatRepository {
-    fun getMockThreads(): List<ChatThread> = listOf(
-        ChatThread("1", "Badminton Match #42", "See you on the court tomorrow!", "10:30 AM", 2, null, "match"),
-        ChatThread("2", "Indiranagar BC", "Great session everyone! 💪", "Yesterday", 0, null, "group"),
-        ChatThread("3", "Rahul Singh (Captain)", "Please arrive 10 min early", "Yesterday", 1, null, "direct"),
-    )
+    private val api = RetrofitClient.api
 
-    fun getMockMessages(threadId: String): List<ChatMessage> = listOf(
-        ChatMessage("1", 2, "Rahul Singh", "Hey team! Ready for tomorrow's match?", "10:00 AM", false),
-        ChatMessage("2", 1, "You", "Yes! Bringing my new racket 🏸", "10:05 AM", true),
-        ChatMessage("3", 3, "Priya Sharma", "Me too! What time should we reach?", "10:10 AM", false),
-        ChatMessage("4", 2, "Rahul Singh", "Please arrive 10 min early. Court opens at 6 PM.", "10:15 AM", false),
-        ChatMessage("5", 1, "You", "Perfect, see you all there!", "10:30 AM", true),
-    )
+    private fun ChatMessageDto.toUi(otherName: String): ChatMessage {
+        val selfId = UserSession.currentUser?.id
+        return ChatMessage(
+            id = id.toString(),
+            fromId = senderId ?: 0,
+            fromName = if (senderId == selfId) "You" else otherName,
+            text = body,
+            timestamp = createdAt?.takeLast(8)?.take(5) ?: "",
+            isSelf = senderId != null && senderId == selfId,
+        )
+    }
+
+    suspend fun getThreads(): Result<List<ChatThread>> = try {
+        val res = api.getChatThreads()
+        if (res.success && res.data != null) Result.success(res.data)
+        else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: Exception) { Log.e("ChatRepo", "getThreads", e); Result.failure(e) }
+
+    suspend fun getMessages(matchId: Int, otherName: String): Result<List<ChatMessage>> = try {
+        val res = api.getChatMessages(matchId)
+        if (res.success && res.data != null) Result.success(res.data.map { it.toUi(otherName) })
+        else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: Exception) { Log.e("ChatRepo", "getMessages", e); Result.failure(e) }
+
+    suspend fun sendMessage(matchId: Int, body: String, otherName: String): Result<ChatMessage> = try {
+        val res = api.sendChatMessage(matchId, SendMessageRequest(body))
+        if (res.success && res.data != null) Result.success(res.data.toUi(otherName))
+        else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: Exception) { Log.e("ChatRepo", "sendMessage", e); Result.failure(e) }
 }

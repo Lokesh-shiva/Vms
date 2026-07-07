@@ -37,18 +37,15 @@ import com.example.vmsadmin.models.SystemConfigResponse
 import com.example.vmsadmin.models.UpdateConfigRequest
 import com.example.vmsadmin.models.QueueStatsResponse
 import com.example.vmsadmin.models.Captain
+import com.example.vmsadmin.models.CaptainPayoutRequest
 import com.example.vmsadmin.models.CreateCaptainRequest
+import com.example.vmsadmin.models.ReviewCaptainRequest
 import com.example.vmsadmin.models.UpdateCaptainRequest
 import com.example.vmsadmin.models.SessionStatus
 import com.example.vmsadmin.models.AssignableRolesResponse
 import com.example.vmsadmin.models.Tournament
 import com.example.vmsadmin.models.CreateTournamentRequest
 import com.example.vmsadmin.models.UpdateTournamentRequest
-import com.example.vmsadmin.models.TournamentMatch
-import com.example.vmsadmin.models.CreateTournamentMatchRequest
-import com.example.vmsadmin.models.RecordMatchResultRequest
-import com.example.vmsadmin.models.TournamentStanding
-import com.example.vmsadmin.models.TournamentRegistration
 import com.example.vmsadmin.models.Dispute
 import com.example.vmsadmin.models.CreateDisputeRequest
 import com.example.vmsadmin.models.UpdateDisputeRequest
@@ -65,6 +62,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Streaming
 
 interface ApiService {
 
@@ -287,7 +285,7 @@ interface ApiService {
 
     // ── Captain endpoints ──────────────────────────────────────────
     @GET("/api/v1/captains")
-    suspend fun getCaptains(): ApiResponse<List<Captain>>
+    suspend fun getCaptains(@Query("status") status: String? = null): ApiResponse<List<Captain>>
 
     @POST("/api/v1/captains")
     suspend fun createCaptain(@Body request: CreateCaptainRequest): ApiResponse<Captain>
@@ -297,6 +295,25 @@ interface ApiService {
         @Path("id") id: Int,
         @Body request: UpdateCaptainRequest
     ): ApiResponse<Captain>
+
+    @PUT("/api/v1/captains/{id}/review")
+    suspend fun reviewCaptain(
+        @Path("id") id: Int,
+        @Body request: ReviewCaptainRequest
+    ): ApiResponse<Captain>
+
+    @Streaming
+    @GET("/api/v1/captains/{id}/kyc-document")
+    suspend fun getKycDocument(@Path("id") id: Int): retrofit2.Response<okhttp3.ResponseBody>
+
+    @GET("/api/v1/captains/payouts/pending")
+    suspend fun getPendingPayouts(): ApiResponse<List<Captain>>
+
+    @POST("/api/v1/captains/{id}/payout")
+    suspend fun markCaptainPaid(
+        @Path("id") id: Int,
+        @Body request: CaptainPayoutRequest
+    ): ApiResponse<Map<String, Int>>
 
     @DELETE("/api/v1/captains/{id}")
     suspend fun deleteCaptain(@Path("id") id: Int): ApiResponse<Unit>
@@ -316,28 +333,6 @@ interface ApiService {
 
     @DELETE("/api/v1/tournaments/{id}")
     suspend fun deleteTournament(@Path("id") id: Int): ApiResponse<JsonElement>
-
-    @GET("/api/v1/tournaments/{id}/matches")
-    suspend fun getTournamentMatches(@Path("id") id: Int): ApiResponse<List<TournamentMatch>>
-
-    @POST("/api/v1/tournaments/{id}/matches")
-    suspend fun createTournamentMatch(
-        @Path("id") id: Int,
-        @Body request: CreateTournamentMatchRequest
-    ): ApiResponse<TournamentMatch>
-
-    @PUT("/api/v1/tournaments/{id}/matches/{matchId}/result")
-    suspend fun recordMatchResult(
-        @Path("id") id: Int,
-        @Path("matchId") matchId: Int,
-        @Body request: RecordMatchResultRequest
-    ): ApiResponse<TournamentMatch>
-
-    @GET("/api/v1/tournaments/{id}/standings")
-    suspend fun getTournamentStandings(@Path("id") id: Int): ApiResponse<List<TournamentStanding>>
-
-    @GET("/api/v1/tournaments/{id}/registrations")
-    suspend fun getTournamentRegistrations(@Path("id") id: Int): ApiResponse<List<TournamentRegistration>>
 
     // ── Dispute endpoints ──────────────────────────────────────────────
     @GET("/api/v1/disputes")

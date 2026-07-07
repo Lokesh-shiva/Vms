@@ -1,6 +1,8 @@
 ﻿package com.example.vmsuser.network
 
 import com.example.vmsuser.models.*
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.http.*
 
 interface ApiService {
@@ -60,14 +62,18 @@ interface ApiService {
     @GET("api/v1/matches/{id}")
     suspend fun getMatch(@Path("id") id: Int): ApiResponse<Match>
 
-    @POST("api/v1/matches/captain-create")
-    suspend fun captainCreateMatch(@Body request: CaptainCreateMatchRequest): ApiResponse<Match>
+    // Chat
+    @GET("api/v1/chat/threads")
+    suspend fun getChatThreads(): ApiResponse<List<ChatThread>>
 
-    @POST("api/v1/matches/join-by-code")
-    suspend fun joinMatchByCode(@Body request: JoinByCodeRequest): ApiResponse<Match>
+    @GET("api/v1/matches/{matchId}/messages")
+    suspend fun getChatMessages(@Path("matchId") matchId: Int): ApiResponse<List<ChatMessageDto>>
+
+    @POST("api/v1/matches/{matchId}/messages")
+    suspend fun sendChatMessage(@Path("matchId") matchId: Int, @Body body: SendMessageRequest): ApiResponse<ChatMessageDto>
 
     // Tournaments
-    @GET("api/v1/tournaments")
+    @GET("api/v1/tournaments/public")
     suspend fun getTournaments(): ApiResponse<List<Tournament>>
 
     @GET("api/v1/tournaments/{id}")
@@ -92,14 +98,11 @@ interface ApiService {
     @GET("api/v1/societies/{id}/members")
     suspend fun getSocietyMembers(@Path("id") id: Int): ApiResponse<List<SocietyMember>>
 
+    @GET("api/v1/societies/{id}/leaderboard")
+    suspend fun getSocietyLeaderboard(@Path("id") id: Int): ApiResponse<List<LeaderboardEntry>>
+
     @POST("api/v1/societies")
     suspend fun createSociety(@Body request: CreateSocietyRequest): ApiResponse<Society>
-
-    @GET("api/v1/societies/{id}/matches")
-    suspend fun getSocietyMatches(@Path("id") id: Int): ApiResponse<List<Match>>
-
-    @GET("api/v1/societies/mine")
-    suspend fun getMySocieties(): ApiResponse<List<MySociety>>
 
     // Wallet
     @GET("api/v1/wallet/transactions")
@@ -108,14 +111,37 @@ interface ApiService {
     @GET("api/v1/wallet/balance")
     suspend fun getWalletBalance(): ApiResponse<Map<String, Int>>
 
+    // Support / Disputes
+    @GET("api/v1/disputes/mine")
+    suspend fun getMyDisputes(): ApiResponse<List<Dispute>>
+
+    @POST("api/v1/disputes/mine")
+    suspend fun createDispute(@Body request: CreateDisputeRequest): ApiResponse<Dispute>
+
     // Notifications
     @GET("api/v1/notifications")
     suspend fun getNotifications(): ApiResponse<List<Notification>>
 
+    @PUT("api/v1/notifications/{id}/read")
+    suspend fun markNotificationRead(@Path("id") id: Int): ApiResponse<Notification>
+
     // Captain
     @POST("api/v1/captains/apply")
-    suspend fun applyCaptain(@Body body: Map<String, String>): ApiResponse<Unit>
+    suspend fun applyCaptain(@Body body: Map<String, String?>): ApiResponse<CaptainApplication>
 
     @GET("api/v1/captains/me/stats")
     suspend fun getCaptainStats(): ApiResponse<CaptainStats>
+
+    @Multipart
+    @POST("api/v1/captains/me/kyc")
+    suspend fun uploadCaptainKyc(
+        @Part("document_type") documentType: RequestBody,
+        @Part file: MultipartBody.Part,
+    ): ApiResponse<CaptainApplication>
+
+    @GET("api/v1/captains/me/application-status")
+    suspend fun getCaptainApplicationStatus(): ApiResponse<CaptainApplication>
+
+    @PUT("api/v1/captains/me/payout-upi")
+    suspend fun updatePayoutUpi(@Body body: Map<String, String>): ApiResponse<CaptainApplication>
 }

@@ -16,7 +16,7 @@ class ProfileViewModel : ViewModel() {
 
     val user = UserSession.user
 
-    private val _notifications = MutableStateFlow<List<Notification>>(mockNotifications())
+    private val _notifications = MutableStateFlow<List<Notification>>(emptyList())
     val notifications: StateFlow<List<Notification>> = _notifications
 
     private val _transactions = MutableStateFlow<List<WalletTransaction>>(mockTransactions())
@@ -30,6 +30,13 @@ class ProfileViewModel : ViewModel() {
             try {
                 repo.getNotifications().onSuccess { _notifications.value = it }
             } catch (e: Exception) { Log.e("ProfileVM", "loadNotifications", e) }
+        }
+    }
+
+    fun markNotificationRead(id: Int) {
+        _notifications.value = _notifications.value.map { if (it.id == id) it.copy(read = true) else it }
+        viewModelScope.launch {
+            repo.markNotificationRead(id).onFailure { Log.w("ProfileVM", "markNotificationRead: ${it.message}") }
         }
     }
 
@@ -48,12 +55,6 @@ class ProfileViewModel : ViewModel() {
             } catch (e: Exception) { Log.e("ProfileVM", "updateProfile", e); onDone() }
         }
     }
-
-    private fun mockNotifications() = listOf(
-        Notification(1, "match_found", "Match found!", "Your Badminton match is confirmed for today 6 PM.", "2026-06-15T10:00:00", false),
-        Notification(2, "society_invite", "Invite to IBaC", "You've been invited to Indiranagar Badminton Club.", "2026-06-14T14:00:00", true),
-        Notification(3, "coin_earned", "Coins earned", "You earned 50 Plixo coins for completing a match.", "2026-06-13T18:00:00", true),
-    )
 
     private fun mockTransactions() = listOf(
         WalletTransaction(1, "debit", -400, "Badminton match · Kanteerava", "2026-06-15"),

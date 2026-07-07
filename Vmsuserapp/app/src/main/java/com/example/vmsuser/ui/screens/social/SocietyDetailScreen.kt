@@ -26,6 +26,7 @@ fun SocietyDetailScreen(navController: NavController, id: Int) {
     val vm: SocialViewModel = viewModel()
     val selected by vm.selected.collectAsState()
     val members by vm.members.collectAsState()
+    val leaderboard by vm.leaderboard.collectAsState()
     val joinedIds by vm.joinedIds.collectAsState()
 
     LaunchedEffect(id) { vm.select(id) }
@@ -76,6 +77,43 @@ fun SocietyDetailScreen(navController: NavController, id: Int) {
                         Text("Members", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = PlixoText)
                         Spacer(Modifier.height(8.dp))
                         Text("${s.memberCount} members", fontFamily = PlusJakartaSans, fontSize = 14.sp, color = PlixoText2)
+                    }
+                }
+                // Leaderboard
+                if (leaderboard.isNotEmpty()) {
+                    Column(modifier = Modifier.fillMaxWidth().background(PlixoSurface, PlixoShape.Card).padding(16.dp)) {
+                        Text("Leaderboard", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = PlixoText)
+                        Spacer(Modifier.height(10.dp))
+                        leaderboard.forEachIndexed { index, entry ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    "#${index + 1}",
+                                    fontFamily = BricolageGrotesque,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = PlixoText3,
+                                    modifier = Modifier.width(32.dp),
+                                )
+                                Text(
+                                    entry.name.ifBlank { "Player #${entry.userId}" },
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp,
+                                    color = PlixoText,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    "${entry.totalPoints} pts",
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = color,
+                                )
+                            }
+                        }
                     }
                 }
                 // Join/Leave CTA

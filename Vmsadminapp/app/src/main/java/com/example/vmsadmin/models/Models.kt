@@ -395,10 +395,22 @@ data class Captain(
     val rating: Float = 0f,
     val total_trips: Int = 0,
     val bio: String? = null,
+    val kyc_document_url: String? = null,
+    val kyc_document_type: String? = null,
+    val kyc_status: String? = null,
+    val verification_method: String? = null,
+    val rejection_reason: String? = null,
+    val payout_upi_id: String? = null,
+    val wallet_balance: Int? = null,
     val created_at: String? = null,
     val updated_at: String? = null,
     val name: String? = null,
     val phone: String? = null
+)
+
+@Serializable
+data class CaptainPayoutRequest(
+    val reference: String? = null
 )
 
 @Serializable
@@ -415,6 +427,12 @@ data class UpdateCaptainRequest(
     val bio: String? = null
 )
 
+@Serializable
+data class ReviewCaptainRequest(
+    val approve: Boolean,
+    val reason: String? = null
+)
+
 // --- Tournament Models ---
 
 @Serializable
@@ -428,7 +446,10 @@ data class Tournament(
     val end_date: String,
     val max_teams: Int = 8,
     val status: String = "UPCOMING",
-    val participant_type: String = "INDIVIDUAL",
+    val entry_fee: Int = 0,
+    val prize_pool: String = "",
+    val description: String = "",
+    val banner_url: String? = null,
     val created_at: String? = null,
     val updated_at: String? = null
 )
@@ -441,7 +462,10 @@ data class CreateTournamentRequest(
     val end_date: String,
     val max_teams: Int = 8,
     val sport_id: Int? = null,
-    val region_id: Int? = null
+    val region_id: Int? = null,
+    val entry_fee: Int = 0,
+    val prize_pool: String = "",
+    val description: String = ""
 )
 
 @Serializable
@@ -449,77 +473,6 @@ data class UpdateTournamentRequest(
     val status: String? = null,
     val name: String? = null,
     val organizer: String? = null
-)
-
-@Serializable
-data class TournamentMatch(
-    val id: Int,
-    val tournament_id: Int,
-    val round: Int = 1,
-    val home_user_id: Int? = null,
-    val away_user_id: Int? = null,
-    val home_team_id: Int? = null,
-    val away_team_id: Int? = null,
-    val home_score: Int? = null,
-    val away_score: Int? = null,
-    val home_points_awarded: Int? = null,
-    val away_points_awarded: Int? = null,
-    val status: String = "SCHEDULED",
-    val scheduled_at: String? = null,
-    val completed_at: String? = null,
-    val notes: String? = null,
-    val created_at: String? = null
-)
-
-@Serializable
-data class CreateTournamentMatchRequest(
-    val round: Int = 1,
-    val home_user_id: Int? = null,
-    val away_user_id: Int? = null,
-    val home_team_id: Int? = null,
-    val away_team_id: Int? = null,
-    val scheduled_at: String? = null
-)
-
-@Serializable
-data class RecordMatchResultRequest(
-    val home_score: Int,
-    val away_score: Int
-)
-
-@Serializable
-data class TournamentStanding(
-    val id: Int,
-    val tournament_id: Int,
-    val user_id: Int? = null,
-    val team_id: Int? = null,
-    val played: Int = 0,
-    val won: Int = 0,
-    val drawn: Int = 0,
-    val lost: Int = 0,
-    val points: Int = 0,
-    val rank: Int? = null,
-    val updated_at: String? = null
-)
-
-@Serializable
-data class TournamentRegistrationMember(
-    val user_id: Int,
-    val name: String
-)
-
-@Serializable
-data class TournamentRegistration(
-    // Individual tournaments
-    val user_id: Int? = null,
-    val name: String? = null,
-    val joined_at: String? = null,
-    // Team tournaments
-    val team_id: Int? = null,
-    val team_name: String? = null,
-    val captain_user_id: Int? = null,
-    val captain_name: String? = null,
-    val members: List<TournamentRegistrationMember>? = null
 )
 
 @Serializable

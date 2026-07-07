@@ -17,21 +17,13 @@ object FeatureFlags {
     const val TOURNAMENTS = true      // /api/v1/tournaments (+ /{id}, /register)
     const val SOCIETIES = true        // /api/v1/societies (+ members/join/leave/create)
     const val CAPTAIN_DASHBOARD = true // /api/v1/captains/me/stats (existing captains only)
+    const val NOTIFICATIONS = true    // /api/v1/notifications + /api/v1/users/me/fcm-token, Firebase Admin SDK wired
+    const val CHAT = true             // /api/v1/chat/threads, /api/v1/matches/{id}/messages — polling every 3s
+    const val CAPTAIN_ONBOARDING = true // /api/v1/captains/apply, /me/kyc, /me/application-status — manual admin review
+    const val OPEN_MATCHES = true     // /api/v1/matches/open
 
     // ── OFF — no backend support yet ────────────────────────────────────────
 
-    /** No chat module in backend. ChatRepository is pure mock. */
-    const val CHAT = false
-
-    /** No /api/v1/notifications endpoint. */
-    const val NOTIFICATIONS = false
-
     /** Wallet balance/transactions endpoints are stubs returning 0 / empty — no real ledger. */
     const val WALLET = false
-
-    /** No /api/v1/captains/apply and no KYC upload endpoints. */
-    const val CAPTAIN_ONBOARDING = false
-
-    /** Browse open play-now sessions in user's region. Backend: GET /api/v1/matches/open. */
-    const val OPEN_MATCHES = true
 }

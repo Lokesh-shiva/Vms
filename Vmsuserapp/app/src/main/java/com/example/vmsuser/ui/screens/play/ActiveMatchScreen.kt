@@ -179,7 +179,7 @@ fun ActiveMatchScreen(navController: NavController, matchId: Int) {
                 }
                 if (FeatureFlags.CHAT) {
                     IconButton(
-                        onClick = { navController.navigate(Screen.Chat.route) },
+                        onClick = { navController.navigate(Screen.ChatThread.create(matchId.toString())) },
                         modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
                     ) {
                         Icon(Icons.Filled.ChatBubble, "Message", tint = PlixoLime, modifier = Modifier.size(18.dp))

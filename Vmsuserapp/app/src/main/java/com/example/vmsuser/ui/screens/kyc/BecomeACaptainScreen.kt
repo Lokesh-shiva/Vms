@@ -103,9 +103,7 @@ fun BecomeACaptainScreen(navController: NavController) {
                     )
                     Spacer(Modifier.height(10.dp))
                     listOf(
-                        "Valid government ID",
-                        "Clear selfie photo",
-                        "Address proof",
+                        "Valid government ID (Aadhaar, PAN, or Driving License)",
                         "Minimum 3 matches played on Plixo",
                     ).forEach { req ->
                         Row(

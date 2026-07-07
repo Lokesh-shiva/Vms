@@ -68,7 +68,7 @@ fun TournamentsScreen(navController: NavController) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text("Tournaments", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 26.sp, color = PlixoText, letterSpacing = (-0.8).sp)
-                Text("Compete across Bengaluru", fontFamily = PlusJakartaSans, fontSize = 13.sp, color = PlixoText2)
+                Text("Compete across Vizag", fontFamily = PlusJakartaSans, fontSize = 13.sp, color = PlixoText2)
             }
         }
 
@@ -120,7 +120,7 @@ private fun BrowseTab(
     navController: NavController,
     vm: TournamentsViewModel,
 ) {
-    val open = tournaments.filter { it.status == "open" || it.status == "upcoming" }
+    val open = tournaments.filter { it.status.uppercase() == "UPCOMING" || it.status.uppercase() == "ONGOING" }
     LazyColumn(
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 100.dp),
         verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -335,9 +335,10 @@ fun TournamentCard(
                     )
             )
             Row(modifier = Modifier.align(Alignment.TopStart).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                val (statusLabel, statusBg, statusFg) = when (tournament.status) {
-                    "open" -> Triple("REG OPEN", PlixoLime.copy(0.95f), PlixoLimeFg)
-                    "live" -> Triple("LIVE", Color(0xFFF0535F).copy(0.95f), Color.White)
+                val (statusLabel, statusBg, statusFg) = when (tournament.status.uppercase()) {
+                    "UPCOMING" -> Triple("REG OPEN", PlixoLime.copy(0.95f), PlixoLimeFg)
+                    "ONGOING" -> Triple("LIVE", Color(0xFFF0535F).copy(0.95f), Color.White)
+                    "COMPLETED" -> Triple("ENDED", Color(0xFF888888).copy(0.95f), Color.White)
                     else -> Triple("STARTS SOON", Color(0xFF2F6BD6).copy(0.95f), Color.White)
                 }
                 PlixoPill(statusLabel, bg = statusBg, fg = statusFg)

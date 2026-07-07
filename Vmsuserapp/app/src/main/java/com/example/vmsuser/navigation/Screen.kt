@@ -47,6 +47,7 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
     object Wallet : Screen("wallet")
     object Notifications : Screen("notifications")
+    object Support : Screen("support")
 
     // Captain
     object Captain : Screen("captain")

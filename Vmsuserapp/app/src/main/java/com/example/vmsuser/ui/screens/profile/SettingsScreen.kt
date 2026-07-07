@@ -73,7 +73,9 @@ fun SettingsScreen(navController: NavController) {
             SectionHeader("Support")
             SettingsItem(Icons.Outlined.Info, "About Plixo") {}
             SettingsItem(Icons.Outlined.Description, "Terms & Privacy") {}
-            SettingsItem(Icons.Outlined.HelpOutline, "Help & Support") {}
+            SettingsItem(Icons.Outlined.HelpOutline, "Help & Support") {
+                navController.navigate(Screen.Support.route)
+            }
 
             SectionHeader("Account")
             SettingsItem(Icons.Outlined.Logout, "Sign out", tint = PlixoDanger) {

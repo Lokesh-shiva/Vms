@@ -51,6 +51,12 @@ class PlayViewModel : ViewModel() {
     private val _matchHistory = MutableStateFlow<List<Match>>(emptyList())
     val matchHistory: StateFlow<List<Match>> = _matchHistory
 
+    // Set when the polled session disappears (auto-cancelled by the backend reaper)
+    private val _sessionCancelled = MutableStateFlow(false)
+    val sessionCancelled: StateFlow<Boolean> = _sessionCancelled
+
+    fun clearSessionCancelled() { _sessionCancelled.value = false }
+
     init {
         loadMatchHistory()
     }
@@ -139,7 +145,16 @@ class PlayViewModel : ViewModel() {
         viewModelScope.launch {
             repeat(60) {
                 try {
-                    repo.getQueueStatus().onSuccess { _queueStatus.value = it }
+                    repo.getQueueStatus()
+                        .onSuccess { _queueStatus.value = it }
+                        .onFailure {
+                            // Session vanished server-side — either it was cancelled by
+                            // the abandoned-session reaper or the user left elsewhere.
+                            if (it.message?.contains("No active match", ignoreCase = true) == true) {
+                                _sessionCancelled.value = true
+                                return@launch
+                            }
+                        }
                 } catch (e: Exception) {
                     Log.e("PlayVM", "pollStatus", e)
                 }

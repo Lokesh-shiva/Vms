@@ -1,7 +1,9 @@
 package com.example.vmsadmin.data
 
 import com.example.vmsadmin.models.Captain
+import com.example.vmsadmin.models.CaptainPayoutRequest
 import com.example.vmsadmin.models.CreateCaptainRequest
+import com.example.vmsadmin.models.ReviewCaptainRequest
 import com.example.vmsadmin.models.UpdateCaptainRequest
 import com.example.vmsadmin.network.ApiService
 import kotlinx.serialization.json.Json
@@ -13,10 +15,41 @@ class CaptainRepository(private val apiService: ApiService) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun getCaptains(): List<Captain> {
-        val response = apiService.getCaptains()
+    suspend fun getCaptains(status: String? = null): List<Captain> {
+        val response = apiService.getCaptains(status)
         if (response.success && response.data != null) return response.data
         throw Exception(response.message ?: "Failed to fetch captains")
+    }
+
+    suspend fun reviewCaptain(id: Int, approve: Boolean, reason: String?): Captain {
+        try {
+            val response = apiService.reviewCaptain(id, ReviewCaptainRequest(approve, reason))
+            if (response.success && response.data != null) return response.data
+            throw Exception(response.message ?: "Failed to review captain")
+        } catch (e: HttpException) {
+            throw Exception(parseErrorDetail(e) ?: "Failed to review captain")
+        }
+    }
+
+    suspend fun getKycDocumentBytes(id: Int): ByteArray? {
+        val response = apiService.getKycDocument(id)
+        if (!response.isSuccessful) return null
+        return response.body()?.bytes()
+    }
+
+    suspend fun getPendingPayouts(): List<Captain> {
+        val response = apiService.getPendingPayouts()
+        if (response.success && response.data != null) return response.data
+        throw Exception(response.message ?: "Failed to fetch pending payouts")
+    }
+
+    suspend fun markCaptainPaid(id: Int, reference: String?) {
+        try {
+            val response = apiService.markCaptainPaid(id, CaptainPayoutRequest(reference))
+            if (!response.success) throw Exception(response.message ?: "Failed to record payout")
+        } catch (e: HttpException) {
+            throw Exception(parseErrorDetail(e) ?: "Failed to record payout")
+        }
     }
 
     suspend fun createCaptain(userId: Int, regionId: Int?, bio: String?): Captain {

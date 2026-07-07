@@ -1,5 +1,9 @@
 package com.example.vmsuser.ui.screens.home
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -30,9 +34,11 @@ import coil.compose.AsyncImage
 import com.example.vmsuser.config.FeatureFlags
 import com.example.vmsuser.navigation.Screen
 import com.example.vmsuser.network.UserSession
+import com.example.vmsuser.network.registerFcmToken
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
 import com.example.vmsuser.viewmodel.TournamentsViewModel
+import com.google.firebase.messaging.FirebaseMessaging
 import java.util.Calendar
 
 private fun greeting(): String = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
@@ -46,7 +52,20 @@ fun HomeScreen(navController: NavController) {
     val user by UserSession.user.collectAsState()
     val tournamentsVm: TournamentsViewModel = viewModel()
     val tournaments by tournamentsVm.tournaments.collectAsState()
-    val nextTournament = tournaments.firstOrNull { it.status == "open" || it.status == "upcoming" }
+    val nextTournament = tournaments.firstOrNull { it.status.uppercase() == "UPCOMING" || it.status.uppercase() == "ONGOING" }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* no-op — FCM still registers the token either way; only tray display is affected */ }
+
+    LaunchedEffect(Unit) {
+        if (FeatureFlags.NOTIFICATIONS) {
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { registerFcmToken(it) }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
 
     var locationOpen by remember { mutableStateOf(false) }
     var region by remember { mutableStateOf(user?.city?.takeIf { it.isNotBlank() } ?: user?.region?.takeIf { it.isNotBlank() } ?: "My area") }

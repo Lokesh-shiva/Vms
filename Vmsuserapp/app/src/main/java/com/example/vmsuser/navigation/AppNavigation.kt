@@ -4,6 +4,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -14,6 +16,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.vmsuser.network.UserSession
+import com.example.vmsuser.notifications.PendingDeepLink
 import com.example.vmsuser.ui.components.PlixoBottomNav
 import com.example.vmsuser.ui.screens.auth.*
 import com.example.vmsuser.ui.screens.captain.*
@@ -48,7 +51,7 @@ fun parentTabRoute(route: String?): String? = when {
     route.startsWith("societ") || route == Screen.CreateSociety.route -> Screen.Societies.route
     route == Screen.Profile.route || route == Screen.EditProfile.route ||
         route == Screen.Settings.route || route == Screen.Wallet.route ||
-        route == Screen.Notifications.route -> Screen.Profile.route
+        route == Screen.Notifications.route || route == Screen.Support.route -> Screen.Profile.route
     route.startsWith("captain") || route.startsWith("kyc") ||
         route == Screen.BecomeACaptain.route || route == Screen.CaptainApplication.route ||
         route == Screen.CaptainEarnings.route -> Screen.Captain.route
@@ -62,6 +65,15 @@ fun AppNavigation() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val showBottomNav = currentRoute in tabRoutes
+
+    val user by UserSession.user.collectAsState()
+    val pendingDeepLink = PendingDeepLink.route
+    LaunchedEffect(pendingDeepLink, user) {
+        if (pendingDeepLink != null && user != null) {
+            navController.navigate(pendingDeepLink)
+            PendingDeepLink.route = null
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         NavHost(
@@ -133,6 +145,7 @@ fun AppNavigation() {
             composable(Screen.Settings.route) { SettingsScreen(navController) }
             composable(Screen.Wallet.route) { WalletScreen(navController) }
             composable(Screen.Notifications.route) { NotificationsScreen(navController) }
+            composable(Screen.Support.route) { SupportScreen(navController) }
 
             // Captain
             composable(Screen.Captain.route) { CaptainDashboardScreen(navController) }

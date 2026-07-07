@@ -92,7 +92,13 @@ fun GroundOwnerScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                else -> items(grounds, key = { it.id }) { ground -> GroundCard(ground) }
+                else -> items(grounds, key = { it.id }) { ground ->
+                    GroundCard(
+                        ground = ground,
+                        updating = ground.id in groundState.updatingIds,
+                        onToggleActive = { isActive -> groundViewModel.toggleGround(ground.id, isActive) },
+                    )
+                }
             }
 
             // ── Region bookings ──────────────────────────────────────────
@@ -128,7 +134,11 @@ fun GroundOwnerScreen(
 }
 
 @Composable
-private fun GroundCard(ground: Ground) {
+private fun GroundCard(
+    ground: Ground,
+    updating: Boolean,
+    onToggleActive: (Boolean) -> Unit,
+) {
     val statusColor = when (ground.status.uppercase()) {
         "AVAILABLE" -> Color(0xFF4CAF50)
         "BUSY"      -> Color(0xFFE65100)
@@ -172,6 +182,12 @@ private fun GroundCard(ground: Ground) {
                     color = statusColor,
                     fontWeight = FontWeight.SemiBold
                 )
+            }
+            Spacer(Modifier.width(12.dp))
+            if (updating) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+                Switch(checked = ground.is_active, onCheckedChange = onToggleActive)
             }
         }
     }

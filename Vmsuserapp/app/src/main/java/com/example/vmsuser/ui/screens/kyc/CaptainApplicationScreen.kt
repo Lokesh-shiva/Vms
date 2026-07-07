@@ -25,6 +25,7 @@ private val ALL_SPORTS = listOf("Cricket", "Football", "Badminton", "Basketball"
 fun CaptainApplicationScreen(navController: NavController) {
     val vm: CaptainViewModel = viewModel()
     val applying by vm.applying.collectAsState()
+    val error by vm.error.collectAsState()
     var step by remember { mutableIntStateOf(1) }
     var selectedSports by remember { mutableStateOf<Set<String>>(emptySet()) }
     var bio by remember { mutableStateOf("") }
@@ -158,11 +159,15 @@ fun CaptainApplicationScreen(navController: NavController) {
                             color = PlixoText2,
                         )
                     }
+                    if (error != null) {
+                        Spacer(Modifier.height(12.dp))
+                        Text(error!!, color = PlixoDanger, fontFamily = PlusJakartaSans, fontSize = 13.sp)
+                    }
                     Spacer(Modifier.height(24.dp))
                     PlixoButton(
                         label = if (applying) "Submitting…" else "Submit application",
                         onClick = {
-                            vm.apply(bio, selectedSports.toList()) {
+                            vm.apply(bio) {
                                 navController.navigate(Screen.KycIntro.route)
                             }
                         },

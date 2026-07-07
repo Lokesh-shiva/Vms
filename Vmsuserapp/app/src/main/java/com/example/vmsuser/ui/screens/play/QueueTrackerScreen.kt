@@ -1,5 +1,6 @@
 package com.example.vmsuser.ui.screens.play
 
+import android.widget.Toast
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,6 +14,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -28,7 +30,9 @@ import kotlinx.coroutines.delay
 fun QueueTrackerScreen(navController: NavController, sport: String) {
     val vm: PlayViewModel = viewModel()
     val queueStatus by vm.queueStatus.collectAsStateWithLifecycle()
+    val sessionCancelled by vm.sessionCancelled.collectAsStateWithLifecycle()
     var waitSeconds by remember { mutableIntStateOf(0) }
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         vm.pollQueueStatus()
@@ -41,6 +45,15 @@ fun QueueTrackerScreen(navController: NavController, sport: String) {
             navController.navigate(Screen.ActiveMatch.create(status.matchId)) {
                 popUpTo(Screen.Queue.route.replace("{sport}", sport)) { inclusive = true }
             }
+        }
+    }
+
+    // Backend auto-cancelled this session (no players joined in time)
+    LaunchedEffect(sessionCancelled) {
+        if (sessionCancelled) {
+            Toast.makeText(context, "No players found nearby — session ended. Try again later.", Toast.LENGTH_LONG).show()
+            vm.clearSessionCancelled()
+            navController.popBackStack()
         }
     }
 
@@ -96,7 +109,7 @@ fun QueueTrackerScreen(navController: NavController, sport: String) {
                 modifier = Modifier.size(80.dp).clip(CircleShape).background(PlixoPrimary),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("🔍", fontSize = 32.sp)
+                Text("🏟️", fontSize = 32.sp)
             }
         }
         Spacer(Modifier.height(32.dp))
@@ -111,7 +124,7 @@ fun QueueTrackerScreen(navController: NavController, sport: String) {
             letterSpacing = (-2).sp,
         )
         Text(
-            "players searching",
+            if (playerCount == 1) "player joined (you)" else "players joined",
             fontFamily = PlusJakartaSans,
             fontWeight = FontWeight.SemiBold,
             fontSize = 16.sp,
@@ -119,7 +132,7 @@ fun QueueTrackerScreen(navController: NavController, sport: String) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Searching for $sport match…",
+            "Your $sport session is open · waiting for others to join",
             fontFamily = PlusJakartaSans,
             fontSize = 14.sp,
             color = PlixoText3,
@@ -163,7 +176,7 @@ fun QueueTrackerScreen(navController: NavController, sport: String) {
                     color = PlixoPrimaryDark,
                 )
                 Text(
-                    "est. wait",
+                    "est. arrival",
                     fontFamily = PlusJakartaSans,
                     fontSize = 12.sp,
                     color = PlixoPrimaryDark.copy(alpha = 0.7f),
@@ -174,7 +187,7 @@ fun QueueTrackerScreen(navController: NavController, sport: String) {
 
         Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 32.dp)) {
             PlixoButton(
-                label = "Leave queue",
+                label = "Cancel session",
                 onClick = { vm.leaveQueue { navController.popBackStack() } },
                 variant = PlixoButtonVariant.DangerSoft,
             )

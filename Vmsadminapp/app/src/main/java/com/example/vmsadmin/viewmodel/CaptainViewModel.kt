@@ -15,7 +15,12 @@ data class CaptainUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val error: String? = null,
-    val snackbar: String? = null
+    val snackbar: String? = null,
+    val filter: String? = null, // null = All, "PENDING_REVIEW" = pending applications
+    val kycDocumentBytes: ByteArray? = null,
+    val kycDocumentLoading: Boolean = false,
+    val payouts: List<Captain> = emptyList(),
+    val payoutsLoading: Boolean = false,
 )
 
 class CaptainViewModel(private val repository: CaptainRepository) : ViewModel() {
@@ -25,11 +30,19 @@ class CaptainViewModel(private val repository: CaptainRepository) : ViewModel() 
 
     init { load() }
 
+    fun setFilter(filter: String?) {
+        _uiState.value = _uiState.value.copy(filter = filter)
+        load()
+    }
+
     fun load() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                _uiState.value = _uiState.value.copy(captains = repository.getCaptains(), isLoading = false)
+                _uiState.value = _uiState.value.copy(
+                    captains = repository.getCaptains(_uiState.value.filter),
+                    isLoading = false,
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false, error = e.message ?: "Failed to load captains")
             }
@@ -40,11 +53,47 @@ class CaptainViewModel(private val repository: CaptainRepository) : ViewModel() 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isRefreshing = true)
             try {
-                _uiState.value = _uiState.value.copy(captains = repository.getCaptains(), isRefreshing = false)
+                _uiState.value = _uiState.value.copy(
+                    captains = repository.getCaptains(_uiState.value.filter),
+                    isRefreshing = false,
+                )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isRefreshing = false, snackbar = e.message ?: "Refresh failed")
             }
         }
+    }
+
+    fun reviewCaptain(id: Int, approve: Boolean, reason: String?) {
+        viewModelScope.launch {
+            try {
+                repository.reviewCaptain(id, approve, reason)
+                _uiState.value = _uiState.value.copy(
+                    captains = _uiState.value.captains.filter { it.id != id },
+                    snackbar = if (approve) "Captain approved" else "Application rejected",
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(snackbar = e.message ?: "Failed to submit review")
+            }
+        }
+    }
+
+    fun loadKycDocument(id: Int) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(kycDocumentLoading = true, kycDocumentBytes = null)
+            try {
+                val bytes = repository.getKycDocumentBytes(id)
+                _uiState.value = _uiState.value.copy(kycDocumentBytes = bytes, kycDocumentLoading = false)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    kycDocumentLoading = false,
+                    snackbar = e.message ?: "Failed to load document",
+                )
+            }
+        }
+    }
+
+    fun clearKycDocument() {
+        _uiState.value = _uiState.value.copy(kycDocumentBytes = null)
     }
 
     fun addCaptain(userId: Int, regionId: Int?) {
@@ -91,6 +140,37 @@ class CaptainViewModel(private val repository: CaptainRepository) : ViewModel() 
 
     fun clearSnackbar() {
         _uiState.value = _uiState.value.copy(snackbar = null)
+    }
+
+    fun loadPayouts() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(payoutsLoading = true)
+            try {
+                _uiState.value = _uiState.value.copy(
+                    payouts = repository.getPendingPayouts(),
+                    payoutsLoading = false,
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    payoutsLoading = false,
+                    snackbar = e.message ?: "Failed to load pending payouts",
+                )
+            }
+        }
+    }
+
+    fun markPaid(id: Int, reference: String?) {
+        viewModelScope.launch {
+            try {
+                repository.markCaptainPaid(id, reference)
+                _uiState.value = _uiState.value.copy(
+                    payouts = _uiState.value.payouts.filter { it.id != id },
+                    snackbar = "Payout recorded",
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(snackbar = e.message ?: "Failed to record payout")
+            }
+        }
     }
 }
 

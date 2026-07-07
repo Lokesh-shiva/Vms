@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vmsuser.data.SocialRepository
+import com.example.vmsuser.models.LeaderboardEntry
 import com.example.vmsuser.models.Society
 import com.example.vmsuser.models.SocietyMember
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,8 @@ class SocialViewModel : ViewModel() {
     val selected: StateFlow<Society?> = _selected
     private val _members = MutableStateFlow<List<SocietyMember>>(emptyList())
     val members: StateFlow<List<SocietyMember>> = _members
+    private val _leaderboard = MutableStateFlow<List<LeaderboardEntry>>(emptyList())
+    val leaderboard: StateFlow<List<LeaderboardEntry>> = _leaderboard
     private val _joinedIds = MutableStateFlow<Set<Int>>(emptySet())
     val joinedIds: StateFlow<Set<Int>> = _joinedIds
     private val _error = MutableStateFlow<String?>(null)
@@ -42,6 +45,7 @@ class SocialViewModel : ViewModel() {
                 repo.getSociety(id).onSuccess { _selected.value = it }
                     .onFailure { _selected.value = _societies.value.find { s -> s.id == id } }
                 repo.getMembers(id).onSuccess { _members.value = it }
+                repo.getLeaderboard(id).onSuccess { _leaderboard.value = it }
             } catch (e: Exception) {
                 _selected.value = _societies.value.find { s -> s.id == id }
             }

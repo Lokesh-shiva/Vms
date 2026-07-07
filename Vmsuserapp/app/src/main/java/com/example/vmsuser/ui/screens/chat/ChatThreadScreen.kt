@@ -34,7 +34,8 @@ fun ChatThreadScreen(navController: NavController, threadId: String) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(threadId) { vm.loadThread(threadId) }
+    LaunchedEffect(threadId) { vm.openThread(threadId) }
+    DisposableEffect(threadId) { onDispose { vm.stopPolling() } }
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) scope.launch { listState.animateScrollToItem(messages.size - 1) }
     }
@@ -74,7 +75,7 @@ fun ChatThreadScreen(navController: NavController, threadId: String) {
             )
             Spacer(Modifier.width(10.dp))
             IconButton(
-                onClick = { if (text.isNotBlank()) { vm.sendMessage(text); text = "" } },
+                onClick = { if (text.isNotBlank()) { vm.sendMessage(threadId, text); text = "" } },
                 modifier = Modifier.size(44.dp).background(if (text.isNotBlank()) PlixoPrimary else PlixoSurface2, RoundedCornerShape(14.dp)),
             ) {
                 Icon(Icons.Filled.Send, "Send", tint = if (text.isNotBlank()) Color.White else PlixoText3, modifier = Modifier.size(20.dp))

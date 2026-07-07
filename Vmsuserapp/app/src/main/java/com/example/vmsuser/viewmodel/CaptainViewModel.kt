@@ -1,16 +1,15 @@
-﻿package com.example.vmsuser.viewmodel
+package com.example.vmsuser.viewmodel
 
+import android.content.ContentResolver
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vmsuser.data.CaptainRepository
-import com.example.vmsuser.models.CaptainCreateMatchRequest
+import com.example.vmsuser.models.CaptainApplication
 import com.example.vmsuser.models.CaptainStats
-import com.example.vmsuser.models.LocationOption
 import com.example.vmsuser.models.Match
-import com.example.vmsuser.models.MySociety
-import com.example.vmsuser.models.SportItem
-import com.example.vmsuser.network.RetrofitClient
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -24,19 +23,21 @@ class CaptainViewModel : ViewModel() {
     private val _applying = MutableStateFlow(false)
     val applying: StateFlow<Boolean> = _applying
 
+    private val _uploading = MutableStateFlow(false)
+    val uploading: StateFlow<Boolean> = _uploading
+
+    private val _application = MutableStateFlow<CaptainApplication?>(null)
+    val application: StateFlow<CaptainApplication?> = _application
+
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    private val _mySocieties = MutableStateFlow<List<MySociety>>(emptyList())
-    val mySocieties: StateFlow<List<MySociety>> = _mySocieties
-
-    private val _creatingMatch = MutableStateFlow(false)
-    val creatingMatch: StateFlow<Boolean> = _creatingMatch
-
-    private val _createdMatch = MutableStateFlow<Match?>(null)
-    val createdMatch: StateFlow<Match?> = _createdMatch
+    private val _updatingUpi = MutableStateFlow(false)
+    val updatingUpi: StateFlow<Boolean> = _updatingUpi
 
     init { loadStats() }
+
+    fun clearError() { _error.value = null }
 
     fun loadStats() {
         viewModelScope.launch {
@@ -46,76 +47,55 @@ class CaptainViewModel : ViewModel() {
         }
     }
 
-    fun apply(bio: String, sports: List<String>, onSuccess: () -> Unit) {
+    fun apply(bio: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _applying.value = true
             _error.value = null
-            try {
-                repo.apply(bio, sports).onSuccess { onSuccess() }.onFailure { _error.value = it.message }
-            } catch (e: Exception) {
-                Log.e("CaptainVM", "apply", e)
-                onSuccess() // proceed to KYC in demo mode
-            } finally {
-                _applying.value = false
-            }
+            repo.apply(bio)
+                .onSuccess { _application.value = it; onSuccess() }
+                .onFailure { _error.value = it.message ?: "Could not submit application." }
+            _applying.value = false
         }
     }
 
-    fun clearCreatedMatch() { _createdMatch.value = null }
-
-    fun loadMySocieties() {
+    fun uploadKyc(contentResolver: ContentResolver, documentType: String, imageUri: Uri, onSuccess: () -> Unit) {
         viewModelScope.launch {
-            repo.getMySocieties()
-                .onSuccess { _mySocieties.value = it }
-                .onFailure { Log.w("CaptainVM", "loadMySocieties: ${it.message}") }
-        }
-    }
-
-    private val _sports = MutableStateFlow<List<SportItem>>(emptyList())
-    val sports: StateFlow<List<SportItem>> = _sports
-
-    private val _regions = MutableStateFlow<List<LocationOption>>(emptyList())
-    val regions: StateFlow<List<LocationOption>> = _regions
-
-    fun loadSportsAndRegions() {
-        viewModelScope.launch {
-            try {
-                val sportsRes = RetrofitClient.api.getSports()
-                if (sportsRes.success && sportsRes.data != null) _sports.value = sportsRes.data
-                val locationsRes = RetrofitClient.api.getLocations()
-                if (locationsRes.success && locationsRes.data != null) _regions.value = locationsRes.data
-            } catch (e: Exception) { Log.e("CaptainVM", "loadSportsAndRegions", e) }
-        }
-    }
-
-    fun createMatch(
-        cartTypeId: Int,
-        regionId: Int,
-        maxPlayers: Int,
-        visibility: String,
-        societyId: Int? = null,
-        skillLevel: String? = null,
-        onSuccess: () -> Unit,
-    ) {
-        viewModelScope.launch {
-            _creatingMatch.value = true
+            _uploading.value = true
             _error.value = null
-            try {
-                repo.createMatch(
-                    CaptainCreateMatchRequest(
-                        cartTypeId = cartTypeId,
-                        regionId = regionId,
-                        maxPlayers = maxPlayers,
-                        visibility = visibility,
-                        societyId = societyId,
-                        skillLevel = skillLevel,
-                    )
-                )
-                    .onSuccess { _createdMatch.value = it; onSuccess() }
-                    .onFailure { _error.value = it.message ?: "Could not create match." }
-            } finally {
-                _creatingMatch.value = false
+            repo.uploadKyc(contentResolver, documentType, imageUri)
+                .onSuccess { _application.value = it; onSuccess() }
+                .onFailure { _error.value = it.message ?: "Upload failed. Try again." }
+            _uploading.value = false
+        }
+    }
+
+    fun loadApplicationStatus() {
+        viewModelScope.launch {
+            repo.getApplicationStatus()
+                .onSuccess { _application.value = it }
+                .onFailure { Log.w("CaptainVM", "loadApplicationStatus: ${it.message}") }
+        }
+    }
+
+    /** Poll until the application leaves PENDING_REVIEW (approved/rejected) or the screen is left. */
+    fun pollApplicationStatus() {
+        viewModelScope.launch {
+            repeat(60) {
+                repo.getApplicationStatus().onSuccess { _application.value = it }
+                if (_application.value?.status != "PENDING_REVIEW") return@launch
+                delay(5000)
             }
+        }
+    }
+
+    fun updatePayoutUpi(upiId: String, onDone: () -> Unit) {
+        viewModelScope.launch {
+            _updatingUpi.value = true
+            _error.value = null
+            repo.updatePayoutUpi(upiId)
+                .onSuccess { loadStats(); onDone() }
+                .onFailure { _error.value = it.message ?: "Could not update UPI ID." }
+            _updatingUpi.value = false
         }
     }
 

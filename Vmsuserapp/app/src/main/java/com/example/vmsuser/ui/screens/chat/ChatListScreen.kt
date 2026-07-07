@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,9 +27,26 @@ import com.example.vmsuser.viewmodel.ChatViewModel
 fun ChatListScreen(navController: NavController) {
     val vm: ChatViewModel = viewModel()
     val threads by vm.threads.collectAsState()
+    val loading by vm.loading.collectAsState()
+
+    LaunchedEffect(Unit) { vm.loadThreads() }
 
     Column(modifier = Modifier.fillMaxSize().background(PlixoBg).statusBarsPadding()) {
         PlixoTopBar(title = "Chats")
+        if (loading && threads.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(top = 60.dp)) {
+                CircularProgressIndicator(color = PlixoPrimary, modifier = Modifier.size(28.dp).align(Alignment.TopCenter))
+            }
+        } else if (threads.isEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 60.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text("No chats yet", fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = PlixoText)
+                Spacer(Modifier.height(4.dp))
+                Text("Join a match to start chatting with other players.", fontFamily = PlusJakartaSans, fontSize = 13.sp, color = PlixoText2)
+            }
+        }
         LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
             items(threads) { thread ->
                 Row(
@@ -36,7 +54,6 @@ fun ChatListScreen(navController: NavController) {
                         .fillMaxWidth()
                         .background(PlixoSurface)
                         .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                            vm.loadThread(thread.id)
                             navController.navigate(Screen.ChatThread.create(thread.id))
                         }
                         .padding(horizontal = 20.dp, vertical = 14.dp),

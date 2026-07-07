@@ -2,6 +2,7 @@
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class User(
@@ -98,11 +99,6 @@ data class Match(
     @SerialName("captain_id") val captainId: Int? = null,
     @SerialName("player_ids") val playerIds: List<Int> = emptyList(),
     val price: Int = 0,
-    val visibility: String = "OPEN",
-    @SerialName("society_id") val societyId: Int? = null,
-    @SerialName("invite_code") val inviteCode: String? = null,
-    @SerialName("max_players") val maxPlayers: Int = 2,
-    @SerialName("joined_players") val joinedPlayers: Int = 0,
 )
 
 @Serializable
@@ -148,6 +144,31 @@ data class SocietyMember(
 )
 
 @Serializable
+data class LeaderboardEntry(
+    @SerialName("user_id") val userId: Int = 0,
+    val name: String = "",
+    @SerialName("society_member_role") val role: String = "member",
+    @SerialName("total_points") val totalPoints: Int = 0,
+    @SerialName("matches_played") val matchesPlayed: Int = 0,
+)
+
+@Serializable
+data class Dispute(
+    val id: Int = 0,
+    val title: String = "",
+    val description: String = "",
+    val status: String = "OPEN",
+    @SerialName("resolution_note") val resolutionNote: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+)
+
+@Serializable
+data class CreateDisputeRequest(
+    val title: String,
+    val description: String,
+)
+
+@Serializable
 data class ChatThread(
     val id: String = "",
     val name: String = "",
@@ -169,6 +190,18 @@ data class ChatMessage(
 )
 
 @Serializable
+data class ChatMessageDto(
+    val id: Int = 0,
+    @SerialName("match_id") val matchId: Int = 0,
+    @SerialName("sender_id") val senderId: Int? = null,
+    val body: String = "",
+    @SerialName("created_at") val createdAt: String? = null,
+)
+
+@Serializable
+data class SendMessageRequest(val body: String)
+
+@Serializable
 data class Notification(
     val id: Int = 0,
     val type: String = "",
@@ -176,6 +209,7 @@ data class Notification(
     val body: String = "",
     @SerialName("created_at") val createdAt: String = "",
     val read: Boolean = false,
+    val data: JsonObject = JsonObject(emptyMap()),
 )
 
 @Serializable
@@ -191,9 +225,21 @@ data class WalletTransaction(
 data class CaptainStats(
     @SerialName("today_earnings") val todayEarnings: Int = 0,
     @SerialName("week_earnings") val weekEarnings: Int = 0,
+    @SerialName("wallet_balance") val walletBalance: Int = 0,
+    @SerialName("payout_upi_id") val payoutUpiId: String? = null,
     @SerialName("rating") val rating: Float = 0f,
     @SerialName("matches_led") val matchesLed: Int = 0,
     @SerialName("active_matches") val activeMatches: List<Match> = emptyList(),
+)
+
+@Serializable
+data class CaptainApplication(
+    val id: Int = 0,
+    @SerialName("user_id") val userId: Int = 0,
+    val status: String = "PENDING_REVIEW",
+    @SerialName("kyc_status") val kycStatus: String = "PENDING",
+    @SerialName("kyc_document_type") val kycDocumentType: String? = null,
+    @SerialName("rejection_reason") val rejectionReason: String? = null,
 )
 
 @Serializable
@@ -235,25 +281,4 @@ data class CreateSocietyRequest(
     val sport: String,
     val description: String,
     val visibility: String = "public",
-)
-
-@Serializable
-data class CaptainCreateMatchRequest(
-    @SerialName("cart_type_id") val cartTypeId: Int,
-    @SerialName("region_id") val regionId: Int,
-    @SerialName("max_players") val maxPlayers: Int,
-    val visibility: String,
-    @SerialName("society_id") val societyId: Int? = null,
-    @SerialName("skill_level") val skillLevel: String? = null,
-)
-
-@Serializable
-data class JoinByCodeRequest(
-    @SerialName("invite_code") val inviteCode: String,
-)
-
-@Serializable
-data class MySociety(
-    val id: Int = 0,
-    val name: String = "",
 )

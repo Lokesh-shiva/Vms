@@ -1,6 +1,8 @@
 ﻿package com.example.vmsuser.ui.screens.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,20 +19,29 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.vmsuser.models.Notification
+import com.example.vmsuser.notifications.notificationDeepLinkRoute
 import com.example.vmsuser.ui.components.PlixoTopBar
 import com.example.vmsuser.ui.theme.*
 import com.example.vmsuser.viewmodel.ProfileViewModel
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 @Composable
 fun NotificationsScreen(navController: NavController) {
     val vm: ProfileViewModel = viewModel()
     val notifications by vm.notifications.collectAsState()
 
+    LaunchedEffect(Unit) { vm.loadNotifications() }
+
     Column(modifier = Modifier.fillMaxSize().background(PlixoBg).statusBarsPadding()) {
         PlixoTopBar(title = "Notifications", onBack = { navController.popBackStack() })
         LazyColumn {
             items(notifications) { n ->
-                NotificationRow(n)
+                NotificationRow(n, onClick = {
+                    vm.markNotificationRead(n.id)
+                    val matchId = n.data["match_id"]?.jsonPrimitive?.intOrNull
+                    navController.navigate(notificationDeepLinkRoute(n.type, matchId))
+                })
             }
             item { Spacer(Modifier.height(80.dp)) }
         }
@@ -38,29 +49,31 @@ fun NotificationsScreen(navController: NavController) {
 }
 
 @Composable
-private fun NotificationRow(n: Notification) {
+private fun NotificationRow(n: Notification, onClick: () -> Unit) {
     val icon = when (n.type) {
-        "match_found" -> Icons.Filled.SportsScore
-        "society_invite" -> Icons.Filled.Group
-        "coin_earned" -> Icons.Filled.MonetizationOn
+        "MATCH_FOUND" -> Icons.Filled.SportsScore
+        "SESSION_CANCELLED" -> Icons.Filled.Cancel
+        "CAPTAIN_APPROVED" -> Icons.Filled.Star
+        "CAPTAIN_REJECTED" -> Icons.Filled.ErrorOutline
         else -> Icons.Filled.Notifications
     }
     val iconBg = when (n.type) {
-        "match_found" -> PlixoPrimaryLight
-        "society_invite" -> BlockSkyBg
-        "coin_earned" -> BlockLimeBg
+        "MATCH_FOUND" -> PlixoPrimaryLight
+        "CAPTAIN_APPROVED" -> BlockLimeBg
+        "CAPTAIN_REJECTED", "SESSION_CANCELLED" -> BlockSkyBg
         else -> PlixoSurface2
     }
     val iconFg = when (n.type) {
-        "match_found" -> PlixoPrimary
-        "society_invite" -> BlockSkyFg
-        "coin_earned" -> BlockLimeFg
+        "MATCH_FOUND" -> PlixoPrimary
+        "CAPTAIN_APPROVED" -> BlockLimeFg
+        "CAPTAIN_REJECTED", "SESSION_CANCELLED" -> BlockSkyFg
         else -> PlixoText2
     }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(if (!n.read) PlixoPrimaryLight.copy(0.3f) else PlixoSurface)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.Top,
     ) {
