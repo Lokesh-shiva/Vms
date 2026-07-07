@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from modules.audit.service.audit_service import audit_service
 from modules.auth.dependencies.auth_dependencies import (
     require_role,
     require_user,
@@ -99,6 +100,13 @@ def approve_payment(
     """Approve a payment under review. Admin only."""
     try:
         payment = payment_service.approve_payment(payment_id)
+        audit_service.log(
+            action="PAYMENT_APPROVED",
+            actor_user_id=current_user["id"],
+            target_resource_type="payment",
+            target_resource_id=payment_id,
+            details={"booking_id": payment.get("booking_id")},
+        )
         return _success(payment, "Payment approved.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -112,6 +120,13 @@ def reject_payment(
     """Reject a payment under review. Admin only."""
     try:
         payment = payment_service.reject_payment(payment_id)
+        audit_service.log(
+            action="PAYMENT_REJECTED",
+            actor_user_id=current_user["id"],
+            target_resource_type="payment",
+            target_resource_id=payment_id,
+            details={"booking_id": payment.get("booking_id")},
+        )
         return _success(payment, "Payment rejected.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -127,6 +142,13 @@ def refund_payment(
     amount = request_data.get("amount") if request_data else None
     try:
         payment = payment_service.process_refund(payment_id, amount)
+        audit_service.log(
+            action="PAYMENT_REFUNDED",
+            actor_user_id=current_user["id"],
+            target_resource_type="payment",
+            target_resource_id=payment_id,
+            details={"booking_id": payment.get("booking_id"), "amount": amount},
+        )
         return _success(payment, "Refund processed.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

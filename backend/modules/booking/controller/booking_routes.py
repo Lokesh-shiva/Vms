@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from modules.audit.service.audit_service import audit_service
 from modules.auth.dependencies.auth_dependencies import (
     _ADMIN_ROLES,
     get_current_user,
@@ -95,6 +96,13 @@ def cancel_booking(booking_id: int, current_user: dict = Depends(get_current_use
 
     try:
         updated = booking_service.cancel_booking(booking_id)
+        audit_service.log(
+            action="BOOKING_CANCELLED",
+            actor_user_id=current_user["id"],
+            target_resource_type="booking",
+            target_resource_id=booking_id,
+            details={"by_admin": current_user["role"] in _ADMIN_ROLES},
+        )
         return _success(updated, "Booking cancelled successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
