@@ -348,8 +348,16 @@ interface ApiService {
     ): ApiResponse<Dispute>
 
     // ── Audit Log endpoints ────────────────────────────────────────────
-    @GET("audit-logs")
-    suspend fun getAuditLogs(): ApiResponse<List<AuditLogEntry>>
+    @GET("/api/v1/audit-logs")
+    suspend fun getAuditLogs(
+        @Query("limit") limit: Int = 50,
+        @Query("offset") offset: Int = 0,
+        @Query("action") action: String? = null,
+        @Query("actor_user_id") actorUserId: Int? = null,
+        @Query("target_resource_type") targetResourceType: String? = null,
+        @Query("start_date") startDate: String? = null,
+        @Query("end_date") endDate: String? = null,
+    ): ApiResponse<List<AuditLogEntry>>
 
     // ── Society endpoints ──────────────────────────────────────────────
     @GET("/api/v1/societies")
