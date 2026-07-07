@@ -2448,3 +2448,37 @@ The live Neon database still has the full schema from the lost migrations: `noti
 
 ### Lesson
 Commit incrementally instead of batching a full day's work uncommitted — from now on, commit after each completed vertical slice.
+
+---
+## [2026-07-07] Phase 02 — Rebuild: Notification module, Captain KYC + earnings wallet
+
+### Added
+**Backend**
+- `backend/modules/notification/` — full module rebuild: `model/notification_model.py`, `model/fcm_token_model.py`, `repository/notification_repository.py`, `repository/fcm_token_repository.py`, `service/notification_service.py`, `controller/notification_routes.py` (`GET /api/v1/notifications`, `PUT /{id}/read`). Registered in `main.py`.
+- `backend/core/push/firebase_client.py` — lazy Firebase Admin SDK init (`FIREBASE_SERVICE_ACCOUNT_PATH` or `_JSON`), `send_push()` never raises, disabled gracefully when unconfigured.
+- `backend/core/storage/kyc_storage.py` — local-disk KYC document storage, never served as static files (always via authenticated route).
+- `backend/modules/captain/model/captain_earning_model.py` — `CaptainEarning` ledger (captain_id, match_id, amount, status PENDING/PAID, payout_reference).
+- `backend/modules/captain/repository/captain_earning_repository.py` — `create`, `find_by_captain`, `sum_since` (activity metric), `sum_pending` (wallet balance), `mark_captain_paid`.
+- `PUT /api/v1/users/me/fcm-token` in `user_routes.py` — registers/updates the caller's push token.
+- `run_migrations.py` — re-added migrations 16-20 (captains KYC/payout columns, `captain_earnings`, `notifications`, `fcm_tokens` tables, `matches.captain_id`), which had been silently dropped in the incident. Idempotent (`IF NOT EXISTS`), safe to re-run against the already-migrated Neon DB.
+
+### Modified
+- `backend/modules/captain/model/captain_model.py` — added KYC fields (`kyc_document_url`, `kyc_document_type`, `kyc_status`, `verification_method`, `rejection_reason`, `payout_upi_id`), `PENDING_REVIEW`/`REJECTED` statuses.
+- `backend/modules/captain/repository/captain_repository.py` — `get_all()` regained `status` filter.
+- `backend/modules/captain/service/captain_service.py` — `get_captain_fee()` (reads `CAPTAIN_FEE_PER_MATCH` from SystemConfig), `record_match_earning()`, `get_my_stats()` (fixed crash — dict access not attribute access; now returns `today_earnings`/`week_earnings`/`wallet_balance`/`payout_upi_id`), `update_payout_upi()`, `list_pending_payouts()`, `mark_paid()`, `apply()` (min 3 completed matches), `upload_kyc()`, `get_my_application()`, `review()`.
+- `backend/modules/captain/controller/captain_routes.py` — added `/apply`, `/me/kyc`, `/me/application-status`, `/me/payout-upi`, `/payouts/pending`, `/{id}/payout` (sends notification + audit log), `/me/stats`, `/{id}/review` (sends notification + audit log), `/{id}/kyc-document`. Static-path routes registered before `/{id}` to avoid ambiguity.
+- `backend/modules/match/model/match_model.py` — re-added `captain_id` FK (permanent historical record, unlike `Captain.current_match_id` which gets cleared).
+- `backend/modules/match/service/match_service.py` — `join_match()` sets `match_orm.captain_id` on auto-assign; `finish_match()` calls `CaptainService().record_match_earning()` non-fatally after payment splitting.
+- `backend/modules/match/repository/match_repository.py` — `create_captain_match()` sets `captain_id` on the ORM object directly instead of faking it in the returned dict.
+- `backend/modules/user/controller/user_routes.py` — added `DEACTIVATION` audit log entry (was a stale TODO) alongside the existing `ROLE_CHANGE` block.
+- `backend/main.py` — registered `notification_router`, imported `CaptainEarning`/`Notification`/`FcmToken` models for table creation.
+
+### Architectural decisions
+- Captain earnings are a ledger, not a live computation — `CaptainEarning` rows snapshot the fee at match-completion time so later `CAPTAIN_FEE_PER_MATCH` changes don't retroactively rewrite history. `wallet_balance` = sum of PENDING; `today_earnings`/`week_earnings` = sum of ANY-status in a time window (activity, not balance).
+- Payout is manual settlement (mirrors `Payment`'s existing manual-approval workflow) — no payment gateway. Captain sets a UPI ID; admin sends money out-of-band and marks paid in-app.
+- KYC documents are never static-served; always fetched through an authenticated route to prevent ID-document URL guessing.
+
+### Verified
+- `python -c "import backend.main"` succeeds.
+- Full backend suite: 431 passed.
+- This closes out the majority of the "Still to rebuild" list from the incident above. Remaining: `backend/modules/chat/` module, and all Vmsuserapp/Vmsadminapp Kotlin screens for KYC/earnings/chat/notifications.

@@ -23,13 +23,15 @@ class CaptainRepository:
     def __init__(self, session_factory=None):
         self._session_factory = session_factory or SessionLocal
 
-    def get_all(self, region_id: int | None = None) -> list[dict]:
-        """Retrieve all captains, optionally filtered by region_id."""
+    def get_all(self, region_id: int | None = None, status: str | None = None) -> list[dict]:
+        """Retrieve all captains, optionally filtered by region_id and/or status."""
         session = self._session_factory()
         try:
             query = session.query(Captain)
             if region_id is not None:
                 query = query.filter(Captain.region_id == region_id)
+            if status is not None:
+                query = query.filter(Captain.status == status)
             captains = query.all()
             return [c.to_dict() for c in captains]
         finally:

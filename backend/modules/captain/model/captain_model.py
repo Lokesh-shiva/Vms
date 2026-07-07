@@ -11,8 +11,30 @@ class CaptainStatus:
     ACTIVE = "ACTIVE"
     INACTIVE = "INACTIVE"
     SUSPENDED = "SUSPENDED"
+    PENDING_REVIEW = "PENDING_REVIEW"
+    REJECTED = "REJECTED"
 
-    ALL: frozenset[str] = frozenset({ACTIVE, INACTIVE, SUSPENDED})
+    ALL: frozenset[str] = frozenset(
+        {ACTIVE, INACTIVE, SUSPENDED, PENDING_REVIEW, REJECTED}
+    )
+
+
+class KycStatus:
+    """Allowed KYC verification status values."""
+
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+    ALL: frozenset[str] = frozenset({PENDING, APPROVED, REJECTED})
+
+
+class KycDocumentType:
+    AADHAAR = "AADHAAR"
+    PAN = "PAN"
+    DRIVING_LICENSE = "DRIVING_LICENSE"
+
+    ALL: frozenset[str] = frozenset({AADHAAR, PAN, DRIVING_LICENSE})
 
 
 class Captain(Base):
@@ -23,7 +45,7 @@ class Captain(Base):
         id (int): Primary key, auto-incremented.
         user_id (int): FK → users.id (one captain per user, CASCADE on delete).
         region_id (int | None): FK → locations.id (SET NULL on delete).
-        status (str): One of ACTIVE / INACTIVE / SUSPENDED.
+        status (str): One of ACTIVE / INACTIVE / SUSPENDED / PENDING_REVIEW / REJECTED.
         rating (float): Average rating (0.0–5.0).
         total_trips (int): Cumulative completed trips.
         bio (str | None): Optional free-text bio.
@@ -58,6 +80,12 @@ class Captain(Base):
         ForeignKey("matches.id", ondelete="SET NULL"),
         nullable=True,
     )
+    kyc_document_url = Column(String(500), nullable=True)
+    kyc_document_type = Column(String(30), nullable=True)
+    kyc_status = Column(String(20), nullable=False, default=KycStatus.PENDING)
+    verification_method = Column(String(20), nullable=False, default="MANUAL")
+    rejection_reason = Column(Text, nullable=True)
+    payout_upi_id = Column(String(100), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -75,6 +103,12 @@ class Captain(Base):
             "bio": self.bio,
             "is_available": self.is_available,
             "current_match_id": self.current_match_id,
+            "kyc_document_url": self.kyc_document_url,
+            "kyc_document_type": self.kyc_document_type,
+            "kyc_status": self.kyc_status,
+            "verification_method": self.verification_method,
+            "rejection_reason": self.rejection_reason,
+            "payout_upi_id": self.payout_upi_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

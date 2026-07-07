@@ -286,6 +286,7 @@ class MatchService(BaseService):
                                 match_id=match_orm.id,
                                 session=session,
                             )
+                            match_orm.captain_id = captain.id
                     match_orm.status = "MATCHED"
                 else:
                     # Old VMS booking model: mark FULL, lock the cart
@@ -704,6 +705,21 @@ class MatchService(BaseService):
                 "finish_match: split payment creation failed for match %d (non-fatal)",
                 match_id,
             )
+
+        # Record the captain's earning for this match (non-fatal — the match is
+        # already COMPLETED regardless of ledger bookkeeping success).
+        if result.get("captain_id"):
+            try:
+                from modules.captain.service.captain_service import CaptainService
+
+                CaptainService().record_match_earning(result["captain_id"], match_id)
+            except Exception:
+                import logging
+
+                logging.getLogger(__name__).exception(
+                    "finish_match: captain earning record failed for match %d (non-fatal)",
+                    match_id,
+                )
 
         return result
 

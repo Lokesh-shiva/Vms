@@ -171,6 +171,7 @@ class MatchRepository:
                 visibility=visibility,
                 society_id=society_id,
                 invite_code=invite_code,
+                captain_id=captain_id,
             )
             session.add(match)
             session.flush()
@@ -179,9 +180,7 @@ class MatchRepository:
             )
             session.commit()
             session.refresh(match)
-            result = match.to_dict()
-            result["captain_id"] = captain_id
-            return result
+            return match.to_dict()
         except Exception:
             session.rollback()
             raise

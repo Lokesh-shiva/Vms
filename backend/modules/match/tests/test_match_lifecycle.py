@@ -25,6 +25,7 @@ from modules.fee_config.model.fee_config_model import RegionCartTypeConfig  # no
 from modules.payment.model.payment_model import Payment  # noqa: F401
 from modules.payment.model.system_config_model import SystemConfig  # noqa: F401
 from modules.matchmaking.model.queue_entry_model import QueueEntry  # noqa: F401
+from modules.captain.model.captain_model import Captain  # noqa: F401
 
 from modules.match.repository.match_repository import MatchRepository
 from modules.match.service.match_service import MatchService

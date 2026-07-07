@@ -57,6 +57,10 @@ class Match(Base):
     visibility = Column(String(20), nullable=False, default="OPEN")
     society_id = Column(Integer, ForeignKey("societies.id", ondelete="SET NULL"), nullable=True, index=True)
     invite_code = Column(String(8), nullable=True, unique=True, index=True)
+    # Permanent historical record of which captain led this match — unlike
+    # Captain.current_match_id (cleared when the captain becomes available again),
+    # this is never cleared and is the source of truth for captain earnings.
+    captain_id = Column(Integer, ForeignKey("captains.id", ondelete="SET NULL"), nullable=True, index=True)
     skill_level = Column(String, nullable=True)
     max_players = Column(Integer, nullable=False, default=2)
     joined_players = Column(Integer, nullable=False, default=0)
@@ -81,6 +85,7 @@ class Match(Base):
             "visibility": self.visibility,
             "society_id": self.society_id,
             "invite_code": self.invite_code,
+            "captain_id": self.captain_id,
             "skill_level": self.skill_level,
             "max_players": self.max_players,
             "joined_players": self.joined_players,

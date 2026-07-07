@@ -52,6 +52,10 @@ from modules.sport.model.sport_model import Sport  # noqa: F401 — registers mo
 from modules.matchmaking.model.queue_entry_model import QueueEntry  # noqa: F401 — registers model
 from modules.captain.controller.captain_routes import router as captain_router
 from modules.captain.model.captain_model import Captain  # noqa: F401 — registers model
+from modules.captain.model.captain_earning_model import CaptainEarning  # noqa: F401 — registers model
+from modules.notification.controller.notification_routes import router as notification_router
+from modules.notification.model.notification_model import Notification  # noqa: F401 — registers model
+from modules.notification.model.fcm_token_model import FcmToken  # noqa: F401 — registers model
 from modules.tournament.controller.tournament_routes import router as tournament_router
 from modules.tournament.controller.tournament_registration_routes import router as tournament_registration_router
 from modules.tournament.controller.tournament_match_routes import router as tournament_match_router
@@ -189,6 +193,7 @@ app.include_router(dispute_router)
 app.include_router(audit_router)
 app.include_router(society_router)
 app.include_router(wallet_router)
+app.include_router(notification_router)
 
 
 # ── Health Check ──────────────────────────────────────────────────────

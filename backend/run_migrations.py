@@ -206,6 +206,62 @@ cur.execute("""
     ON CONFLICT (region_id, cart_type_id) DO NOTHING;
 """)
 
+print("Running migration 16: add KYC + payout columns to captains ...")
+cur.execute("""
+    ALTER TABLE captains
+        ADD COLUMN IF NOT EXISTS kyc_document_url VARCHAR,
+        ADD COLUMN IF NOT EXISTS kyc_document_type VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS kyc_status VARCHAR(50) NOT NULL DEFAULT 'NOT_SUBMITTED',
+        ADD COLUMN IF NOT EXISTS verification_method VARCHAR(50),
+        ADD COLUMN IF NOT EXISTS rejection_reason TEXT,
+        ADD COLUMN IF NOT EXISTS payout_upi_id VARCHAR;
+""")
+
+print("Running migration 17: create captain_earnings table ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS captain_earnings (
+        id               SERIAL PRIMARY KEY,
+        captain_id       INT NOT NULL REFERENCES captains(id) ON DELETE CASCADE,
+        match_id         INT REFERENCES matches(id) ON DELETE SET NULL,
+        amount           NUMERIC(10,2) NOT NULL,
+        status           VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+        payout_reference VARCHAR,
+        created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
+        paid_at          TIMESTAMP
+    );
+""")
+
+print("Running migration 18: create notifications table ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS notifications (
+        id         SERIAL PRIMARY KEY,
+        user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title      VARCHAR NOT NULL,
+        body       TEXT NOT NULL,
+        type       VARCHAR(50) NOT NULL DEFAULT 'GENERAL',
+        data_json  JSON,
+        read       BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+
+print("Running migration 19: create fcm_tokens table ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS fcm_tokens (
+        id         SERIAL PRIMARY KEY,
+        user_id    INT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token      VARCHAR NOT NULL,
+        platform   VARCHAR(20) NOT NULL DEFAULT 'android',
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+
+print("Running migration 20: add captain_id to matches ...")
+cur.execute("""
+    ALTER TABLE matches
+        ADD COLUMN IF NOT EXISTS captain_id INTEGER REFERENCES captains(id) ON DELETE SET NULL;
+""")
+
 print("Running migration 21: add match visibility, society_id, invite_code ...")
 cur.execute("""
     ALTER TABLE matches

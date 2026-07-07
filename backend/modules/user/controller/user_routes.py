@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from modules.audit.service.audit_service import audit_service
 from modules.user.service.user_service import UserService
 from modules.user.schemas.user_schema import CreateUserSchema, UpdateUserSchema
 from modules.user.model.user_model import User, UserRole
+from modules.notification.service.notification_service import notification_service
 from modules.auth.dependencies.auth_dependencies import (
     _ADMIN_ROLES,
     get_current_user,
@@ -16,6 +18,11 @@ from sqlalchemy.orm import Session
 router = APIRouter(prefix="/api/v1/users", tags=["Users"])
 
 user_service = UserService()
+
+
+class FcmTokenRequest(BaseModel):
+    token: str
+    platform: str = Field(default="android")
 
 
 # ── Response helper ───────────────────────────────────────────────────
@@ -61,8 +68,8 @@ def get_assignable_roles(
     return _success({"assignable_roles": []})
 
 
-@router.post("", status_code=201, dependencies=[Depends(require_admin)])
-def create_user(request_data: dict):
+@router.post("", status_code=201)
+def create_user(request_data: dict, current_user: dict = Depends(require_admin)):
     """Create a new user. Requires admin role."""
     schema = CreateUserSchema(request_data)
     if not schema.is_valid():
@@ -70,6 +77,13 @@ def create_user(request_data: dict):
 
     try:
         user = user_service.create_user(schema.validated_data)
+        audit_service.log(
+            action="USER_CREATED",
+            actor_user_id=current_user["id"],
+            target_resource_type="user",
+            target_resource_id=user["id"],
+            details={"role": user.get("role")},
+        )
         return _success(user, "User created successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -155,14 +169,12 @@ def update_user(
         )
 
     # Guard 2: Role-change — only SUPER_ADMIN may assign/change roles.
-    # TODO(phase01-audit): emit audit event here — role change
     if "role" in request_data and caller_role != UserRole.SUPER_ADMIN.value:
         raise HTTPException(
             status_code=403, detail="Only super admins can change user roles."
         )
 
     # Guard 3: Deactivation — only SUPER_ADMIN may set is_active=False.
-    # TODO(phase01-audit): emit audit event here — deactivation
     if (
         request_data.get("is_active") is False
         and caller_role != UserRole.SUPER_ADMIN.value
@@ -195,6 +207,14 @@ def update_user(
                 target_resource_id=user_id,
                 details={"new_role": request_data["role"]},
             )
+        if request_data.get("is_active") is False:
+            audit_service.log(
+                action="DEACTIVATION",
+                actor_user_id=current_user["id"],
+                target_resource_type="user",
+                target_resource_id=user_id,
+                details={},
+            )
         return _success(user, "User updated successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -210,3 +230,13 @@ def delete_user(user_id: int, current_user: dict = Depends(require_admin)):
         return _success(None, "User deleted successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.put("/me/fcm-token")
+def update_fcm_token(
+    request: FcmTokenRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Register/update the caller's push notification device token."""
+    notification_service.register_token(current_user["id"], request.token, request.platform)
+    return _success(None, "Token registered.")
