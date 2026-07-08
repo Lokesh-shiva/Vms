@@ -18,6 +18,12 @@ class TournamentRepository(private val apiService: ApiService) {
         throw Exception(response.message ?: "Failed to fetch tournaments")
     }
 
+    suspend fun getMySponsoredTournaments(): List<Tournament> {
+        val response = apiService.getMySponsoredTournaments()
+        if (response.success && response.data != null) return response.data
+        throw Exception(response.message ?: "Failed to fetch sponsored tournaments")
+    }
+
     suspend fun createTournament(request: CreateTournamentRequest): Tournament {
         val response = apiService.createTournament(request)
         if (response.success && response.data != null) return response.data

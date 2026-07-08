@@ -31,6 +31,10 @@ data class TournamentUiState(
     val detailError: String? = null,
     val schedulingMatch: Boolean = false,
     val recordingResultForMatchId: Int? = null,
+    // CSR partner's own sponsored-tournaments view
+    val sponsoredTournaments: List<Tournament> = emptyList(),
+    val sponsoredLoading: Boolean = false,
+    val sponsoredError: String? = null,
 )
 
 class TournamentViewModel(private val repository: TournamentRepository) : ViewModel() {
@@ -179,6 +183,40 @@ class TournamentViewModel(private val repository: TournamentRepository) : ViewMo
 
     fun clearDetailError() {
         _uiState.value = _uiState.value.copy(detailError = null)
+    }
+
+    // ── CSR partner: my sponsored tournaments ────────────────────────────
+
+    fun loadMySponsoredTournaments() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(sponsoredLoading = true, sponsoredError = null)
+            try {
+                val sponsored = repository.getMySponsoredTournaments()
+                _uiState.value = _uiState.value.copy(sponsoredTournaments = sponsored, sponsoredLoading = false)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    sponsoredLoading = false,
+                    sponsoredError = e.message ?: "Failed to load sponsored tournaments",
+                )
+            }
+        }
+    }
+
+    fun assignSponsor(tournamentId: Int, sponsorUserId: Int) {
+        viewModelScope.launch {
+            try {
+                val updated = repository.updateTournament(
+                    tournamentId,
+                    UpdateTournamentRequest(sponsor_user_id = sponsorUserId)
+                )
+                _uiState.value = _uiState.value.copy(
+                    selectedTournament = if (_uiState.value.selectedTournament?.id == tournamentId) updated else _uiState.value.selectedTournament,
+                    tournaments = _uiState.value.tournaments.map { if (it.id == tournamentId) updated else it },
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(detailError = e.message ?: "Failed to assign sponsor")
+            }
+        }
     }
 
 }

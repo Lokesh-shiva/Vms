@@ -26,8 +26,8 @@ Project pivot: the existing **VMS Admin App** is being restructured into the **P
 - Admin app build: **DO NOT build the APK** — user builds and installs via Android Studio directly. Never run `gradlew assembleDebug` unless explicitly verifying a compile error.
 - DB migrations: `venv\Scripts\python.exe backend/run_migrations.py`
 
-## Current focus — Phase 02
-Finance reporting · CSR_PARTNER screens
+## Current focus
+Phase 02 complete (Finance reporting + CSR_PARTNER screens shipped). Awaiting Phase 03 scope.
 
 ## Known gaps (priority order)
 
@@ -48,6 +48,8 @@ Finance reporting · CSR_PARTNER screens
 - Dispute self-service — `GET/POST /api/v1/disputes/mine` for regular users to raise/view their own tickets
 - Society leaderboard/member name enrichment — member `name` field was missing, now populated
 - Audit log — full coverage (added payment approve/reject/refund, booking cancellation) + admin app filter/pagination UI
+- Finance reporting — daily revenue/refund report + CSV export (`GET /payments/report`, `/report/export`), admin Reports tab
+- CSR_PARTNER screens — `Tournament.sponsor_user_id`, admin sponsor-assignment UI, real `CsrScreen` scoped to the partner's own sponsored tournaments (was leaking unscoped match data before)
 
 **2026-07-06 → 2026-07-07 incident note**: what looked like a code-loss incident was actually
 an unpopped `git stash` (git auto-stashes uncommitted tracked-file changes before a

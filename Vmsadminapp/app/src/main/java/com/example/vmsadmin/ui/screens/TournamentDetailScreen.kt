@@ -16,25 +16,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.vmsadmin.models.AppUser
 import com.example.vmsadmin.models.CreateTournamentMatchRequest
 import com.example.vmsadmin.models.TournamentMatch
 import com.example.vmsadmin.models.TournamentRegistration
 import com.example.vmsadmin.models.TournamentStanding
 import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.viewmodel.TournamentViewModel
+import com.example.vmsadmin.viewmodel.UserManagementState
+import com.example.vmsadmin.viewmodel.UserManagementViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TournamentDetailScreen(
     viewModel: TournamentViewModel,
+    userManagementViewModel: UserManagementViewModel,
     onBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val userState by userManagementViewModel.state.collectAsState()
+    val csrPartners: List<AppUser> = (userState as? UserManagementState.Success)
+        ?.users?.filter { it.role == "csr_partner" } ?: emptyList()
     val tournament = uiState.selectedTournament
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTab by remember { mutableIntStateOf(0) }
     var showScheduleDialog by remember { mutableStateOf(false) }
     var resultTarget by remember { mutableStateOf<TournamentMatch?>(null) }
+    var showSponsorDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(uiState.detailError) {
         uiState.detailError?.let { snackbarHostState.showSnackbar(it); viewModel.clearDetailError() }
@@ -66,6 +74,15 @@ fun TournamentDetailScreen(
             scheduling = uiState.schedulingMatch,
             onConfirm = { request -> viewModel.scheduleMatch(tournament.id, request); showScheduleDialog = false },
             onDismiss = { showScheduleDialog = false },
+        )
+    }
+
+    if (showSponsorDialog) {
+        AssignSponsorDialog(
+            csrPartners = csrPartners,
+            currentSponsorId = tournament.sponsor_user_id,
+            onConfirm = { userId -> viewModel.assignSponsor(tournament.id, userId); showSponsorDialog = false },
+            onDismiss = { showSponsorDialog = false },
         )
     }
 
@@ -104,6 +121,7 @@ fun TournamentDetailScreen(
                 Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("Matches") })
                 Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("Standings") })
                 Tab(selected = selectedTab == 2, onClick = { selectedTab = 2 }, text = { Text("Registrations") })
+                Tab(selected = selectedTab == 3, onClick = { selectedTab = 3 }, text = { Text("Sponsor") })
             }
             when {
                 uiState.detailLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -113,6 +131,11 @@ fun TournamentDetailScreen(
                     0 -> MatchesTab(uiState.matches, ::participantName, onRecordResult = { resultTarget = it })
                     1 -> StandingsTab(uiState.standings, ::participantName)
                     2 -> RegistrationsTab(uiState.registrations, isTeamTournament)
+                    3 -> SponsorTab(
+                        sponsor = csrPartners.find { it.id == tournament.sponsor_user_id },
+                        sponsorUserId = tournament.sponsor_user_id,
+                        onAssign = { showSponsorDialog = true },
+                    )
                 }
             }
         }
@@ -203,6 +226,72 @@ private fun RegistrationsTab(registrations: List<TournamentRegistration>, isTeam
             }
         }
     }
+}
+
+@Composable
+private fun SponsorTab(sponsor: AppUser?, sponsorUserId: Int?, onAssign: () -> Unit) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        AppCard {
+            if (sponsor != null) {
+                Text("Sponsored by", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(sponsor.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(sponsor.phone, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else if (sponsorUserId != null) {
+                Text(
+                    "Sponsored by CSR partner #$sponsorUserId",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            } else {
+                Text("No CSR sponsor assigned.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.height(12.dp))
+            Button(onClick = onAssign) { Text(if (sponsorUserId == null) "Assign sponsor" else "Change sponsor") }
+        }
+    }
+}
+
+@Composable
+private fun AssignSponsorDialog(
+    csrPartners: List<AppUser>,
+    currentSponsorId: Int?,
+    onConfirm: (userId: Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var selected by remember { mutableStateOf(csrPartners.find { it.id == currentSponsorId }) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Assign CSR sponsor") },
+        text = {
+            if (csrPartners.isEmpty()) {
+                Text("No CSR partner accounts found. Create one from User Management first.")
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.heightIn(max = 320.dp)) {
+                    items(csrPartners, key = { it.id }) { user ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = selected?.id == user.id, onClick = { selected = user })
+                            Spacer(Modifier.width(8.dp))
+                            Column {
+                                Text(user.name, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                                Text(user.phone, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { selected?.let { onConfirm(it.id) } },
+                enabled = selected != null,
+            ) { Text("Assign") }
+        },
+        dismissButton = { OutlinedButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable

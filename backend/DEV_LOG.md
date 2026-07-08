@@ -2577,6 +2577,11 @@ forward.
 - Date filters are plain `YYYY-MM-DD` text fields, not a Compose `DatePicker` — kept scope tight;
   swap in a real date picker if manual entry becomes a complaint.
 
+### Verified
+- Full backend suite: 431 passed.
+- This was the last item on the audit-log punch list (backend filters/pagination/coverage +
+  admin app UI) — both tracked tasks are now complete.
+
 ---
 ## [2026-07-07] Phase 02 — Finance reporting: daily revenue/refund report + CSV export
 
@@ -2617,9 +2622,56 @@ forward.
   has no concept of tournament sponsorship/CSR allocation at all (no `sponsor`/`csr` field
   anywhere in the tournament module), and the existing `CsrScreen.kt` is a placeholder that
   leaks unscoped match data via `MatchViewModel`. This needs a product decision on the
-  CSR-to-tournament data model before any code — see DEV_LOG follow-up / ask the user.
+  CSR-to-tournament data model before any code — resolved in the next entry below.
+
+---
+## [2026-07-07] Phase 02 — CSR_PARTNER: tournament sponsorship model + real CsrScreen
+
+### Product decision
+Asked the user how a CSR_PARTNER's tournament view should be scoped, since the backend had no
+sponsorship concept at all. Chose "sponsor a specific tournament" over a shared funding pool or
+unscoped read-all access: a nullable `sponsor_user_id` on `Tournament`, one CSR partner per
+tournament, CSR partner's dashboard shows only tournaments they sponsor.
+
+### Added
+**Backend**
+- `Tournament.sponsor_user_id` — nullable FK to `users.id`, `ON DELETE SET NULL`. Migration 24.
+- `tournament_service.update_tournament()` — when `sponsor_user_id` is set, validates the target
+  user exists and has `role == "csr_partner"` (raises `ValueError` otherwise). Assignment goes
+  through the existing `PUT /tournaments/{id}` (already TOURNAMENT_MANAGER/SUPER_ADMIN only —
+  no new auth guard needed).
+- `tournament_service.list_sponsored(sponsor_user_id)` + `GET /api/v1/tournaments/csr/mine`
+  (CSR_PARTNER/SUPER_ADMIN) — returns only the caller's sponsored tournaments, enriched via the
+  existing `find_all_enriched()` (sport name, location name, `registered_teams` count).
+- `backend/modules/tournament/tests/test_tournament_sponsor.py` — 9 tests (schema validation,
+  assign to CSR partner succeeds, assign to non-CSR user rejected, assign to unknown user
+  rejected, unassign via null, `list_sponsored` scoping).
+
+**Admin app**
+- `TournamentDetailScreen.kt` — new "Sponsor" tab showing the current sponsor (or none) with an
+  Assign/Change button; `AssignSponsorDialog` lists CSR_PARTNER users (filtered client-side from
+  `UserManagementViewModel`'s already-loaded user list) as a radio picker.
+- `CsrScreen.kt` — full rewrite. Was a placeholder ("Tournament listings are coming soon") plus
+  an unscoped `MatchViewModel.loadMatches()` call that leaked every match in the system to any
+  CSR_PARTNER account. Now calls `GET /tournaments/csr/mine` via `TournamentViewModel` and shows
+  only the partner's own sponsored tournaments (dates, registration count, prize pool, status).
+- `TournamentViewModel.kt` — `loadMySponsoredTournaments()`, `assignSponsor()`.
+- `MainScreen.kt` — `CsrScreen`/`TournamentDetailScreen` call sites updated to pass
+  `tournamentViewModel`/`userManagementViewModel` instead of the old `matchViewModel`.
+
+### Architectural decisions
+- One sponsor per tournament (single nullable FK), not a many-to-many sponsorship table — matches
+  the chosen "sponsor a tournament" model exactly; a partner sponsoring multiple tournaments just
+  means multiple `Tournament` rows point at the same `sponsor_user_id`.
+- Sponsor assignment reuses the existing tournament update endpoint/schema rather than a
+  dedicated route — it's one more optional field alongside `status`/`name`/etc., and the
+  TOURNAMENT_MANAGER/SUPER_ADMIN gate was already correct for this action.
+- The CSR partner picker in the admin app filters the already-loaded `UserManagementViewModel`
+  user list client-side instead of adding a `?role=csr_partner` backend query param — the admin
+  app already loads all users for the User Management screen, so this avoids a redundant call for
+  what's expected to be a small list of CSR accounts.
 
 ### Verified
-- Full backend suite: 431 passed.
-- This was the last item on the audit-log punch list (backend filters/pagination/coverage +
-  admin app UI) — both tracked tasks are now complete.
+- New tests: 9 passed. Full backend suite: 443 passed.
+- Migration 24 applied cleanly to the live Neon DB.
+- This closes out both Phase 02 focus items (Finance reporting, CSR_PARTNER screens).

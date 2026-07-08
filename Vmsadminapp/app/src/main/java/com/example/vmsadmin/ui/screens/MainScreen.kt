@@ -257,7 +257,7 @@ fun MainScreen(
                     if (role !in CSR_ROLES) {
                         LaunchedEffect(Unit) { onForbidden() }
                     } else {
-                        CsrScreen(matchViewModel = matchViewModel)
+                        CsrScreen(tournamentViewModel = tournamentViewModel)
                     }
                 }
                 composable(BottomNavItem.Manage.route) {
@@ -365,6 +365,7 @@ fun MainScreen(
                     if (role !in TOURNAMENT_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
                     else TournamentDetailScreen(
                         viewModel = tournamentViewModel,
+                        userManagementViewModel = userManagementViewModel,
                         onBack = { navController.popBackStack() }
                     )
                 }

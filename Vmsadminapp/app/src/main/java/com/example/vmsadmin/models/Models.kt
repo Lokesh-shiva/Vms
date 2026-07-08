@@ -458,6 +458,8 @@ data class Tournament(
     val prize_pool: String = "",
     val description: String = "",
     val banner_url: String? = null,
+    val sponsor_user_id: Int? = null,
+    val registered_teams: Int? = null,
     val created_at: String? = null,
     val updated_at: String? = null
 )
@@ -480,7 +482,8 @@ data class CreateTournamentRequest(
 data class UpdateTournamentRequest(
     val status: String? = null,
     val name: String? = null,
-    val organizer: String? = null
+    val organizer: String? = null,
+    val sponsor_user_id: Int? = null,
 )
 
 @Serializable

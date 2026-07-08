@@ -329,6 +329,9 @@ interface ApiService {
     @GET("/api/v1/tournaments")
     suspend fun getTournaments(): ApiResponse<List<Tournament>>
 
+    @GET("/api/v1/tournaments/csr/mine")
+    suspend fun getMySponsoredTournaments(): ApiResponse<List<Tournament>>
+
     @POST("/api/v1/tournaments")
     suspend fun createTournament(@Body request: CreateTournamentRequest): ApiResponse<Tournament>
 
