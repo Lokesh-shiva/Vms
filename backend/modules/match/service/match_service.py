@@ -789,6 +789,19 @@ class MatchService(BaseService):
                     match_id,
                 )
 
+        # Award each player a wallet coin bonus for completing the match (non-fatal).
+        try:
+            from modules.wallet.service.wallet_service import wallet_service
+
+            for player_user_id in self.match_repo.find_player_user_ids(match_id):
+                wallet_service.award_match_completion_bonus(player_user_id, match_id)
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).exception(
+                "finish_match: wallet bonus award failed for match %d (non-fatal)", match_id
+            )
+
         return result
 
     # ── Enrichment ────────────────────────────────────────────────────

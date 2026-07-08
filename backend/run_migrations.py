@@ -300,6 +300,20 @@ cur.execute("""
         ADD COLUMN IF NOT EXISTS sponsor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
 """)
 
+print("Running migration 25: create wallet_transactions table ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS wallet_transactions (
+        id          SERIAL PRIMARY KEY,
+        user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type        VARCHAR(10) NOT NULL,
+        amount      INT NOT NULL,
+        reason      VARCHAR(50) NOT NULL,
+        description TEXT NOT NULL,
+        match_id    INT REFERENCES matches(id) ON DELETE SET NULL,
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+
 conn.commit()
 cur.close()
 conn.close()

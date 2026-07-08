@@ -32,9 +32,8 @@ Phase 02 complete (Finance reporting + CSR_PARTNER screens shipped). Awaiting Ph
 ## Known gaps (priority order)
 
 ### Medium — stubs / deferred by product decision
-1. **Wallet** — backend returns `{balance:0}` / `[]`; no ledger table; keep `WALLET=false` (deferred, not a bug — this is the player-facing coin wallet, unrelated to the captain earnings wallet below)
-2. **Captain KYC storage** — local disk (`backend/uploads/kyc/`, gitignored). Ephemeral on Render — files lost on redeploy. Move to S3/Cloudinary before real scale.
-3. **Captain KYC verification** — manual admin review only (`verification_method=MANUAL`).
+1. **Captain KYC storage** — local disk (`backend/uploads/kyc/`, gitignored). Ephemeral on Render — files lost on redeploy. Move to S3/Cloudinary before real scale.
+2. **Captain KYC verification** — manual admin review only (`verification_method=MANUAL`).
 
 ### Done ✓
 - Tournament admin management — match scheduling, result entry, standings, registrations wired into a new admin `TournamentDetailScreen`; `GET /tournaments/{id}/registrations` added
@@ -50,6 +49,8 @@ Phase 02 complete (Finance reporting + CSR_PARTNER screens shipped). Awaiting Ph
 - Audit log — full coverage (added payment approve/reject/refund, booking cancellation) + admin app filter/pagination UI
 - Finance reporting — daily revenue/refund report + CSV export (`GET /payments/report`, `/report/export`), admin Reports tab
 - CSR_PARTNER screens — `Tournament.sponsor_user_id`, admin sponsor-assignment UI, real `CsrScreen` scoped to the partner's own sponsored tournaments (was leaking unscoped match data before)
+- Player wallet — earn-only coin ledger (`WalletTransaction`), match-completion bonus, real `GET /wallet/balance`/`transactions`; no purchase/top-up path by design (matches no-payment-gateway architecture)
+- Vmsuserapp compile fix — `SupportScreen` was referenced but never existed (app would not build); rebuilt against the already-correct `/api/v1/disputes/mine` backend contract
 
 **2026-07-06 → 2026-07-07 incident note**: what looked like a code-loss incident was actually
 an unpopped `git stash` (git auto-stashes uncommitted tracked-file changes before a

@@ -17,8 +17,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.vmsuser.models.WalletTransaction
-import com.example.vmsuser.ui.components.PlixoButton
-import com.example.vmsuser.ui.components.PlixoButtonVariant
 import com.example.vmsuser.ui.components.PlixoTopBar
 import com.example.vmsuser.ui.theme.*
 import com.example.vmsuser.viewmodel.ProfileViewModel
@@ -60,8 +58,13 @@ fun WalletScreen(navController: NavController) {
                         Spacer(Modifier.width(8.dp))
                         Text("coins", fontFamily = PlusJakartaSans, fontSize = 16.sp, color = Color.White.copy(0.6f))
                     }
-                    Spacer(Modifier.height(16.dp))
-                    PlixoButton("Add coins", onClick = {}, variant = PlixoButtonVariant.Lime)
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Earned by completing matches",
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 12.sp,
+                        color = Color.White.copy(0.5f),
+                    )
                 }
             }
         }
@@ -76,8 +79,20 @@ fun WalletScreen(navController: NavController) {
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
             )
         }
-        items(transactions) { tx ->
-            TransactionRow(tx)
+        if (transactions.isEmpty()) {
+            item {
+                Text(
+                    "No transactions yet — play and complete a match to earn coins.",
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 13.sp,
+                    color = PlixoText2,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                )
+            }
+        } else {
+            items(transactions) { tx ->
+                TransactionRow(tx)
+            }
         }
         item { Spacer(Modifier.height(100.dp)) }
     }

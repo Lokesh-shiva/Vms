@@ -231,6 +231,19 @@ class MatchRepository:
         finally:
             session.close()
 
+    def find_player_user_ids(self, match_id: int) -> list[int]:
+        """User IDs of everyone who joined this match (as a player, not the organizing captain)."""
+        session = self._session_factory()
+        try:
+            rows = (
+                session.query(MatchPlayer.user_id)
+                .filter(MatchPlayer.match_id == match_id)
+                .all()
+            )
+            return [r[0] for r in rows]
+        finally:
+            session.close()
+
     def find_abandoned_waiting(self, cutoff: datetime) -> list[dict]:
         """WAITING matches with <=1 player, created before the cutoff — candidates for auto-cancel."""
         session = self._session_factory()

@@ -19,10 +19,10 @@ class ProfileViewModel : ViewModel() {
     private val _notifications = MutableStateFlow<List<Notification>>(emptyList())
     val notifications: StateFlow<List<Notification>> = _notifications
 
-    private val _transactions = MutableStateFlow<List<WalletTransaction>>(mockTransactions())
+    private val _transactions = MutableStateFlow<List<WalletTransaction>>(emptyList())
     val transactions: StateFlow<List<WalletTransaction>> = _transactions
 
-    private val _walletBalance = MutableStateFlow(240)
+    private val _walletBalance = MutableStateFlow(0)
     val walletBalance: StateFlow<Int> = _walletBalance
 
     fun loadNotifications() {
@@ -46,6 +46,11 @@ class ProfileViewModel : ViewModel() {
                 repo.getWalletTransactions().onSuccess { _transactions.value = it }
             } catch (e: Exception) { Log.e("ProfileVM", "loadTransactions", e) }
         }
+        viewModelScope.launch {
+            try {
+                repo.getWalletBalance().onSuccess { _walletBalance.value = it }
+            } catch (e: Exception) { Log.e("ProfileVM", "loadWalletBalance", e) }
+        }
     }
 
     fun updateProfile(name: String, region: String, onDone: () -> Unit) {
@@ -56,10 +61,4 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    private fun mockTransactions() = listOf(
-        WalletTransaction(1, "debit", -400, "Badminton match · Kanteerava", "2026-06-15"),
-        WalletTransaction(2, "credit", 50, "Match completion bonus", "2026-06-14"),
-        WalletTransaction(3, "debit", -500, "Cricket match · BBMP Ground", "2026-06-12"),
-        WalletTransaction(4, "credit", 100, "Referral bonus", "2026-06-10"),
-    )
 }

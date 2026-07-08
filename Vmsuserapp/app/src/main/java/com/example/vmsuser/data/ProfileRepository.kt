@@ -31,4 +31,10 @@ class ProfileRepository {
         if (res.success && res.data != null) Result.success(res.data)
         else Result.failure(Exception(res.message ?: "Failed"))
     } catch (e: Exception) { Log.e("ProfileRepo", "getWalletTransactions", e); Result.failure(e) }
+
+    suspend fun getWalletBalance(): Result<Int> = try {
+        val res = api.getWalletBalance()
+        if (res.success && res.data != null) Result.success(res.data["balance"] ?: 0)
+        else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: Exception) { Log.e("ProfileRepo", "getWalletBalance", e); Result.failure(e) }
 }

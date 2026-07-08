@@ -76,6 +76,7 @@ from modules.audit.controller.audit_routes import router as audit_router
 from modules.audit.model.audit_model import AuditLog  # noqa: F401 — registers model
 from modules.society.controller.society_routes import router as society_router
 from modules.wallet.controller.wallet_routes import router as wallet_router
+from modules.wallet.model.wallet_transaction_model import WalletTransaction  # noqa: F401 — registers model
 from modules.society.model.society_model import Society  # noqa: F401 — registers model
 from modules.society.model.society_member_model import SocietyMember  # noqa: F401 — registers model
 from modules.otp.model.otp_model import OtpCode  # noqa: F401 — registers model

@@ -2719,3 +2719,53 @@ The backend side was never actually missing: `GET/POST /api/v1/disputes/mine` an
   `WalletScreen.kt`'s "Add coins" button is a no-op. Since this whole feature is already flagged
   as deferred by product decision in `CLAUDE.md`, no fix applied here — flagging again for
   visibility in case that decision changes.
+
+---
+## [2026-07-08] Phase 03 — Real player wallet: earn-only coin ledger
+
+### Product decision
+User asked whether to revisit the deferred wallet. Given three options — earn-only, earn +
+manual UPI top-up, or ledger-only with no earning rules — chose **earn-only**: coins are
+awarded solely by system events (currently: match completion), no purchase/top-up path. This
+avoids inventing a payment-gateway integration that doesn't exist anywhere else in the codebase
+(bookings use manual UPI submit-and-approve, not a real gateway) and matches what the old mock
+data already implied ("Match completion bonus", "Referral bonus" — though referral itself
+doesn't exist as a feature anywhere and was not built here; only match completion was wired,
+since inventing a full referral system was out of scope for a wallet ledger).
+
+### Added
+**Backend**
+- `backend/modules/wallet/model/wallet_transaction_model.py` — `WalletTransaction` (user_id,
+  type CREDIT/DEBIT, amount as positive magnitude, reason, description, match_id, created_at).
+  Append-only ledger; balance is always derived, never stored/mutated directly.
+- `backend/modules/wallet/repository/wallet_transaction_repository.py` — `create`,
+  `find_by_user`, `get_balance` (sum credits minus debits), `has_bonus_for_match` (idempotency
+  guard).
+- `backend/modules/wallet/service/wallet_service.py` — `get_balance`, `get_transactions`
+  (converts to the app's signed-amount/lowercase-type contract), `award_match_completion_bonus`
+  (idempotent per user+match, amount admin-configurable via `SystemConfig.WALLET_MATCH_COMPLETION_BONUS`,
+  default 20).
+- `match_repository.find_player_user_ids(match_id)` — new helper.
+- `match_service.finish_match()` — after the existing captain-earning hook, awards each match
+  player a completion bonus, non-fatal (same try/except-log pattern as the payment-split and
+  captain-earning hooks already in this method).
+- `GET /api/v1/wallet/balance` and `GET /api/v1/wallet/transactions` now return real data —
+  replaces the `{"balance": 0}` / `[]` hardcoded stub. **No route signature change** — both apps'
+  existing Retrofit contracts already matched this shape.
+- Migration 25 (`wallet_transactions` table), applied to the live Neon DB.
+- `backend/modules/wallet/tests/test_wallet_service.py` — 7 tests (balance math, bonus award,
+  system-config override, idempotency per match, per-user isolation, response shape).
+
+**User app**
+- `ProfileViewModel.kt` — removed `mockTransactions()` and the hardcoded `walletBalance = 240`;
+  `loadTransactions()` now also loads the real balance via a new `ProfileRepository.getWalletBalance()`.
+- `WalletScreen.kt` — removed the "Add coins" button (was `onClick = {}`, a genuine no-op);
+  added an empty-transactions state ("play and complete a match to earn coins").
+
+### Verified
+- New tests: 7 passed. Full backend suite: 450 passed.
+- Migration 25 applied cleanly to the live DB.
+- Admin app audited for the same class of broken-reference bug found in Vmsuserapp yesterday
+  (missing `SupportScreen`) — none found. Every screen/ViewModelFactory/Repository referenced
+  from `MainActivity.kt`/`MainScreen.kt` has a real definition; zero `onClick = {}` or
+  "coming soon" placeholders anywhere in the admin app.
