@@ -80,6 +80,13 @@ class CreateTournamentSchema:
             if field in self._data and self._data[field] is not None:
                 self.validated_data[field] = str(self._data[field])
 
+        if "sponsor_user_id" in self._data:
+            sid = self._data["sponsor_user_id"]
+            if sid is not None and (not isinstance(sid, int) or sid <= 0):
+                self.errors.append("'sponsor_user_id' must be a positive integer or null.")
+            else:
+                self.validated_data["sponsor_user_id"] = sid
+
         if "rules_json" in self._data:
             rj = self._data["rules_json"]
             if rj is not None and not isinstance(rj, dict):
@@ -160,6 +167,13 @@ class UpdateTournamentSchema:
         for field in ("prize_pool", "description", "banner_url"):
             if field in self._data and self._data[field] is not None:
                 self.validated_data[field] = str(self._data[field])
+
+        if "sponsor_user_id" in self._data:
+            sid = self._data["sponsor_user_id"]
+            if sid is not None and (not isinstance(sid, int) or sid <= 0):
+                self.errors.append("'sponsor_user_id' must be a positive integer or null.")
+            else:
+                self.validated_data["sponsor_user_id"] = sid
 
         if "rules_json" in self._data:
             rj = self._data["rules_json"]

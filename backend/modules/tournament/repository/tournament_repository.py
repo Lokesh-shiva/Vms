@@ -27,6 +27,7 @@ class TournamentRepository:
                 prize_pool=data.get("prize_pool", ""),
                 banner_url=data.get("banner_url"),
                 description=data.get("description"),
+                sponsor_user_id=data.get("sponsor_user_id"),
                 rules_json=data.get("rules_json", {}),
             )
             session.add(t)

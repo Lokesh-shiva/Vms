@@ -294,6 +294,12 @@ cur.execute("""
         ADD COLUMN IF NOT EXISTS description TEXT;
 """)
 
+print("Running migration 24: add sponsor_user_id to tournaments ...")
+cur.execute("""
+    ALTER TABLE tournaments
+        ADD COLUMN IF NOT EXISTS sponsor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+""")
+
 conn.commit()
 cur.close()
 conn.close()

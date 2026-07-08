@@ -54,6 +54,7 @@ class Tournament(Base):
     prize_pool = Column(String(100), nullable=False, default="")
     banner_url = Column(String(500), nullable=True)
     description = Column(Text, nullable=True)
+    sponsor_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     rules_json = Column(JSON, nullable=False, default=dict)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -78,6 +79,7 @@ class Tournament(Base):
             "prize_pool": self.prize_pool or "",
             "banner_url": self.banner_url,
             "description": self.description or "",
+            "sponsor_user_id": self.sponsor_user_id,
             "rules_json": self.rules_json or {},
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

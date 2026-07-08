@@ -66,6 +66,12 @@ class TournamentService:
             current_rules = existing.get("rules_json") or {}
             current_rules.update(data["rules_json"])
             data["rules_json"] = current_rules
+        if "sponsor_user_id" in data and data["sponsor_user_id"] is not None:
+            sponsor = self.user_repository.find_by_id(data["sponsor_user_id"])
+            if not sponsor:
+                raise ValueError("Sponsor user not found.")
+            if sponsor.get("role") != "csr_partner":
+                raise ValueError("sponsor_user_id must belong to a CSR_PARTNER user.")
         return self.repository.update(tournament_id, data)
 
     def delete_tournament(self, tournament_id: int) -> bool:
@@ -126,6 +132,13 @@ class TournamentService:
         if not existing or existing["status"] != ParticipantStatus.REGISTERED:
             raise ValueError("User is not registered in this tournament.")
         return self.participant_repository.update_status(tournament_id, user_id, ParticipantStatus.WITHDRAWN)
+
+    def list_sponsored(self, sponsor_user_id: int) -> list[dict]:
+        """Tournaments sponsored by this CSR partner, enriched with registration counts."""
+        return [
+            t for t in self.repository.find_all_enriched()
+            if t.get("sponsor_user_id") == sponsor_user_id
+        ]
 
     def list_registrations(self, tournament_id: int) -> list[dict]:
         """

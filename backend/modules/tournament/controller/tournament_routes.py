@@ -22,6 +22,14 @@ def list_tournaments_public(current_user: dict = Depends(require_user)):
     return _success(visible)
 
 
+@router.get("/csr/mine")
+def list_my_sponsored_tournaments(
+    current_user: dict = require_role(UserRole.CSR_PARTNER, UserRole.SUPER_ADMIN),
+):
+    """Tournaments the authenticated CSR partner sponsors."""
+    return _success(tournament_service.list_sponsored(current_user["id"]))
+
+
 @router.get("")
 def list_tournaments(
     current_user: dict = require_role(
