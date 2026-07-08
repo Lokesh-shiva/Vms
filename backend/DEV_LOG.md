@@ -2675,3 +2675,47 @@ tournament, CSR partner's dashboard shows only tournaments they sponsor.
 - New tests: 9 passed. Full backend suite: 443 passed.
 - Migration 24 applied cleanly to the live Neon DB.
 - This closes out both Phase 02 focus items (Finance reporting, CSR_PARTNER screens).
+
+---
+## [2026-07-08] Fix — Vmsuserapp did not compile: missing SupportScreen
+
+### The problem
+User asked for an end-to-end completeness audit across backend + both apps. Found
+`Vmsuserapp/.../navigation/AppNavigation.kt:148` referencing `SupportScreen(navController)` for
+the `Screen.Support` route (linked from `SettingsScreen.kt`'s "Help & Support" item), but no
+`SupportScreen` composable existed anywhere in the app — a genuine compile error, not a missing
+feature the app just gracefully lacked. Root cause: `AppNavigation.kt` is a tracked file that
+survived the 2026-07-06 stash incident intact (it referenced the screen before the incident),
+but `SupportScreen.kt` itself was untracked at the time and was lost along with the rest of the
+untracked files (notification/chat modules, etc.) — never rebuilt in this session's recovery
+because the audit that found it hadn't happened yet.
+
+The backend side was never actually missing: `GET/POST /api/v1/disputes/mine` and the
+`Dispute`/`CreateDisputeRequest` Retrofit models were already present and correct in
+`ApiService.kt`/`Models.kt` — only the repository/viewmodel/screen layer was gone.
+
+### Added
+**User app**
+- `data/SupportRepository.kt` — `getMyDisputes()`, `createDispute(title, description)`.
+- `viewmodel/SupportViewModel.kt` — tickets list, submit-in-progress state, error state.
+- `ui/screens/profile/SupportScreen.kt` — ticket list (status-badged) + a "Raise a new ticket"
+  form (title + description, 10-char minimum on description). Matches existing screen
+  conventions (`PlixoTopBar`, `PlixoButton`, `PlixoShape`, theme colors/fonts) rather than
+  introducing new patterns.
+
+### Verified
+- Confirmed no other references to nonexistent composables via `grep -rn` sanity sweep of
+  `AppNavigation.kt`'s screen imports (this was the only broken one).
+- Backend unaffected — full suite still 443 passed.
+- Not build-verified (no Android Studio/Gradle build run per project policy — DO NOT build the
+  APK). Brace/paren balance checked programmatically; every theme identifier and component
+  signature used was verified against its actual definition before use.
+
+### Other findings from the same audit (not yet acted on)
+- `backend/modules/wallet/` is a hardcoded stub (`GET /balance` always returns `{"balance": 0}`,
+  `GET /transactions` always returns `[]`) — this is the **known, deliberately deferred**
+  player-facing coin wallet (`WALLET=false`), not a new finding. `Vmsuserapp/.../ProfileViewModel.kt`
+  mirrors this with a hardcoded `walletBalance = 240` and 4 fabricated mock transactions, and
+  `WalletScreen.kt`'s "Add coins" button is a no-op. Since this whole feature is already flagged
+  as deferred by product decision in `CLAUDE.md`, no fix applied here — flagging again for
+  visibility in case that decision changes.
