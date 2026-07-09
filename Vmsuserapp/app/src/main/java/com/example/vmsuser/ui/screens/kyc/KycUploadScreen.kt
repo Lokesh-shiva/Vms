@@ -30,6 +30,7 @@ import com.example.vmsuser.viewmodel.CaptainViewModel
 
 private val DOCUMENT_TYPES = listOf("AADHAAR" to "Aadhaar", "PAN" to "PAN Card", "DRIVING_LICENSE" to "Driving License")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun KycUploadScreen(navController: NavController) {
     val vm: CaptainViewModel = viewModel()

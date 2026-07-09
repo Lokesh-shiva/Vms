@@ -2769,3 +2769,40 @@ since inventing a full referral system was out of scope for a wallet ledger).
   (missing `SupportScreen`) — none found. Every screen/ViewModelFactory/Repository referenced
   from `MainActivity.kt`/`MainScreen.kt` has a real definition; zero `onClick = {}` or
   "coming soon" placeholders anywhere in the admin app.
+
+---
+## [2026-07-08] Fix — Vmsuserapp still didn't compile: missing `notifications` package
+
+### The problem
+User ran an actual `assembleDebug` build (the first real compile check this app had in this
+whole recovery arc) and it failed — same root cause as the `SupportScreen` incident two days
+ago, a different corner of it. `com.example.vmsuser.notifications` (containing `PendingDeepLink`,
+a Compose-observable singleton for cold-start notification taps, and `notificationDeepLinkRoute()`,
+the type→route mapping shared by `PlixoMessagingService` and `NotificationsScreen`) was untracked
+at stash time and never made it back. My earlier "end-to-end audit" grep only checked
+`ui/screens/*Screen` composables against `MainScreen.kt`/`AppNavigation.kt` call sites — it
+never cross-referenced *every* internal import, so this package-level gap slipped through.
+Also surfaced by the same build: `KycUploadScreen.kt` used `ExposedDropdownMenuBox` without
+`@OptIn(ExperimentalMaterial3Api::class)`, and `R.drawable.ic_stat_notification` (the FCM status
+bar icon) had no drawable resource at all.
+
+### Added
+- `notifications/PendingDeepLink.kt` — `object PendingDeepLink { var route: String? by mutableStateOf(null) }`.
+- `notifications/NotificationNav.kt` — `notificationDeepLinkRoute(type, matchId)`, mapping every
+  `type_=` value actually used by the backend (`MATCH_FOUND`, `CHAT_MESSAGE`, `CAPTAIN_APPROVED`,
+  `CAPTAIN_REJECTED`, `CAPTAIN_PAYOUT`) to a `Screen` route; unknown types fall back to
+  `Screen.Notifications.route`.
+- `res/drawable/ic_stat_notification.xml` — flat white bell vector, correct for a status-bar icon.
+- `@OptIn(ExperimentalMaterial3Api::class)` on `KycUploadScreen`.
+
+### Verified
+- Cross-referenced every `import com.example.vmsuser.*` in the app against an actual
+  class/object/fun/val declaration — only `BuildConfig`/`R` (build-generated, expected) came up
+  unmatched. Re-ran the screen-composable-vs-navigation-call check from the earlier audit — clean.
+- Not build-verified by me (still no Android Studio/Gradle build per project policy) — verified
+  by the user's own `assembleDebug` run, which is what surfaced this in the first place. Next
+  build attempt should clear the Kotlin compile stage; **user is running the actual verification
+  here, this entry documents the fix, not a substitute for it.**
+- Lesson for future audits: cross-check *all* internal imports against declarations, not just
+  one call-site pattern (composables) against one caller (nav graph). A package can be entirely
+  missing while every screen file that references it still exists and looks fine on its own.
