@@ -2806,3 +2806,47 @@ bar icon) had no drawable resource at all.
 - Lesson for future audits: cross-check *all* internal imports against declarations, not just
   one call-site pattern (composables) against one caller (nav graph). A package can be entirely
   missing while every screen file that references it still exists and looks fine on its own.
+
+---
+## [2026-07-08] Fix — Vmsadminapp did not compile either: a real regression, not a stash gap
+
+### The problem
+User's `assembleDebug` on the admin app failed next. Root cause was different from every prior
+fix this week — this one I actually caused. Back on 2026-07-07, `feat(backend,admin): tournament
+admin management + audit log expansion` (`042b28d`) added `TournamentMatch`, `TournamentStanding`,
+`TournamentRegistration`(+`Member`), `CreateTournamentMatchRequest`, `RecordMatchResultRequest` to
+`Models.kt`, five matching Retrofit endpoints to `ApiService.kt`, and `onOpenDetail`/`onDelete`
+wiring to `TournamentsScreen.kt`. All committed, all fine.
+
+Then during the incident recovery, I ran `git checkout stash@{0} -- <path>` against `Models.kt`,
+`ApiService.kt`, and `TournamentsScreen.kt` to restore CSR/KYC/payout content the stash held —
+but the stash's base commit (`b7e7c08`) *predates* `042b28d`. A file-level checkout doesn't
+merge; it replaces the whole file with the stash's version. So restoring those three files from
+the stash silently reverted the tournament-detail additions while bringing back everything else.
+This shipped in commit `2b85d48` and sat undetected through every subsequent audit — the
+composable-existence and import-cross-reference checks I ran on both apps only catch symbols
+that are *entirely absent*; they don't catch a symbol that exists in one commit's history but
+was clobbered by a later same-session file overwrite, because from the audit's point of view the
+"declaration" and the "usage" were compared against the same (already-reverted) file state.
+
+### Added back (verbatim from `042b28d`, cross-checked no later commit had since changed them)
+- `Models.kt` — `TournamentMatch`, `CreateTournamentMatchRequest`, `RecordMatchResultRequest`,
+  `TournamentStanding`, `TournamentRegistrationMember`, `TournamentRegistration`, and
+  `Tournament.participant_type`.
+- `ApiService.kt` — `getTournamentMatches`, `createTournamentMatch`, `recordMatchResult`,
+  `getTournamentStandings`, `getTournamentRegistrations`, plus their model imports.
+- `TournamentsScreen.kt` — `onOpenDetail` param on the screen, `onOpenDetail`/`onDelete` on
+  `TournamentCard`, `AppCard(onClick = onOpenDetail)`, the delete-confirmation dialog, and the
+  "Delete" item in the status dropdown menu.
+
+### Verified
+- `git log --oneline b7e7c08..2b85d48 -- <every file checked out from the stash>` for both apps —
+  confirms this was the *only* three-file blast radius. No other stash-recovered file (Captain
+  screens/viewmodel/repo, GroundOwnerScreen, any Vmsuserapp file) had an intervening commit
+  between the stash's base and the recovery, so none of them lost anything this way.
+- Re-ran the full import-cross-reference sweep against the admin app (same method as yesterday's
+  Vmsuserapp audit) — one flagged hit, `ui.components.shimmerEffect`, confirmed a false positive
+  (it's a `Modifier` extension function, `fun Modifier.shimmerEffect()`, which the grep pattern
+  doesn't match — not a missing symbol).
+- Not build-verified by me — same as yesterday, the user's own `assembleDebug` is the actual
+  check here.

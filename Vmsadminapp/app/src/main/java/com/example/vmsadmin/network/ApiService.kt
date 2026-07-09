@@ -47,6 +47,11 @@ import com.example.vmsadmin.models.AssignableRolesResponse
 import com.example.vmsadmin.models.Tournament
 import com.example.vmsadmin.models.CreateTournamentRequest
 import com.example.vmsadmin.models.UpdateTournamentRequest
+import com.example.vmsadmin.models.TournamentMatch
+import com.example.vmsadmin.models.CreateTournamentMatchRequest
+import com.example.vmsadmin.models.RecordMatchResultRequest
+import com.example.vmsadmin.models.TournamentStanding
+import com.example.vmsadmin.models.TournamentRegistration
 import com.example.vmsadmin.models.Dispute
 import com.example.vmsadmin.models.CreateDisputeRequest
 import com.example.vmsadmin.models.UpdateDisputeRequest
@@ -343,6 +348,28 @@ interface ApiService {
 
     @DELETE("/api/v1/tournaments/{id}")
     suspend fun deleteTournament(@Path("id") id: Int): ApiResponse<JsonElement>
+
+    @GET("/api/v1/tournaments/{id}/matches")
+    suspend fun getTournamentMatches(@Path("id") id: Int): ApiResponse<List<TournamentMatch>>
+
+    @POST("/api/v1/tournaments/{id}/matches")
+    suspend fun createTournamentMatch(
+        @Path("id") id: Int,
+        @Body request: CreateTournamentMatchRequest
+    ): ApiResponse<TournamentMatch>
+
+    @PUT("/api/v1/tournaments/{id}/matches/{matchId}/result")
+    suspend fun recordMatchResult(
+        @Path("id") id: Int,
+        @Path("matchId") matchId: Int,
+        @Body request: RecordMatchResultRequest
+    ): ApiResponse<TournamentMatch>
+
+    @GET("/api/v1/tournaments/{id}/standings")
+    suspend fun getTournamentStandings(@Path("id") id: Int): ApiResponse<List<TournamentStanding>>
+
+    @GET("/api/v1/tournaments/{id}/registrations")
+    suspend fun getTournamentRegistrations(@Path("id") id: Int): ApiResponse<List<TournamentRegistration>>
 
     // ── Dispute endpoints ──────────────────────────────────────────────
     @GET("/api/v1/disputes")

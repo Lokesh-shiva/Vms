@@ -30,7 +30,8 @@ import com.example.vmsadmin.ui.components.AppCard
 @Composable
 fun TournamentsScreen(
     viewModel: TournamentViewModel,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onOpenDetail: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -95,7 +96,9 @@ fun TournamentsScreen(
                             TournamentCard(
                                 tournament = tournament,
                                 isUpdating = tournament.id in uiState.updatingIds,
-                                onStatusChange = { newStatus -> viewModel.updateStatus(tournament.id, newStatus) }
+                                onStatusChange = { newStatus -> viewModel.updateStatus(tournament.id, newStatus) },
+                                onOpenDetail = { viewModel.selectTournament(tournament); onOpenDetail() },
+                                onDelete = { viewModel.deleteTournament(tournament.id) },
                             )
                         }
                         item { Spacer(Modifier.height(72.dp)) }
@@ -110,11 +113,29 @@ fun TournamentsScreen(
 private fun TournamentCard(
     tournament: Tournament,
     isUpdating: Boolean,
-    onStatusChange: (String) -> Unit
+    onStatusChange: (String) -> Unit,
+    onOpenDetail: () -> Unit = {},
+    onDelete: () -> Unit = {},
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
-    AppCard {
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Delete tournament") },
+            text = { Text("Delete \"${tournament.name}\"? This cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = { onDelete(); showDeleteConfirm = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Delete") }
+            },
+            dismissButton = { OutlinedButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") } }
+        )
+    }
+
+    AppCard(onClick = onOpenDetail) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Top
@@ -168,6 +189,11 @@ private fun TournamentCard(
                             )
                         }
                     }
+                    HorizontalDivider()
+                    DropdownMenuItem(
+                        text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                        onClick = { showDeleteConfirm = true; showMenu = false }
+                    )
                 }
             }
         }
