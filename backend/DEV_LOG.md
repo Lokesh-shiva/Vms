@@ -2850,3 +2850,51 @@ was clobbered by a later same-session file overwrite, because from the audit's p
   doesn't match — not a missing symbol).
 - Not build-verified by me — same as yesterday, the user's own `assembleDebug` is the actual
   check here.
+
+---
+## [2026-07-08] Fix — Tournaments tab HTTP 500: live DB table missing 4 columns the model has had all along
+
+### The problem
+Once both apps compiled, user reported the admin Tournaments tab throwing an HTTP 500. Root
+cause was in the live Postgres schema, not application code: `Tournament.format_type`,
+`participant_type`, `team_size`, and `rules_json` have been columns on the SQLAlchemy model
+since before this session even started, but the *original* `CREATE TABLE tournaments` statement
+in `run_migrations.py` (migration 8) never included them, and no later migration added them
+either. `Base.metadata.create_all()` (run on every backend boot) only creates missing *tables* —
+it never alters an existing table to add missing columns. So every `SELECT` SQLAlchemy generated
+against `tournaments` (which lists all mapped columns) has been failing with
+"column tournaments.format_type does not exist" for as long as that table has existed with rows
+in it. This never surfaced in the test suite because the tests build a fresh SQLite schema via
+`Base.metadata.create_all()` on an empty in-memory DB every run, which — unlike a pre-existing
+Postgres table — picks up every column in the model, missing-migration or not.
+
+### Root-caused directly against the live DB
+Used the Neon MCP to `describe_table_schema` on `tournaments` and found exactly those 4 columns
+absent while `sponsor_user_id`/`entry_fee`/`prize_pool`/`banner_url`/`description` (added by
+later, correctly-written migrations 23/24) were present. Cross-checked the other four
+tournament-related tables (`tournament_matches`, `tournament_participants`,
+`tournament_standings`, `tournament_teams`) against their models — all matched exactly, because
+those are entirely new tables that `create_all()` created correctly from scratch. The bug was
+isolated to `tournaments` specifically, the one pre-existing table in the group.
+
+### Fixed
+- Ran `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS format_type ... participant_type ...
+  team_size ... rules_json ...` directly against the live Neon DB (via MCP), matching the
+  model's exact types/defaults.
+- Added the same statement to `run_migrations.py` as migration 26, so a fresh environment (or
+  anyone re-running migrations) gets it too. Re-ran the full local migration script afterward —
+  idempotent, confirms it's the same database.
+- Verified with a direct query (`SessionLocal().query(Tournament).all()`) that the exact
+  operation that was 500ing now succeeds.
+
+### Lesson
+`Base.metadata.create_all()` silently does nothing for column-level drift on existing tables —
+it will never surface a model/schema mismatch on an existing table, on any environment, until a
+query actually needs the missing column. This is a class of bug that a python-only or SQLite-only
+test suite structurally cannot catch. Worth periodically diffing each model's columns against the
+live schema directly (as done here) rather than trusting "tests pass + `create_all()` ran" as
+proof the schema is correct.
+
+### Verified
+- Full backend suite: 450 passed (unaffected — this was a live-DB-only fix, no code changed
+  besides the new migration entry).

@@ -314,6 +314,15 @@ cur.execute("""
     );
 """)
 
+print("Running migration 26: add format_type/participant_type/team_size/rules_json to tournaments ...")
+cur.execute("""
+    ALTER TABLE tournaments
+        ADD COLUMN IF NOT EXISTS format_type VARCHAR(50) NOT NULL DEFAULT 'LEAGUE',
+        ADD COLUMN IF NOT EXISTS participant_type VARCHAR(50) NOT NULL DEFAULT 'INDIVIDUAL',
+        ADD COLUMN IF NOT EXISTS team_size INTEGER NOT NULL DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS rules_json JSON NOT NULL DEFAULT '{}'::json;
+""")
+
 conn.commit()
 cur.close()
 conn.close()
