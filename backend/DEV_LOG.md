@@ -2898,3 +2898,53 @@ proof the schema is correct.
 ### Verified
 - Full backend suite: 450 passed (unaffected — this was a live-DB-only fix, no code changed
   besides the new migration entry).
+
+---
+## [2026-07-08] Fix — user app: blank tournament detail screen + forced re-login every session
+
+### Bug 1: tapping a tournament goes to a blank white screen (back button still works)
+`GET /api/v1/tournaments/{tournament_id}` was `TOURNAMENT_MANAGER`/`OPS_MANAGER`/`SUPER_ADMIN`
+only — a regular player tapping into tournament detail always got a 403. The client
+(`TournamentsViewModel.select()`) catches that and falls back to
+`_tournaments.value.find { it.id == id }`, but `TournamentDetailScreen` and `TournamentsScreen`
+are separate nav-graph destinations, each getting its **own** `TournamentsViewModel` instance via
+Compose Navigation's default `viewModel()` scoping (per-back-stack-entry, not shared). So the
+detail screen's fallback searches its own, freshly-empty list and always comes up null.
+`TournamentDetailScreen.kt:37` is `val t = selected ?: return` — with `selected` permanently
+null, the composable renders nothing at all. Not a crash (so the Activity survives, back button
+still works) — just a legitimately empty composition.
+
+**Fixed:**
+- `GET /{tournament_id}` — changed from admin-role-only to `Depends(require_user)`. Any
+  authenticated user can view a tournament's detail now, same visibility tier as the public list.
+- `tournament_service.get_tournament()` — switched from `repository.find_by_id()` (bare columns)
+  to `repository.find_by_id_enriched()`, so the response includes `sport`/`location`/
+  `registered_teams` the way `/public` already does. Without this, the screen would render but
+  show blank sport tags and a stuck-at-zero progress bar instead of the blank-screen bug.
+- Left the underlying per-screen ViewModel scoping as-is — fixing the 403 means the fallback path
+  is never exercised in practice, so it wasn't worth restructuring nav-graph-scoped ViewModels
+  for this.
+
+### Bug 2: force-relogin via OTP every time the app is fully closed and reopened
+Not a wiring bug — the persistence chain (`AuthTokenManager` → DataStore, `RetrofitClient`'s
+interceptor reading it via `runBlocking`, `PlixoApp.onCreate()` calling `RetrofitClient.init()`
+before any request, `SplashScreen` checking for a saved token and calling `/auth/me` to restore
+the session) is all correctly wired end to end. The actual cause: `ACCESS_TOKEN_EXPIRE_MINUTES`
+was hardcoded to 60. Any cold start more than an hour after the last login gets a 401 from
+`/auth/me`, and `SplashScreen.kt` treats that identically to "invalid token" — clears it, sends
+to the phone-entry screen. There's no refresh-token flow, so the JWT's expiry *is* the session
+length.
+
+**Fixed:** `ACCESS_TOKEN_EXPIRE_MINUTES` now defaults to 30 days (`60 * 24 * 30`), overridable via
+env var. No refresh-token infrastructure exists in this codebase, so a long-lived access token is
+the pragmatic fix rather than building a refresh flow for it.
+
+**Not fixed (flagged, not in scope for this pass):** `SplashScreen.kt`'s failure handling doesn't
+distinguish "token actually invalid/expired" from "request failed for some other reason" (network
+blip, timeout, a transient 500) — any failure from `getMe()` clears the token and forces re-login.
+A genuinely flaky connection on cold start would currently look identical to an expired session.
+
+### Verified
+- Full backend suite: 450 passed.
+- Not build-verified by me — same pattern as the last several fixes, user's own build/run is the
+  actual check.

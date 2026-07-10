@@ -28,7 +28,7 @@ class TournamentService:
         return self.repository.find_all()
 
     def get_tournament(self, tournament_id: int) -> dict | None:
-        return self.repository.find_by_id(tournament_id)
+        return self.repository.find_by_id_enriched(tournament_id)
 
     def create_tournament(self, data: dict) -> dict:
         if not data.get("name", "").strip():

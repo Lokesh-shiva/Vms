@@ -64,10 +64,9 @@ def create_tournament(
 @router.get("/{tournament_id}")
 def get_tournament(
     tournament_id: int,
-    current_user: dict = require_role(
-        UserRole.TOURNAMENT_MANAGER, UserRole.OPS_MANAGER, UserRole.SUPER_ADMIN
-    ),
+    current_user: dict = Depends(require_user),
 ):
+    """Any authenticated user may view a single tournament's details (same visibility as the public list)."""
     t = tournament_service.get_tournament(tournament_id)
     if not t:
         raise HTTPException(status_code=404, detail="Tournament not found.")

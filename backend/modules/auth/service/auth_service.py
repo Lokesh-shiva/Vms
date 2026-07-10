@@ -18,7 +18,11 @@ if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY is not set. Check your .env file.")
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+# No refresh-token flow exists yet, so this is effectively "how long a user
+# stays logged in" — 30 days matches typical consumer-app expectations
+# rather than the previous 60 minutes, which forced a fresh OTP login on
+# almost every cold start.
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24 * 30)))
 
 
 def _hash_password(password: str) -> str:
