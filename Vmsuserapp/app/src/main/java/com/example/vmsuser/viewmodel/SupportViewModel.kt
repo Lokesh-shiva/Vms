@@ -5,9 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vmsuser.data.SupportRepository
 import com.example.vmsuser.models.Dispute
+import com.example.vmsuser.models.DisputeMessage
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+
+private const val MESSAGE_POLL_INTERVAL_MS = 3000L
 
 class SupportViewModel : ViewModel() {
     private val repo = SupportRepository()
@@ -23,6 +28,50 @@ class SupportViewModel : ViewModel() {
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
+
+    private val _messages = MutableStateFlow<List<DisputeMessage>>(emptyList())
+    val messages: StateFlow<List<DisputeMessage>> = _messages
+
+    private val _messagesError = MutableStateFlow<String?>(null)
+    val messagesError: StateFlow<String?> = _messagesError
+
+    private val _sending = MutableStateFlow(false)
+    val sending: StateFlow<Boolean> = _sending
+
+    private var pollJob: Job? = null
+
+    fun openThread(disputeId: Int) {
+        pollJob?.cancel()
+        pollJob = viewModelScope.launch {
+            while (true) {
+                repo.getMessages(disputeId)
+                    .onSuccess { _messages.value = it; _messagesError.value = null }
+                    .onFailure { _messagesError.value = it.message }
+                delay(MESSAGE_POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    fun stopPolling() {
+        pollJob?.cancel()
+        pollJob = null
+    }
+
+    fun sendMessage(disputeId: Int, body: String) {
+        if (body.isBlank()) return
+        viewModelScope.launch {
+            _sending.value = true
+            repo.sendMessage(disputeId, body)
+                .onSuccess { _messages.value = _messages.value + it }
+                .onFailure { _messagesError.value = it.message }
+            _sending.value = false
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        pollJob?.cancel()
+    }
 
     fun loadTickets() {
         viewModelScope.launch {

@@ -146,6 +146,12 @@ fun AppNavigation() {
             composable(Screen.Wallet.route) { WalletScreen(navController) }
             composable(Screen.Notifications.route) { NotificationsScreen(navController) }
             composable(Screen.Support.route) { SupportScreen(navController) }
+            composable(
+                Screen.TicketDetail.route,
+                arguments = listOf(navArgument("id") { type = NavType.IntType })
+            ) { entry ->
+                TicketDetailScreen(navController, ticketId = entry.arguments?.getInt("id") ?: 0)
+            }
 
             // Captain
             composable(Screen.Captain.route) { CaptainDashboardScreen(navController) }

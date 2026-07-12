@@ -55,6 +55,8 @@ import com.example.vmsadmin.models.TournamentRegistration
 import com.example.vmsadmin.models.Dispute
 import com.example.vmsadmin.models.CreateDisputeRequest
 import com.example.vmsadmin.models.UpdateDisputeRequest
+import com.example.vmsadmin.models.DisputeMessage
+import com.example.vmsadmin.models.SendDisputeMessageRequest
 import com.example.vmsadmin.models.AuditLogEntry
 import com.example.vmsadmin.models.Society
 import com.example.vmsadmin.models.SocietyMember
@@ -386,6 +388,15 @@ interface ApiService {
         @Path("id") id: Int,
         @Body request: UpdateDisputeRequest
     ): ApiResponse<Dispute>
+
+    @GET("/api/v1/disputes/{id}/messages")
+    suspend fun getDisputeMessages(@Path("id") id: Int): ApiResponse<List<DisputeMessage>>
+
+    @POST("/api/v1/disputes/{id}/messages")
+    suspend fun sendDisputeMessage(
+        @Path("id") id: Int,
+        @Body request: SendDisputeMessageRequest
+    ): ApiResponse<DisputeMessage>
 
     // ── Audit Log endpoints ────────────────────────────────────────────
     @GET("/api/v1/audit-logs")

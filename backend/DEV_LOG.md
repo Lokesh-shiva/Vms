@@ -3067,3 +3067,87 @@ the user before starting rather than guessing at scope.
 - Full backend suite: 450 passed (dispute service tests updated for the new enrichment DI).
 - Full import-cross-reference sweep re-run on both apps post-edit — only known false positives.
 - Not build-verified by me — user's own build/run is the check.
+
+---
+## [2026-07-12] Feature — support ticket reply thread ("simple threaded replies")
+
+Scoped via explicit user choice: the ticket keeps its title/description, but both the raiser and
+support/admin staff can post follow-up text messages on it in order, like a comment thread — no
+read receipts, no real-time push, polling like the existing match chat. This was the deferred item
+flagged in the 2026-07-08 entry.
+
+### Added
+**Backend**
+- `dispute_message_model.py` — new `DisputeMessage` model (`dispute_messages` table): `id`,
+  `dispute_id` (FK → `disputes.id`, cascade delete), `sender_id` (FK → `users.id`, set null),
+  `body`, `created_at`.
+- `dispute_message_repository.py` — `create()`, `find_by_dispute()` (ordered oldest-first).
+- `dispute_message_service.py` — `DisputeMessageService` with `_authorize()`: access is scoped to
+  whoever raised the ticket (`dispute.raised_by`) plus `SUPPORT`/`OPS_MANAGER`/`SUPER_ADMIN` staff;
+  everyone else gets `PermissionError` → 403. `_attach_sender_name()` enriches each message with
+  `sender_name`/`sender_role` (mirrors the raiser-name enrichment pattern from 2026-07-08).
+- `dispute_routes.py` — `GET /api/v1/disputes/{id}/messages`, `POST /api/v1/disputes/{id}/messages`,
+  both behind `Depends(require_user)` with per-dispute authorization enforced in the service layer
+  (not route-level RBAC, since access depends on *who raised this specific ticket*, not a static role).
+- `main.py` — registered `DisputeMessage` model import.
+- Migration 27 — `CREATE TABLE IF NOT EXISTS dispute_messages (...)`, applied directly against the
+  live Neon DB via MCP `run_sql` and added to `run_migrations.py` for parity.
+- `test_dispute_message_service.py` — 6 tests: raiser send/list, staff reply, other-user 403,
+  unknown-dispute 404, blank-body rejected, ordering. Followed the established DI-testing pattern
+  (in-memory SQLite `session_factory`, all three repos — message/dispute/user — bound to it; had to
+  import `society`/`captain`/`match`/`tournament`/etc. models up front to pre-empt the FK-resolution
+  errors hit repeatedly on 2026-07-08 rather than discover them one at a time again).
+
+**App — Vmsuserapp**
+- `Models.kt` — `DisputeMessage`, `SendDisputeMessageRequest`.
+- `ApiService.kt` — `getDisputeMessages(id)`, `sendDisputeMessage(id, body)`.
+- `SupportRepository.kt` — `getMessages()`/`sendMessage()`, using the existing `toUserMessage()`
+  error-detail extraction (2026-07-08 pattern) instead of Retrofit's generic exception text.
+- `SupportViewModel.kt` — added message state + `openThread()`/`stopPolling()`/`sendMessage()`
+  following `ChatViewModel`'s exact polling shape (`POLL_INTERVAL_MS`-equivalent, cancel-on-clear).
+- `TicketDetailScreen.kt` (new) — reply thread UI, built directly off `ChatThreadScreen`'s
+  `MessageBubble`/input-row/`animateScrollToItem` pattern; shows the ticket description as a pinned
+  summary above the thread; non-self bubbles show "Name · Support" when the sender is staff.
+- `Screen.kt` / `AppNavigation.kt` — new `TicketDetail("ticket_detail/{id}")` route.
+- `SupportScreen.kt` — ticket cards are now clickable, navigating into the new thread screen.
+
+**App — Vmsadminapp**
+- `Models.kt` — `DisputeMessage`, `SendDisputeMessageRequest` (snake_case fields, matching this
+  app's existing `Dispute` model convention — no `@SerialName`, unlike the user app).
+- `ApiService.kt` — `getDisputeMessages(id)`, `sendDisputeMessage(id, body)`.
+- `DisputeRepository.kt` — `getMessages()`/`sendMessage()`.
+- `DisputeViewModel.kt` — added `messages`/`messagesError`/`sending`/`selectedDisputeId` to
+  `DisputeUiState`, plus `openThread()`/`stopPolling()`/`sendMessage()`. Kept the thread state in
+  the same shared `DisputeViewModel` (not a separate ViewModel) since this app's nav pattern passes
+  one long-lived ViewModel per domain into `MainScreen`'s `NavHost` rather than scoping a fresh
+  ViewModel per destination.
+- `DisputeThreadScreen.kt` (new) — staff-side reply thread, `Scaffold` + `TopAppBar` + bottom input
+  row, self/other bubble styling matching `MaterialTheme.colorScheme`.
+- `DisputesScreen.kt` — `DisputeCard` gained an optional `onOpenThread` callback; the whole card is
+  now clickable via `AppCard(onClick = ...)` (the inner "Resolve" button's own click is consumed
+  first, so it doesn't also trigger the thread navigation).
+- `SupportScreen.kt` — same `onOpenThread` wiring for the ticket cards shown there.
+- `MainScreen.kt` — two new routes: `manage/disputes/thread/{disputeId}` (from the Manage → Disputes
+  list) and `support/thread/{disputeId}` (from the Support tab's ticket list) — both resolve to the
+  same `DisputeThreadScreen`, gated by the same role sets (`DISPUTE_ROLES` / `SUPPORT_ROLES`) as
+  their respective parent screens.
+
+### Architectural decisions
+- Authorization lives in the service layer, not route-level `require_role`, because "can this user
+  see this ticket" depends on ticket ownership, not a fixed role — staff roles are the only
+  role-based shortcut, everyone else must be the raiser.
+- No read receipts, no push notifications, no WebSocket — matches the existing match-chat precedent
+  exactly, and the user explicitly chose this scope over a richer alternative that was offered.
+- Admin app: extended the existing per-domain `DisputeViewModel` rather than introducing a new
+  ViewModel type, consistent with how `TournamentViewModel` already carries `selectedTournament`
+  state for its detail screen — same shared-ViewModel-with-selection pattern, not a NavController
+  arg-only screen.
+
+### Verified
+- Full backend suite: 456 passed (450 prior + 6 new `test_dispute_message_service.py` tests), zero
+  regressions.
+- `python -c "import backend.main"` — clean import, no circular/registration errors.
+- Migration 27 applied directly against the live Neon DB (`still-darkness-99863466`) via MCP
+  `run_sql`, confirmed idempotent (`CREATE TABLE IF NOT EXISTS`).
+- Not build-verified by me on either app — user's own build/run is the check, as with every UI
+  change this project.

@@ -118,6 +118,12 @@ interface ApiService {
     @POST("api/v1/disputes/mine")
     suspend fun createDispute(@Body request: CreateDisputeRequest): ApiResponse<Dispute>
 
+    @GET("api/v1/disputes/{id}/messages")
+    suspend fun getDisputeMessages(@Path("id") id: Int): ApiResponse<List<DisputeMessage>>
+
+    @POST("api/v1/disputes/{id}/messages")
+    suspend fun sendDisputeMessage(@Path("id") id: Int, @Body request: SendDisputeMessageRequest): ApiResponse<DisputeMessage>
+
     // Notifications
     @GET("api/v1/notifications")
     suspend fun getNotifications(): ApiResponse<List<Notification>>

@@ -34,7 +34,8 @@ import com.example.vmsadmin.viewmodel.UserManagementViewModel
 fun SupportScreen(
     userManagementViewModel: UserManagementViewModel,
     bookingViewModel: BookingViewModel,
-    disputeViewModel: DisputeViewModel
+    disputeViewModel: DisputeViewModel,
+    onOpenThread: (Int) -> Unit = {}
 ) {
     val searchStatus by userManagementViewModel.searchStatus.collectAsState()
     val searchResult by userManagementViewModel.searchResult.collectAsState()
@@ -161,7 +162,8 @@ fun SupportScreen(
                     DisputeCard(
                         dispute = dispute,
                         isUpdating = dispute.id in disputeState.updatingIds,
-                        onResolve = { note -> disputeViewModel.resolve(dispute.id, note) }
+                        onResolve = { note -> disputeViewModel.resolve(dispute.id, note) },
+                        onOpenThread = { onOpenThread(dispute.id) }
                     )
                 }
             }

@@ -11,9 +11,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.vmsuser.models.Dispute
+import com.example.vmsuser.navigation.Screen
 import com.example.vmsuser.ui.components.PlixoButton
 import com.example.vmsuser.ui.components.PlixoTopBar
 import com.example.vmsuser.ui.theme.*
@@ -66,7 +68,9 @@ fun SupportScreen(navController: NavController) {
                         color = PlixoText2,
                     )
                     else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(tickets, key = { it.id }) { ticket -> TicketCard(ticket) }
+                        items(tickets, key = { it.id }) { ticket ->
+                            TicketCard(ticket, onClick = { navController.navigate(Screen.TicketDetail.create(ticket.id)) })
+                        }
                     }
                 }
             }
@@ -140,11 +144,12 @@ private fun NewTicketForm(
 }
 
 @Composable
-private fun TicketCard(ticket: Dispute) {
+private fun TicketCard(ticket: Dispute, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(PlixoSurface2, PlixoShape.Card)
+            .clickable(onClick = onClick)
             .padding(16.dp),
     ) {
         Row(

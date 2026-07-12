@@ -48,6 +48,9 @@ sealed class Screen(val route: String) {
     object Wallet : Screen("wallet")
     object Notifications : Screen("notifications")
     object Support : Screen("support")
+    object TicketDetail : Screen("ticket_detail/{id}") {
+        fun create(id: Int) = "ticket_detail/$id"
+    }
 
     // Captain
     object Captain : Screen("captain")

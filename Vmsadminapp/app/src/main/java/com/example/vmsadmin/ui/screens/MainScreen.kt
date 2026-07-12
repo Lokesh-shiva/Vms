@@ -34,10 +34,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.vmsadmin.viewmodel.AuditLogViewModel
 import com.example.vmsadmin.viewmodel.BookingViewModel
 import com.example.vmsadmin.viewmodel.SocietyViewModel
@@ -232,7 +234,8 @@ fun MainScreen(
                         SupportScreen(
                             userManagementViewModel = userManagementViewModel,
                             bookingViewModel = bookingViewModel,
-                            disputeViewModel = disputeViewModel
+                            disputeViewModel = disputeViewModel,
+                            onOpenThread = { disputeId -> navController.navigate("support/thread/$disputeId") }
                         )
                     }
                 }
@@ -373,6 +376,31 @@ fun MainScreen(
                     if (role !in DISPUTE_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
                     else DisputesScreen(
                         viewModel = disputeViewModel,
+                        onBack = { navController.popBackStack() },
+                        onOpenThread = { disputeId -> navController.navigate("manage/disputes/thread/$disputeId") }
+                    )
+                }
+                composable(
+                    "manage/disputes/thread/{disputeId}",
+                    arguments = listOf(navArgument("disputeId") { type = NavType.IntType })
+                ) { entry ->
+                    if (role !in DISPUTE_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else DisputeThreadScreen(
+                        viewModel = disputeViewModel,
+                        disputeId = entry.arguments?.getInt("disputeId") ?: 0,
+                        currentUserId = currentUserId,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable(
+                    "support/thread/{disputeId}",
+                    arguments = listOf(navArgument("disputeId") { type = NavType.IntType })
+                ) { entry ->
+                    if (role !in SUPPORT_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else DisputeThreadScreen(
+                        viewModel = disputeViewModel,
+                        disputeId = entry.arguments?.getInt("disputeId") ?: 0,
+                        currentUserId = currentUserId,
                         onBack = { navController.popBackStack() }
                     )
                 }

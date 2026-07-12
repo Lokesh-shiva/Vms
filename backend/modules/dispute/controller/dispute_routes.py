@@ -3,6 +3,7 @@ from modules.audit.service.audit_service import audit_service
 from modules.auth.dependencies.auth_dependencies import require_role, require_user
 from modules.dispute.schemas.dispute_schema import CreateDisputeSchema, UpdateDisputeSchema
 from modules.dispute.service.dispute_service import DisputeService
+from modules.dispute.service.dispute_message_service import dispute_message_service
 from modules.user.model.user_model import UserRole
 
 router = APIRouter(prefix="/api/v1/disputes", tags=["Disputes"])
@@ -94,3 +95,27 @@ def update_dispute(
         return _success(d, "Dispute updated successfully.")
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/{dispute_id}/messages")
+def list_dispute_messages(dispute_id: int, current_user: dict = Depends(require_user)):
+    """Reply thread on a ticket. Accessible to whoever raised it, plus support/admin staff."""
+    try:
+        return _success(dispute_message_service.list_messages(dispute_id, current_user["id"], current_user["role"]))
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+
+@router.post("/{dispute_id}/messages", status_code=201)
+def send_dispute_message(dispute_id: int, request_data: dict, current_user: dict = Depends(require_user)):
+    try:
+        message = dispute_message_service.send_message(
+            dispute_id, current_user["id"], current_user["role"], request_data.get("body", "")
+        )
+        return _success(message, "Message sent.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))

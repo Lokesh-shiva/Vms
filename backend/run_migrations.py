@@ -323,6 +323,17 @@ cur.execute("""
         ADD COLUMN IF NOT EXISTS rules_json JSON NOT NULL DEFAULT '{}'::json;
 """)
 
+print("Running migration 27: create dispute_messages table ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS dispute_messages (
+        id         SERIAL PRIMARY KEY,
+        dispute_id INT NOT NULL REFERENCES disputes(id) ON DELETE CASCADE,
+        sender_id  INT REFERENCES users(id) ON DELETE SET NULL,
+        body       TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+
 conn.commit()
 cur.close()
 conn.close()

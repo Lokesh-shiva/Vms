@@ -600,6 +600,20 @@ data class UpdateDisputeRequest(
     val resolution_note: String? = null
 )
 
+@Serializable
+data class DisputeMessage(
+    val id: Int,
+    val dispute_id: Int,
+    val sender_id: Int? = null,
+    val sender_name: String = "Unknown",
+    val sender_role: String? = null,
+    val body: String,
+    val created_at: String? = null
+)
+
+@Serializable
+data class SendDisputeMessageRequest(val body: String)
+
 // --- Audit Log Models ---
 
 @Serializable

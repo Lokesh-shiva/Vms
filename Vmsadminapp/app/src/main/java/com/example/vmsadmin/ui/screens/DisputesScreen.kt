@@ -24,7 +24,8 @@ import com.example.vmsadmin.viewmodel.DisputeViewModel
 @Composable
 fun DisputesScreen(
     viewModel: DisputeViewModel,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenThread: (Int) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
@@ -71,7 +72,8 @@ fun DisputesScreen(
                             DisputeCard(
                                 dispute = dispute,
                                 isUpdating = dispute.id in uiState.updatingIds,
-                                onResolve = { note -> viewModel.resolve(dispute.id, note) }
+                                onResolve = { note -> viewModel.resolve(dispute.id, note) },
+                                onOpenThread = { onOpenThread(dispute.id) }
                             )
                         }
                         item { Spacer(Modifier.height(72.dp)) }
@@ -86,7 +88,8 @@ fun DisputesScreen(
 internal fun DisputeCard(
     dispute: Dispute,
     isUpdating: Boolean,
-    onResolve: (String) -> Unit
+    onResolve: (String) -> Unit,
+    onOpenThread: () -> Unit = {}
 ) {
     var showResolveDialog by remember { mutableStateOf(false) }
 
@@ -100,7 +103,7 @@ internal fun DisputeCard(
         )
     }
 
-    AppCard {
+    AppCard(onClick = onOpenThread) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

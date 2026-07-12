@@ -169,6 +169,20 @@ data class CreateDisputeRequest(
 )
 
 @Serializable
+data class DisputeMessage(
+    val id: Int = 0,
+    @SerialName("dispute_id") val disputeId: Int = 0,
+    @SerialName("sender_id") val senderId: Int? = null,
+    @SerialName("sender_name") val senderName: String = "Unknown",
+    @SerialName("sender_role") val senderRole: String? = null,
+    val body: String = "",
+    @SerialName("created_at") val createdAt: String? = null,
+)
+
+@Serializable
+data class SendDisputeMessageRequest(val body: String)
+
+@Serializable
 data class ChatThread(
     val id: String = "",
     val name: String = "",
