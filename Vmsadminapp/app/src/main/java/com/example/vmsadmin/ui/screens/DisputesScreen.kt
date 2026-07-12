@@ -83,7 +83,7 @@ fun DisputesScreen(
 }
 
 @Composable
-private fun DisputeCard(
+internal fun DisputeCard(
     dispute: Dispute,
     isUpdating: Boolean,
     onResolve: (String) -> Unit

@@ -37,6 +37,7 @@ import com.example.vmsuser.network.UserSession
 import com.example.vmsuser.network.registerFcmToken
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
+import com.example.vmsuser.viewmodel.ProfileViewModel
 import com.example.vmsuser.viewmodel.TournamentsViewModel
 import com.google.firebase.messaging.FirebaseMessaging
 import java.util.Calendar
@@ -53,6 +54,10 @@ fun HomeScreen(navController: NavController) {
     val tournamentsVm: TournamentsViewModel = viewModel()
     val tournaments by tournamentsVm.tournaments.collectAsState()
     val nextTournament = tournaments.firstOrNull { it.status.uppercase() == "UPCOMING" || it.status.uppercase() == "ONGOING" }
+
+    val profileVm: ProfileViewModel = viewModel()
+    val walletBalance by profileVm.walletBalance.collectAsState()
+    LaunchedEffect(Unit) { if (FeatureFlags.WALLET) profileVm.loadTransactions() }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -358,7 +363,7 @@ fun HomeScreen(navController: NavController) {
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "1,840 coins",
+                            "$walletBalance coins",
                             fontFamily = BricolageGrotesque,
                             fontWeight = FontWeight.Bold,
                             fontSize = 19.sp,
@@ -366,7 +371,7 @@ fun HomeScreen(navController: NavController) {
                             letterSpacing = (-0.4).sp,
                         )
                         Text(
-                            "Redeem for gear, snacks & venue credit",
+                            "Earned by completing matches",
                             fontFamily = PlusJakartaSans,
                             fontSize = 12.sp,
                             color = PlixoText2,
@@ -392,7 +397,7 @@ fun HomeScreen(navController: NavController) {
                     QuickTile(
                         icon = Icons.Filled.AccountBalanceWallet,
                         label = "Wallet",
-                        sub = "₹${user?.coinBalance ?: 0}",
+                        sub = "$walletBalance coins",
                         bg = BlockMintBg,
                         fg = BlockMintFg,
                         modifier = Modifier.weight(1f),

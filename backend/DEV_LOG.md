@@ -2948,3 +2948,63 @@ A genuinely flaky connection on cold start would currently look identical to an 
 - Full backend suite: 450 passed.
 - Not build-verified by me — same pattern as the last several fixes, user's own build/run is the
   actual check.
+
+---
+## [2026-07-08] Fix — user app: wallet invisible, cryptic captain-apply 400, admin can't see raised tickets
+
+Three separate reports from the user, none of them backend bugs — all app-side wiring/UX gaps.
+
+### 1. No wallet visible anywhere in the user app
+`FeatureFlags.WALLET` was still `false` — a leftover kill-switch from before the real wallet
+ledger was built (see `c90dbce`). Flipping it revealed a second problem: `HomeScreen.kt`'s
+"coins strip" had a hardcoded `"1,840 coins"` literal and a "Redeem for gear, snacks & venue
+credit" line implying a spend feature that doesn't exist (earn-only by design). The `QuickTile`
+wallet summary used `user?.coinBalance`, a `User` field the backend has never populated (always
+silently defaults to 0).
+
+**Fixed:** `FeatureFlags.WALLET = true`. Wired `HomeScreen.kt` to `ProfileViewModel.walletBalance`
+(the same real balance the Wallet screen itself uses) in both the coins strip and the QuickTile;
+replaced the misleading "redeem" copy with "Earned by completing matches".
+
+### 2. Captain application "submit" always shows a bare 400
+Not a backend bug — `POST /captains/apply` correctly rejects with
+`"You need at least 3 completed matches to apply (you have N)."` when the gate isn't met. The
+bug: `CaptainRepository.kt` (user app) never reads that message. Retrofit throws `HttpException`
+for any non-2xx response *before* the body converter runs, so the `res.success`/`res.message`
+branch in every method here was unreachable for real error paths — the `catch (e: Exception)`
+just wrapped Retrofit's generic `"HTTP 400 Bad Request"` string, discarding the actual reason
+the backend went to the trouble of sending.
+
+**Fixed:** new `network/ErrorUtils.kt` — `HttpException.backendDetail()` extracts `{"detail":
+...}` from the error body; `Exception.toUserMessage(fallback)` prefers it when present. Applied
+to all 5 methods in `CaptainRepository.kt` (`apply`, `uploadKyc`, `getApplicationStatus`,
+`updatePayoutUpi`, `getStats`). `CaptainApplicationScreen.kt` already had a working `error` text
+display — it just never had anything useful to show before.
+
+**Not fixed (flagged, broader pattern):** the same generic-catch shape exists in
+`ChatRepository.kt`, `MatchRepository.kt`, `ProfileRepository.kt`, `SocialRepository.kt`,
+`SupportRepository.kt`, `TournamentRepository.kt` — none of them surface real backend error
+detail either. Only fixed the one directly reported; the utility now exists for the rest cheaply
+if this class of complaint comes up again.
+
+### 3. Raised support ticket doesn't show up in the admin app
+The ticket *was* created successfully (confirmed directly against the live DB: id=1, status
+OPEN). The admin app just has two different, confusingly-named screens: `SupportScreen`
+(prominent bottom-nav tab; a phone-lookup + "raise a ticket against a booking" tool that never
+displayed existing tickets at all) and `DisputesScreen` (the real ticket list/resolve view,
+buried one level deeper under Manage → Disputes). An admin checking the obvious "Support" tab
+would see zero tickets no matter how many existed.
+
+**Fixed:** made `DisputesScreen.kt`'s `DisputeCard` `internal` (was `private`) so it's reusable,
+and added a "Tickets" section to `SupportScreen.kt` — reuses the `disputeViewModel` that screen
+already received as a parameter (previously only used for creating tickets, never for listing
+them) — with the same resolve action `DisputesScreen` has.
+
+### Verified
+- Re-ran the full import-cross-reference sweep on both apps after all edits — two flagged hits,
+  both confirmed false positives from grep pattern limitations (`ui.components.shimmerEffect` and
+  `network.toUserMessage` are extension functions with a receiver type between `fun` and the
+  name; `network.ApiService` is an `interface`, not `class`/`object`/`fun`/`val` — none actually
+  missing).
+- No backend changes this round — nothing to re-run in the Python suite.
+- Not build-verified by me — user's own build/run is the check, as with every fix this week.

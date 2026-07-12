@@ -39,11 +39,13 @@ fun SupportScreen(
     val searchStatus by userManagementViewModel.searchStatus.collectAsState()
     val searchResult by userManagementViewModel.searchResult.collectAsState()
     val bookingState by bookingViewModel.uiState.collectAsState()
+    val disputeState by disputeViewModel.uiState.collectAsState()
     var phone by remember { mutableStateOf("") }
     val keyboard = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(Unit) {
         if (bookingState.bookings.isEmpty()) bookingViewModel.loadBookings()
+        if (disputeState.disputes.isEmpty()) disputeViewModel.loadDisputes()
     }
 
     DisposableEffect(Unit) {
@@ -129,6 +131,39 @@ fun SupportScreen(
                     )
                 }
                 else -> Unit
+            }
+
+            // ── Open tickets ─────────────────────────────────────────────
+            item {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                Text(
+                    "Tickets",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            when {
+                disputeState.isLoading -> item {
+                    Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                disputeState.disputes.isEmpty() -> item {
+                    Text(
+                        "No tickets raised yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                else -> items(disputeState.disputes, key = { "dispute-${it.id}" }) { dispute ->
+                    DisputeCard(
+                        dispute = dispute,
+                        isUpdating = dispute.id in disputeState.updatingIds,
+                        onResolve = { note -> disputeViewModel.resolve(dispute.id, note) }
+                    )
+                }
             }
 
             // ── Recent bookings ──────────────────────────────────────────

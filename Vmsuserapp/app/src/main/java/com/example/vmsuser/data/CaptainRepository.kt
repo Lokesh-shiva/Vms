@@ -6,6 +6,7 @@ import android.util.Log
 import com.example.vmsuser.models.CaptainApplication
 import com.example.vmsuser.models.CaptainStats
 import com.example.vmsuser.network.RetrofitClient
+import com.example.vmsuser.network.toUserMessage
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -19,13 +20,13 @@ class CaptainRepository {
         val res = api.getCaptainStats()
         if (res.success && res.data != null) Result.success(res.data)
         else Result.failure(Exception(res.message ?: "Failed"))
-    } catch (e: Exception) { Log.e("CaptainRepo", "getStats", e); Result.failure(e) }
+    } catch (e: Exception) { Log.e("CaptainRepo", "getStats", e); Result.failure(Exception(e.toUserMessage("Could not load captain stats."))) }
 
     suspend fun apply(bio: String): Result<CaptainApplication> = try {
         val res = api.applyCaptain(mapOf("bio" to bio))
         if (res.success && res.data != null) Result.success(res.data)
         else Result.failure(Exception(res.message ?: "Failed"))
-    } catch (e: Exception) { Log.e("CaptainRepo", "apply", e); Result.failure(e) }
+    } catch (e: Exception) { Log.e("CaptainRepo", "apply", e); Result.failure(Exception(e.toUserMessage("Could not submit application."))) }
 
     suspend fun uploadKyc(contentResolver: ContentResolver, documentType: String, imageUri: Uri): Result<CaptainApplication> = try {
         val tempFile = File.createTempFile("kyc_", ".jpg")
@@ -40,16 +41,16 @@ class CaptainRepository {
         tempFile.delete()
         if (res.success && res.data != null) Result.success(res.data)
         else Result.failure(Exception(res.message ?: "Failed"))
-    } catch (e: Exception) { Log.e("CaptainRepo", "uploadKyc", e); Result.failure(e) }
+    } catch (e: Exception) { Log.e("CaptainRepo", "uploadKyc", e); Result.failure(Exception(e.toUserMessage("Upload failed. Try again."))) }
 
     suspend fun getApplicationStatus(): Result<CaptainApplication> = try {
         val res = api.getCaptainApplicationStatus()
         if (res.success && res.data != null) Result.success(res.data)
         else Result.failure(Exception(res.message ?: "Failed"))
-    } catch (e: Exception) { Log.e("CaptainRepo", "getApplicationStatus", e); Result.failure(e) }
+    } catch (e: Exception) { Log.e("CaptainRepo", "getApplicationStatus", e); Result.failure(Exception(e.toUserMessage("Could not load application status."))) }
 
     suspend fun updatePayoutUpi(upiId: String): Result<Unit> = try {
         val res = api.updatePayoutUpi(mapOf("upi_id" to upiId))
         if (res.success) Result.success(Unit) else Result.failure(Exception(res.message ?: "Failed"))
-    } catch (e: Exception) { Log.e("CaptainRepo", "updatePayoutUpi", e); Result.failure(e) }
+    } catch (e: Exception) { Log.e("CaptainRepo", "updatePayoutUpi", e); Result.failure(Exception(e.toUserMessage("Could not update UPI ID."))) }
 }

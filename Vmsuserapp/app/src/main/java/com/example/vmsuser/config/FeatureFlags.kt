@@ -21,9 +21,5 @@ object FeatureFlags {
     const val CHAT = true             // /api/v1/chat/threads, /api/v1/matches/{id}/messages — polling every 3s
     const val CAPTAIN_ONBOARDING = true // /api/v1/captains/apply, /me/kyc, /me/application-status — manual admin review
     const val OPEN_MATCHES = true     // /api/v1/matches/open
-
-    // ── OFF — no backend support yet ────────────────────────────────────────
-
-    /** Wallet balance/transactions endpoints are stubs returning 0 / empty — no real ledger. */
-    const val WALLET = false
+    const val WALLET = true           // /api/v1/wallet/balance + /transactions — real earn-only ledger, no purchase path
 }
