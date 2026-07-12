@@ -118,6 +118,14 @@ internal fun DisputeCard(
             }
 
             Text(
+                text = "Raised by ${dispute.raised_by_name ?: "Unknown"}" +
+                    (dispute.raised_by_phone?.let { " · $it" } ?: ""),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
                 text = dispute.description,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

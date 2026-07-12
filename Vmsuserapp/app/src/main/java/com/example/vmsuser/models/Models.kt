@@ -227,6 +227,7 @@ data class CaptainStats(
     @SerialName("week_earnings") val weekEarnings: Int = 0,
     @SerialName("wallet_balance") val walletBalance: Int = 0,
     @SerialName("payout_upi_id") val payoutUpiId: String? = null,
+    @SerialName("kyc_status") val kycStatus: String? = null,
     @SerialName("rating") val rating: Float = 0f,
     @SerialName("matches_led") val matchesLed: Int = 0,
     @SerialName("active_matches") val activeMatches: List<Match> = emptyList(),

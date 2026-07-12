@@ -264,6 +264,9 @@ interface ApiService {
     @POST("/api/v1/matches/{match_id}/complete")
     suspend fun completeMatch(@Path("match_id") matchId: Int): ApiResponse<Match>
 
+    @POST("/api/v1/admin/matches/reap-abandoned")
+    suspend fun reapAbandonedSessions(): ApiResponse<Map<String, Int>>
+
     // ── User Management endpoints (super_admin only) ─────────────────
     @GET("/api/v1/users")
     suspend fun getUsers(): ApiResponse<List<AppUser>>

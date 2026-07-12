@@ -576,6 +576,8 @@ data class Dispute(
     val booking_id: Int? = null,
     val user_id: Int? = null,
     val raised_by: Int? = null,
+    val raised_by_name: String? = null,
+    val raised_by_phone: String? = null,
     val title: String,
     val description: String,
     val status: String = "OPEN",

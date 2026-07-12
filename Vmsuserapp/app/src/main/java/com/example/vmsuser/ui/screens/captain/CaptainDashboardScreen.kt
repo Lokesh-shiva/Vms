@@ -93,7 +93,7 @@ fun CaptainDashboardScreen(navController: NavController) {
             when (activeTab) {
                 0 -> ActiveMatchesTab(stats.activeMatches, navController)
                 1 -> CreateMatchTab(navController)
-                2 -> EarningsTab(navController, stats.walletBalance)
+                2 -> EarningsTab(navController, stats.walletBalance, stats.kycStatus)
             }
         }
     }
@@ -200,7 +200,7 @@ private fun CreateMatchTab(navController: NavController) {
 }
 
 @Composable
-private fun EarningsTab(navController: NavController, walletBalance: Int) {
+private fun EarningsTab(navController: NavController, walletBalance: Int, kycStatus: String?) {
     Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
         Spacer(Modifier.height(8.dp))
         Box(
@@ -224,6 +224,37 @@ private fun EarningsTab(navController: NavController, walletBalance: Int) {
                     onClick = { navController.navigate(Screen.CaptainEarnings.route) },
                     variant = PlixoButtonVariant.Lime,
                 )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        VerificationCard(kycStatus = kycStatus, onUpload = { navController.navigate(Screen.KycUpload.route) })
+    }
+}
+
+@Composable
+private fun VerificationCard(kycStatus: String?, onUpload: () -> Unit) {
+    val (label, description, showUpload) = when (kycStatus) {
+        "APPROVED" -> Triple("Verified", "Your ID document has been approved.", false)
+        "PENDING" -> Triple("Under review", "We're checking your uploaded document.", false)
+        "REJECTED" -> Triple("Rejected", "Your document was rejected — upload a new one.", true)
+        else -> Triple("Not submitted", "Upload an ID document so admins can verify you.", true)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(PlixoSurface, PlixoShape.Card)
+            .padding(20.dp),
+    ) {
+        Column {
+            Text("Verification", fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = PlixoText)
+            Spacer(Modifier.height(4.dp))
+            Text(label, fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = PlixoText)
+            Spacer(Modifier.height(2.dp))
+            Text(description, fontFamily = PlusJakartaSans, fontSize = 13.sp, color = PlixoText2)
+            if (showUpload) {
+                Spacer(Modifier.height(12.dp))
+                PlixoButton("Upload ID document", onClick = onUpload)
             }
         }
     }

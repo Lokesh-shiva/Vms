@@ -5,6 +5,7 @@ from core.database.db_connection import Base
 from modules.dispute.model.dispute_model import Dispute  # noqa: F401
 from modules.dispute.repository.dispute_repository import DisputeRepository
 from modules.dispute.service.dispute_service import DisputeService
+from modules.user.repository.user_repository import UserRepository
 import modules.user.model.user_model  # noqa: F401
 import modules.booking.model.booking_model  # noqa: F401
 import modules.cart.model.cart_model  # noqa: F401
@@ -14,6 +15,8 @@ import modules.timeslot.model.timeslot_model  # noqa: F401
 import modules.match.model.match_model  # noqa: F401
 import modules.sport.model.sport_model  # noqa: F401
 import modules.tournament.model.tournament_model  # noqa: F401
+import modules.society.model.society_model  # noqa: F401
+import modules.captain.model.captain_model  # noqa: F401
 
 
 def _factory():
@@ -24,8 +27,10 @@ def _factory():
 
 class TestDisputeService(unittest.TestCase):
     def setUp(self):
-        repo = DisputeRepository(session_factory=_factory())
-        self.service = DisputeService(repository=repo)
+        factory = _factory()
+        repo = DisputeRepository(session_factory=factory)
+        user_repo = UserRepository(session_factory=factory)
+        self.service = DisputeService(repository=repo, user_repository=user_repo)
 
     def _base(self, **kwargs):
         base = {"title": "Late booking", "description": "Ground was not available."}

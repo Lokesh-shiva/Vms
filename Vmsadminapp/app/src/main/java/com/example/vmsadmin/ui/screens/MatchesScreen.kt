@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CleaningServices
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +29,12 @@ fun MatchesScreen(
     val matches by viewModel.matches.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
+    val reapMessage by viewModel.reapMessage.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(reapMessage) {
+        reapMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearReapMessage() }
+    }
 
     var confirmAction by remember { mutableStateOf<Pair<String, Int>?>(null) } // ("cancel"|"complete", matchId)
 
@@ -82,9 +89,15 @@ fun MatchesScreen(
                         }
                     }
                 },
+                actions = {
+                    IconButton(onClick = { viewModel.reapAbandonedSessions() }) {
+                        Icon(Icons.Outlined.CleaningServices, contentDescription = "Clean up abandoned sessions")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         when {
             isLoading -> Box(

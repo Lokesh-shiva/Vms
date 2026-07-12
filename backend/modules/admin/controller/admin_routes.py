@@ -224,6 +224,28 @@ def list_all_matches(
     return _success(match_service.list_all_matches())
 
 
+@router.post("/matches/reap-abandoned")
+def reap_abandoned_sessions_now(
+    current_user: dict = require_role(UserRole.SUPER_ADMIN, UserRole.OPS_MANAGER),
+):
+    """
+    Manually trigger the abandoned-session cleanup (normally runs automatically
+    every 5 minutes via APScheduler). Exists as a fallback for hosting tiers
+    that suspend background jobs when the service goes idle — the scheduled
+    job simply doesn't fire while the process is asleep, so a stuck WAITING
+    session can otherwise sit forever until an admin notices and cancels it
+    by hand one at a time.
+    """
+    from modules.match.repository.match_repository import match_repository
+    from modules.match.service.session_reaper_service import reap_abandoned_sessions, ABANDONED_SESSION_TIMEOUT_MINUTES
+    from datetime import datetime, timedelta
+
+    cutoff = datetime.utcnow() - timedelta(minutes=ABANDONED_SESSION_TIMEOUT_MINUTES)
+    pending = match_repository.find_abandoned_waiting(cutoff)
+    reap_abandoned_sessions()
+    return _success({"reaped_count": len(pending)}, f"Reaped {len(pending)} abandoned session(s).")
+
+
 class UpdateConfigRequest(BaseModel):
     value: str
 

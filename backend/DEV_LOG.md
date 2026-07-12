@@ -3008,3 +3008,62 @@ them) — with the same resolve action `DisputesScreen` has.
   missing).
 - No backend changes this round — nothing to re-run in the Python suite.
 - Not build-verified by me — user's own build/run is the check, as with every fix this week.
+
+---
+## [2026-07-08] Fix — stuck matchmaking session, dispute raiser name, captain KYC re-entry
+
+### 1. "Already in a match" with no active match visible to admin
+Root-caused directly against the live DB: match id 24 (`WAITING`, `joined_players=1`, no second
+player) had `created_at` of 2026-06-16 — over three weeks old. The session reaper (auto-cancels
+abandoned WAITING sessions after 15 min, added in the earlier recovery work) has **never actually
+fired** — `match_events` has zero `MATCH_CANCELLED` rows with a reaper reason, ever. Root cause is
+almost certainly that Render's free tier suspends the process when idle, and an in-process
+APScheduler timer simply doesn't run while the dyno is asleep — it only wakes on an incoming HTTP
+request, and nothing re-triggers the missed interval. Manually cancelled match 24 directly via SQL
+to unblock the user immediately.
+
+Checked whether the admin app itself was hiding the match — it wasn't. `list_all_matches()` has no
+status filter, `MatchesScreen.kt` has no client-side filter either, and the `Match` Kotlin model's
+non-nullable fields (`region_id`, `cart_type_id`) were both populated. No code bug found there.
+
+**Fixed:** added `POST /api/v1/admin/matches/reap-abandoned` (manually runs the same cleanup the
+scheduler is supposed to run automatically) plus a "clean up" icon button in `MatchesScreen.kt`'s
+top bar, so admins have a reliable one-tap fallback regardless of whether the background job fired.
+The automatic scheduler is left in place for when the dyno is awake — this is a safety net, not a
+replacement.
+
+### 2. Dispute cards show no indication of who raised the ticket
+`Dispute.to_dict()` only ever exposed `raised_by` as a raw user ID — never resolved to a name, and
+no UI ever displayed it (not even the raw ID). Added `dispute_service._attach_raiser_name()`
+(mirrors the pattern already used for society member name enrichment) — every dispute the admin
+list/support screens receive now carries `raised_by_name`/`raised_by_phone`. Displayed in
+`DisputeCard` (shared by `DisputesScreen` and `SupportScreen`) as "Raised by {name} · {phone}".
+
+**Test isolation note:** `test_dispute_service.py`'s `list_disputes` test didn't inject a
+`user_repository`, which would have hit production `SessionLocal` the moment enrichment was added
+— same class of risk flagged repeatedly this week. Fixed by binding a `UserRepository` to the same
+in-memory session factory.
+
+### 3. No way for a captain to (re)upload KYC documents outside the one-shot apply flow
+`KycUploadScreen` was only reachable via `CaptainApplicationScreen → KycIntroScreen →
+KycUploadScreen` — a linear chain that only exists right after successfully submitting a
+self-service captain application. Two real gaps this caused: (a) a captain the admin creates
+directly (`POST /captains`, the "hire someone" path — no KYC step at all) has no way to ever
+submit ID documents through the app, and (b) a self-approved captain whose KYC was rejected has no
+way to retry.
+
+**Fixed:** `get_my_stats()` now returns `kyc_status`; added a `VerificationCard` to the captain
+dashboard's Earnings tab showing the current status (Not submitted / Under review / Verified /
+Rejected) with an "Upload ID document" button that navigates straight to `KycUploadScreen` — no
+longer gated behind the application flow.
+
+### Not built this round — needs a scoping decision
+User also asked for a proper reply/chat interface on support tickets (currently: raise once,
+admin resolves once with an optional note — no back-and-forth). This is a real feature, not a bug
+fix — needs a new message-thread model, endpoints on both create/list, and UI on both apps. Asked
+the user before starting rather than guessing at scope.
+
+### Verified
+- Full backend suite: 450 passed (dispute service tests updated for the new enrichment DI).
+- Full import-cross-reference sweep re-run on both apps post-edit — only known false positives.
+- Not build-verified by me — user's own build/run is the check.

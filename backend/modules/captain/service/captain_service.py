@@ -117,6 +117,7 @@ class CaptainService(BaseService):
             "week_earnings": self.earning_repository.sum_since(captain["id"], week_start),
             "wallet_balance": self.earning_repository.sum_pending(captain["id"]),
             "payout_upi_id": captain.get("payout_upi_id"),
+            "kyc_status": captain.get("kyc_status"),
             "rating": captain["rating"],
             "matches_led": captain["total_trips"],
             "active_matches": [],

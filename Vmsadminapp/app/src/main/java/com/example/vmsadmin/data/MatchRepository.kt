@@ -35,4 +35,14 @@ class MatchRepository(private val apiService: ApiService) {
             throw Exception("Failed to complete match: ${e.message()}")
         }
     }
+
+    suspend fun reapAbandonedSessions(): Int {
+        return try {
+            val response = apiService.reapAbandonedSessions()
+            if (response.success && response.data != null) response.data["reaped_count"] ?: 0
+            else throw Exception(response.message ?: "Failed to reap abandoned sessions")
+        } catch (e: HttpException) {
+            throw Exception("Failed to reap abandoned sessions: ${e.message()}")
+        }
+    }
 }

@@ -20,9 +20,26 @@ class MatchViewModel(private val repository: MatchRepository) : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
+    private val _reapMessage = MutableStateFlow<String?>(null)
+    val reapMessage: StateFlow<String?> = _reapMessage
+
     init {
         loadMatches()
     }
+
+    fun reapAbandonedSessions() {
+        viewModelScope.launch {
+            try {
+                val count = repository.reapAbandonedSessions()
+                _reapMessage.value = if (count == 0) "No abandoned sessions found." else "Cleaned up $count abandoned session(s)."
+                loadMatches()
+            } catch (e: Exception) {
+                _reapMessage.value = e.message ?: "Failed to clean up abandoned sessions."
+            }
+        }
+    }
+
+    fun clearReapMessage() { _reapMessage.value = null }
 
     fun loadMatches() {
         viewModelScope.launch {
