@@ -3151,3 +3151,82 @@ flagged in the 2026-07-08 entry.
   `run_sql`, confirmed idempotent (`CREATE TABLE IF NOT EXISTS`).
 - Not build-verified by me on either app — user's own build/run is the check, as with every UI
   change this project.
+
+---
+## [2026-07-23] Feature (Part 1/6) — registration & onboarding overhaul: username/email + real DOB
+
+First slice of a larger, user-requested onboarding overhaul (full scope in
+`docs/plan-user-registration-onboarding.md`): add username (required) + email (optional) to
+registration, real DOB validation feeding age-based matchmaking (next slice), GPS-based city
+auto-detect (next slice), profile photo upload (next slice), and admin-app user-management gaps
+(next slice). This entry covers just the backend field/validation work plus the onboarding form's
+username/email/DOB fields — GPS and photo upload are separate follow-up slices since they need
+their own new endpoints (flagged to the user up front, not scope creep).
+
+Investigation before writing code found two things worth noting: registration already persisted to
+the DB correctly (a stub `User` row is created at OTP-verify, completed at `complete-profile`) —
+raised as a concern but turned out not to be a bug. And the admin-app "can't create a user
+directly" gap turned out to be UI-only — `POST /api/v1/users` (`CreateUserSchema`, audit-logged)
+already exists and works; nothing in the admin app calls it yet (addressed in a later slice).
+
+### Added
+**Backend**
+- `User` model — `username` (unique, nullable at DB level for pre-existing rows, required at the
+  application layer for new registrations), `email` (always optional, unique). `to_dict()` also
+  now returns a computed `age` field.
+- `modules/user/utils/age_utils.py` (new) — `compute_age()`, `validate_dob()` (must parse as
+  `YYYY-MM-DD`, not be in the future, imply age ≥ 13). Used by both the profile-completion endpoint
+  now and the matchmaking filter in the next slice.
+- `modules/user/schemas/user_schema.py` — `validate_username()`/`validate_email()` helpers (regex:
+  3-20 alphanumeric+underscore for username, standard email shape), wired into both
+  `CreateUserSchema` and `UpdateUserSchema` as optional fields.
+- `user_repository.py` — `find_by_username()`/`find_by_email()` for uniqueness checks; `create()`
+  now passes through `username`/`email` instead of silently dropping them.
+- `user_service.py` — `create_user()`/`update_user()` now reject duplicate username/email with a
+  clear `ValueError`, mirroring the existing phone-uniqueness pattern.
+- `auth_routes.py` `complete-profile` — now requires and validates `username` (uniqueness checked
+  against every other user, not just a format check), accepts optional `email` (validated +
+  uniqueness-checked if present), and validates `date_of_birth` for real instead of accepting
+  arbitrary free text.
+- Migration 28 — `username`/`email` columns on `users`, partial unique indexes (`WHERE ... IS NOT
+  NULL`, so the many existing NULL rows don't collide on uniqueness).
+- Migration 29 — `latitude`/`longitude` on `locations`, added now (schema only) since Part 3 (GPS)
+  needs it and it's a trivial nullable-column addition — rows are NULL until backfilled separately,
+  by user's explicit choice (ship the feature now, don't block on real coordinate data entry).
+- `Location` model — exposes the two new columns via `to_dict()`.
+- New tests: `test_age_utils.py` (9 cases — age computation across birthday boundaries, DOB
+  rejection paths), `test_user_service.py` gained 3 cases for username/email create + duplicate
+  rejection.
+
+**App — Vmsuserapp**
+- `Models.kt` — `User` gained `username`/`age` (`email` already existed, was just never populated
+  by the app-side request); `CompleteProfileRequest` gained required `username` + optional `email`.
+- `AuthRepository.kt` — `completeProfile()` signature extended to match.
+- `ProfileSetupScreen.kt` — step 1 gained username field (client-side format validation mirroring
+  the backend regex, inline error text) and an optional email field (same pattern). Replaced the
+  free-text DOB field (`DD / MM / YYYY` placeholder, zero validation) with a real Material3
+  `DatePickerDialog`, `selectableDates` capped at 13 years ago so under-13 dates aren't even
+  selectable client-side (defense in depth — the backend is the real gate).
+
+### Architectural decisions
+- Username is nullable at the DB/model level (existing users predate the field) but enforced
+  required at the application layer for anyone going through `complete-profile` — avoids a
+  disruptive backfill migration for existing accounts while still requiring it going forward.
+- Chose to add the `Location` lat/long columns now even though nothing reads them yet, since it's a
+  zero-risk nullable-column migration and avoids a second migration round-trip when Part 3 lands.
+
+### Not built this round — tracked in the plan doc
+- Age-based matchmaking filter (Part 2) — touches live `match_repository.py`/`match_service.py`
+  pairing logic, deliberately kept as its own slice given the risk.
+- GPS nearest-location endpoint (Part 3) — schema is ready (migration 29), endpoint isn't built yet.
+- Profile photo upload endpoint (Part 4) — `complete-profile` still accepts `profile_photo_url` but
+  the app always sends `null`; no upload endpoint exists yet.
+- Admin app: Users list doesn't show the new fields yet, and the working `POST /api/v1/users`
+  backend still has no UI to call it from (Part 6).
+
+### Verified
+- Full backend suite: 468 passed (456 prior + 12 new), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Migrations 28-29 applied directly against the live Neon DB via `run_migrations.py`.
+- Not build-verified by me on the app — user's own build/run is the check, as with every UI change
+  this project.

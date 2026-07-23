@@ -87,13 +87,38 @@ def complete_profile(
     body: dict,
     current_user: dict = Depends(get_current_user),
 ):
-    """Save profile details collected during onboarding (name, DOB, city, sports, photo)."""
+    """Save profile details collected during onboarding (name, username, DOB, city, sports, photo)."""
     from core.database.db_connection import SessionLocal
     from modules.location.model.location_model import Location
+    from modules.user.schemas.user_schema import validate_username, validate_email
+    from modules.user.utils.age_utils import validate_dob
 
     name = str(body.get("name", "")).strip()
     if not name:
         raise HTTPException(status_code=400, detail="name is required.")
+
+    username, username_err = validate_username(body.get("username"))
+    if username_err:
+        raise HTTPException(status_code=400, detail=username_err)
+    existing_username = user_repository.find_by_username(username)
+    if existing_username and existing_username["id"] != current_user["id"]:
+        raise HTTPException(status_code=400, detail="This username is already taken.")
+
+    email = None
+    if body.get("email"):
+        email, email_err = validate_email(body["email"])
+        if email_err:
+            raise HTTPException(status_code=400, detail=email_err)
+        existing_email = user_repository.find_by_email(email)
+        if existing_email and existing_email["id"] != current_user["id"]:
+            raise HTTPException(status_code=400, detail="A user with this email already exists.")
+
+    date_of_birth = body.get("date_of_birth")
+    if date_of_birth:
+        try:
+            validate_dob(str(date_of_birth))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     city = str(body.get("city", "")).strip() or None
 
@@ -110,7 +135,9 @@ def complete_profile(
 
     update_data: dict = {
         "name": name,
-        "date_of_birth": body.get("date_of_birth"),
+        "username": username,
+        "email": email,
+        "date_of_birth": date_of_birth,
         "city": city,
         "sport_preferences": body.get("sport_preferences") or [],
         "profile_photo_url": body.get("profile_photo_url"),

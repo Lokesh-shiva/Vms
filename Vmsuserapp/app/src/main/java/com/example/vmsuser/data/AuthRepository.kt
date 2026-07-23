@@ -20,6 +20,8 @@ class AuthRepository {
 
     suspend fun completeProfile(
         name: String,
+        username: String,
+        email: String?,
         dateOfBirth: String?,
         city: String,
         sportPreferences: List<String>,
@@ -28,6 +30,8 @@ class AuthRepository {
         val resp = api.completeProfile(
             CompleteProfileRequest(
                 name = name,
+                username = username,
+                email = email,
                 dateOfBirth = dateOfBirth,
                 city = city,
                 sportPreferences = sportPreferences,

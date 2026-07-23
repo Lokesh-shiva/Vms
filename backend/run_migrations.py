@@ -334,6 +334,26 @@ cur.execute("""
     );
 """)
 
+print("Running migration 28: add username/email to users ...")
+cur.execute("""
+    ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS username VARCHAR,
+        ADD COLUMN IF NOT EXISTS email VARCHAR;
+""")
+cur.execute("""
+    CREATE UNIQUE INDEX IF NOT EXISTS ix_users_username ON users (username) WHERE username IS NOT NULL;
+""")
+cur.execute("""
+    CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users (email) WHERE email IS NOT NULL;
+""")
+
+print("Running migration 29: add latitude/longitude to locations ...")
+cur.execute("""
+    ALTER TABLE locations
+        ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
+""")
+
 conn.commit()
 cur.close()
 conn.close()

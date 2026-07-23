@@ -2,9 +2,25 @@ import re
 
 from modules.user.model.user_model import UserRole
 
-
 # Derive allowed roles directly from the enum — single source of truth.
 VALID_ROLES = {role.value for role in UserRole}
+
+USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{3,20}$")
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def validate_username(value) -> tuple[str | None, str | None]:
+    """Returns (cleaned_value, error) — error is None if valid."""
+    if not isinstance(value, str) or not USERNAME_RE.match(value.strip()):
+        return None, "'username' must be 3-20 characters: letters, numbers, underscore only."
+    return value.strip(), None
+
+
+def validate_email(value) -> tuple[str | None, str | None]:
+    """Returns (cleaned_value, error) — error is None if valid."""
+    if not isinstance(value, str) or not EMAIL_RE.match(value.strip()):
+        return None, "'email' must be a valid email address."
+    return value.strip().lower(), None
 
 
 class CreateUserSchema:
@@ -55,6 +71,22 @@ class CreateUserSchema:
             self.errors.append("'is_active' must be a boolean.")
         else:
             self.validated_data["is_active"] = is_active
+
+        # username — optional for admin-created users
+        if self._data.get("username"):
+            username, err = validate_username(self._data["username"])
+            if err:
+                self.errors.append(err)
+            else:
+                self.validated_data["username"] = username
+
+        # email — always optional
+        if self._data.get("email"):
+            email, err = validate_email(self._data["email"])
+            if err:
+                self.errors.append(err)
+            else:
+                self.validated_data["email"] = email
 
         return len(self.errors) == 0
 
@@ -115,6 +147,20 @@ class UpdateUserSchema:
                 self.errors.append("'region_id' must be an integer or null.")
             else:
                 self.validated_data["region_id"] = region_id
+
+        if "username" in self._data and self._data["username"]:
+            username, err = validate_username(self._data["username"])
+            if err:
+                self.errors.append(err)
+            else:
+                self.validated_data["username"] = username
+
+        if "email" in self._data and self._data["email"]:
+            email, err = validate_email(self._data["email"])
+            if err:
+                self.errors.append(err)
+            else:
+                self.validated_data["email"] = email
 
         if "city" in self._data:
             city = self._data["city"]

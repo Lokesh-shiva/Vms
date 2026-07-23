@@ -27,6 +27,8 @@ class UserRepository:
             user = User(
                 name=user_data.get("name"),
                 phone=user_data.get("phone"),
+                username=user_data.get("username"),
+                email=user_data.get("email"),
                 password_hash=user_data.get("password_hash", ""),
                 role=user_data.get("role", UserRole.USER.value),
                 is_active=user_data.get("is_active", True),
@@ -55,6 +57,24 @@ class UserRepository:
         session = self._session_factory()
         try:
             user = session.query(User).filter(User.phone == phone).first()
+            return user.to_dict() if user else None
+        finally:
+            session.close()
+
+    def find_by_username(self, username: str) -> dict | None:
+        """Retrieve a user by username (for uniqueness checks)."""
+        session = self._session_factory()
+        try:
+            user = session.query(User).filter(User.username == username).first()
+            return user.to_dict() if user else None
+        finally:
+            session.close()
+
+    def find_by_email(self, email: str) -> dict | None:
+        """Retrieve a user by email (for uniqueness checks)."""
+        session = self._session_factory()
+        try:
+            user = session.query(User).filter(User.email == email).first()
             return user.to_dict() if user else None
         finally:
             session.close()

@@ -9,7 +9,9 @@ data class User(
     val id: Int = 0,
     val name: String = "",
     val phone: String = "",
+    val username: String? = null,
     val email: String? = null,
+    val age: Int? = null,
     val role: String = "user",
     val region: String = "",
     val gender: String? = null,
@@ -42,6 +44,8 @@ data class OtpVerifyResponse(
 @Serializable
 data class CompleteProfileRequest(
     val name: String,
+    val username: String,
+    val email: String? = null,
     @SerialName("date_of_birth") val dateOfBirth: String? = null,
     val city: String,
     @SerialName("sport_preferences") val sportPreferences: List<String>,

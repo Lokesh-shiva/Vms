@@ -45,6 +45,12 @@ class UserService(BaseService):
         if existing:
             raise ValueError("A user with this phone number already exists.")
 
+        if user_data.get("username") and self.user_repository.find_by_username(user_data["username"]):
+            raise ValueError("This username is already taken.")
+
+        if user_data.get("email") and self.user_repository.find_by_email(user_data["email"]):
+            raise ValueError("A user with this email already exists.")
+
         return self.user_repository.create(user_data)
 
     def get_user(self, user_id: int) -> dict | None:
@@ -104,6 +110,18 @@ class UserService(BaseService):
             conflict = self.user_repository.find_by_phone(new_phone)
             if conflict:
                 raise ValueError("A user with this phone number already exists.")
+
+        new_username = update_data.get("username")
+        if new_username and new_username != existing.get("username"):
+            conflict = self.user_repository.find_by_username(new_username)
+            if conflict:
+                raise ValueError("This username is already taken.")
+
+        new_email = update_data.get("email")
+        if new_email and new_email != existing.get("email"):
+            conflict = self.user_repository.find_by_email(new_email)
+            if conflict:
+                raise ValueError("A user with this email already exists.")
 
         return self.user_repository.update(user_id, update_data)
 

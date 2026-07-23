@@ -28,18 +28,36 @@ import com.example.vmsuser.network.UserSession
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 private val ALL_SPORTS = listOf(
     "Cricket", "Football", "Badminton", "Basketball", "Tennis",
     "Swimming", "Volleyball", "Running", "Pickleball", "Table Tennis",
 )
 
+private val USERNAME_REGEX = Regex("^[a-zA-Z0-9_]{3,20}$")
+private val EMAIL_REGEX = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
+private const val MIN_AGE_YEARS = 13
+
+private fun isoDate(millis: Long): String =
+    SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date(millis))
+
+private fun displayDate(iso: String): String = try {
+    val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(iso)
+    SimpleDateFormat("dd MMM yyyy", Locale.US).format(parsed!!)
+} catch (_: Exception) { iso }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileSetupScreen(navController: NavController) {
     var step by remember { mutableIntStateOf(1) }
     var name by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var dob by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
     var city by remember { mutableStateOf("") }
     var areaExpanded by remember { mutableStateOf(false) }
     var locations by remember { mutableStateOf<List<LocationOption>>(emptyList()) }
@@ -48,6 +66,9 @@ fun ProfileSetupScreen(navController: NavController) {
     var errorMsg by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val repo = remember { AuthRepository() }
+
+    val usernameValid = username.isBlank() || USERNAME_REGEX.matches(username)
+    val emailValid = email.isBlank() || EMAIL_REGEX.matches(email)
 
     LaunchedEffect(Unit) {
         try {
@@ -69,6 +90,8 @@ fun ProfileSetupScreen(navController: NavController) {
         scope.launch {
             repo.completeProfile(
                 name = name.trim(),
+                username = username.trim(),
+                email = email.trim().ifBlank { null },
                 dateOfBirth = dob.trim().ifBlank { null },
                 city = city.trim(),
                 sportPreferences = sports.toList(),
@@ -149,13 +172,66 @@ fun ProfileSetupScreen(navController: NavController) {
                 Spacer(Modifier.height(14.dp))
 
                 OutlinedTextField(
-                    value = dob,
-                    onValueChange = { dob = it },
+                    value = username,
+                    onValueChange = { username = it.filter { c -> !c.isWhitespace() } },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Date of birth · optional") },
-                    placeholder = { Text("DD / MM / YYYY") },
+                    label = { Text("Username") },
+                    placeholder = { Text("e.g. aarav_10") },
                     shape = PlixoShape.Input,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = username.isNotBlank() && !usernameValid,
+                    supportingText = {
+                        if (username.isNotBlank() && !usernameValid) {
+                            Text("3-20 characters: letters, numbers, underscore only.")
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PlixoPrimary,
+                        unfocusedBorderColor = PlixoBorder,
+                        errorBorderColor = PlixoDanger,
+                        focusedContainerColor = PlixoSurface2,
+                        unfocusedContainerColor = PlixoSurface2,
+                    ),
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Email · optional") },
+                    placeholder = { Text("you@example.com") },
+                    shape = PlixoShape.Input,
+                    isError = email.isNotBlank() && !emailValid,
+                    supportingText = {
+                        if (email.isNotBlank() && !emailValid) {
+                            Text("Enter a valid email address.")
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PlixoPrimary,
+                        unfocusedBorderColor = PlixoBorder,
+                        errorBorderColor = PlixoDanger,
+                        focusedContainerColor = PlixoSurface2,
+                        unfocusedContainerColor = PlixoSurface2,
+                    ),
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = if (dob.isBlank()) "" else displayDate(dob),
+                    onValueChange = {},
+                    readOnly = true,
+                    modifier = Modifier.fillMaxWidth().clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { showDatePicker = true },
+                    label = { Text("Date of birth") },
+                    placeholder = { Text("Used to find age-appropriate matches") },
+                    shape = PlixoShape.Input,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = PlixoPrimary,
                         unfocusedBorderColor = PlixoBorder,
@@ -164,6 +240,31 @@ fun ProfileSetupScreen(navController: NavController) {
                     ),
                     singleLine = true,
                 )
+                if (showDatePicker) {
+                    val maxMillis = remember {
+                        Calendar.getInstance().apply { add(Calendar.YEAR, -MIN_AGE_YEARS) }.timeInMillis
+                    }
+                    val datePickerState = rememberDatePickerState(
+                        initialSelectedDateMillis = maxMillis,
+                        selectableDates = object : SelectableDates {
+                            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= maxMillis
+                        },
+                    )
+                    DatePickerDialog(
+                        onDismissRequest = { showDatePicker = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                datePickerState.selectedDateMillis?.let { dob = isoDate(it) }
+                                showDatePicker = false
+                            }) { Text("Confirm") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                        },
+                    ) {
+                        DatePicker(state = datePickerState)
+                    }
+                }
                 Spacer(Modifier.height(14.dp))
 
                 ExposedDropdownMenuBox(
@@ -204,7 +305,8 @@ fun ProfileSetupScreen(navController: NavController) {
                 PlixoButton(
                     "Continue",
                     onClick = { step = 2 },
-                    enabled = name.isNotBlank() && city.isNotBlank(),
+                    enabled = name.isNotBlank() && city.isNotBlank() &&
+                        username.isNotBlank() && usernameValid && emailValid,
                 )
 
             } else {

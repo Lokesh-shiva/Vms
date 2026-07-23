@@ -60,6 +60,28 @@ class TestUserService(unittest.TestCase):
         )
         self.assertEqual(result["role"], "admin")
 
+    def test_create_user_with_username_and_email(self):
+        """Creating a user with username/email persists both."""
+        result = self.service.create_user(
+            {"name": "Dana", "phone": "+1231231234", "username": "dana_p", "email": "dana@example.com"}
+        )
+        self.assertEqual(result["username"], "dana_p")
+        self.assertEqual(result["email"], "dana@example.com")
+
+    def test_create_user_duplicate_username(self):
+        """Creating a user with an already-taken username raises ValueError."""
+        self.service.create_user({"name": "Dana", "phone": "+1231231234", "username": "dana_p"})
+        with self.assertRaises(ValueError) as ctx:
+            self.service.create_user({"name": "Dana2", "phone": "+3213214321", "username": "dana_p"})
+        self.assertIn("username", str(ctx.exception))
+
+    def test_create_user_duplicate_email(self):
+        """Creating a user with an already-registered email raises ValueError."""
+        self.service.create_user({"name": "Dana", "phone": "+1231231234", "email": "dana@example.com"})
+        with self.assertRaises(ValueError) as ctx:
+            self.service.create_user({"name": "Dana2", "phone": "+3213214321", "email": "dana@example.com"})
+        self.assertIn("email", str(ctx.exception))
+
     # ── Read ──────────────────────────────────────────────────────────
 
     def test_get_user_found(self):
