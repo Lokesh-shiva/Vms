@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
-from modules.auth.dependencies.auth_dependencies import require_admin
+from fastapi import APIRouter, Depends, HTTPException, Query
+from modules.auth.dependencies.auth_dependencies import require_admin, require_user
 from modules.location.service.location_service import LocationService
 from modules.location.schemas.location_schema import (
     CreateLocationSchema,
@@ -41,6 +41,21 @@ def list_locations():
     """Retrieve all locations."""
     locations = location_service.list_locations()
     return _success(locations)
+
+
+@router.get("/nearest")
+def get_nearest_locations(
+    lat: float = Query(...),
+    lng: float = Query(...),
+    current_user: dict = Depends(require_user),
+):
+    """Serviceable locations nearest to a GPS point, closest first. Used to
+    auto-suggest the user's area during onboarding."""
+    try:
+        locations = location_service.find_nearest_locations(lat, lng)
+        return _success(locations)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/{location_id}")

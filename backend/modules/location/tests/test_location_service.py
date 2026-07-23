@@ -116,6 +116,44 @@ class TestLocationService(unittest.TestCase):
         """Deleting a non-existent location returns False."""
         self.assertFalse(self.service.delete_location(999))
 
+    # ── Nearest (GPS) ─────────────────────────────────────────────────
+
+    def test_find_nearest_orders_closest_first(self):
+        self.service.create_location({"name": "Near", "latitude": 17.6900, "longitude": 83.2200})
+        self.service.create_location({"name": "Far", "latitude": 17.3850, "longitude": 78.4867})
+        results = self.service.find_nearest_locations(lat=17.6868, lng=83.2185)
+        self.assertEqual(results[0]["name"], "Near")
+        self.assertEqual(results[1]["name"], "Far")
+        self.assertLess(results[0]["distance_km"], results[1]["distance_km"])
+
+    def test_find_nearest_excludes_locations_without_coordinates(self):
+        self.service.create_location({"name": "NoCoords"})
+        self.service.create_location({"name": "HasCoords", "latitude": 17.69, "longitude": 83.22})
+        results = self.service.find_nearest_locations(lat=17.6868, lng=83.2185)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["name"], "HasCoords")
+
+    def test_find_nearest_excludes_non_serviceable(self):
+        self.service.create_location({
+            "name": "Closed", "latitude": 17.69, "longitude": 83.22, "is_serviceable": False,
+        })
+        results = self.service.find_nearest_locations(lat=17.6868, lng=83.2185)
+        self.assertEqual(len(results), 0)
+
+    def test_find_nearest_respects_limit(self):
+        for i in range(3):
+            self.service.create_location({"name": f"Loc{i}", "latitude": 17.69 + i, "longitude": 83.22})
+        results = self.service.find_nearest_locations(lat=17.6868, lng=83.2185, limit=2)
+        self.assertEqual(len(results), 2)
+
+    def test_find_nearest_rejects_invalid_lat(self):
+        with self.assertRaises(ValueError):
+            self.service.find_nearest_locations(lat=999, lng=83.2185)
+
+    def test_find_nearest_rejects_invalid_lng(self):
+        with self.assertRaises(ValueError):
+            self.service.find_nearest_locations(lat=17.6868, lng=999)
+
 
 if __name__ == "__main__":
     unittest.main()

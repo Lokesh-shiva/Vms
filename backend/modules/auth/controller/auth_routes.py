@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from modules.auth.dependencies.auth_dependencies import get_current_user
 from modules.auth.service.auth_service import AuthService
-from modules.otp.service.otp_service import otp_service
+from modules.otp.service.otp_service import otp_service, OtpDeliveryError
 from modules.user.repository.user_repository import user_repository
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
@@ -39,6 +39,8 @@ def send_otp(body: dict):
         otp_service.send_otp(phone)
     except NotImplementedError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except OtpDeliveryError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return _success(None, "OTP sent.")
 
 

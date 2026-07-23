@@ -49,6 +49,16 @@ class LocationService(BaseService):
         """Retrieve all locations."""
         return self.location_repository.find_all()
 
+    def find_nearest_locations(self, lat: float, lng: float, limit: int = 5) -> list[dict]:
+        """Return serviceable locations nearest to (lat, lng), closest first.
+
+        Raises:
+            ValueError: if lat/lng are out of valid range.
+        """
+        if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+            raise ValueError("lat must be in [-90, 90] and lng must be in [-180, 180].")
+        return self.location_repository.find_nearest(lat, lng, limit)
+
     def update_location(self, location_id: int, update_data: dict) -> dict | None:
         """
         Update an existing location.

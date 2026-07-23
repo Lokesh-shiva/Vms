@@ -117,9 +117,11 @@ other feature this session shipped as an individually-committed vertical slice.
 ## Progress
 - [x] Part 1 — Backend: username/email fields + DOB validation
 - [x] Part 5a — App (Vmsuserapp): username/email fields + real DOB date picker in onboarding
-      (GPS auto-detect and photo upload still pending — depend on Parts 3/4)
-- [ ] Part 2 — Backend: age-based matchmaking filter
-- [ ] Part 3 — Backend: GPS nearest-location endpoint
+- [x] Part 2 — Backend: age-based matchmaking filter (±5yr, applied to open-matches listing + join_match)
+- [x] Part 3 — Backend: GPS nearest-location endpoint (haversine) + Part 5b app wiring (GPS
+      auto-detect + confirm card in onboarding, no new Gradle dependency — uses
+      `android.location.LocationManager` directly since play-services-location wasn't already a
+      dependency)
 - [ ] Part 4 — Backend: profile photo upload
-- [ ] Part 5b — App (Vmsuserapp): GPS city auto-detect + photo picker
+- [ ] Part 5c — App (Vmsuserapp): photo picker
 - [ ] Part 6 — App (Vmsadminapp): user management (show new fields, wire admin-create-user)

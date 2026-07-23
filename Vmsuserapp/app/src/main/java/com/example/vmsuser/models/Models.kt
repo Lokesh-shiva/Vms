@@ -265,6 +265,7 @@ data class CaptainApplication(
 data class LocationOption(
     val id: Int = 0,
     val name: String = "",
+    @SerialName("distance_km") val distanceKm: Double? = null,
 )
 
 @Serializable
@@ -292,6 +293,7 @@ data class OpenMatch(
     @SerialName("created_at") val createdAt: String = "",
     val status: String = "WAITING",
     @SerialName("captain_name") val creatorName: String = "",
+    @SerialName("creator_age") val creatorAge: Int? = null,
 )
 
 @Serializable

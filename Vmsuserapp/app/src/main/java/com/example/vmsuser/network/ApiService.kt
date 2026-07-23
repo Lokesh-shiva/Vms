@@ -23,6 +23,12 @@ interface ApiService {
     @GET("api/v1/locations")
     suspend fun getLocations(): ApiResponse<List<LocationOption>>
 
+    @GET("api/v1/locations/nearest")
+    suspend fun getNearestLocations(
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double,
+    ): ApiResponse<List<LocationOption>>
+
     @GET("api/v1/sports")
     suspend fun getSports(): ApiResponse<List<SportItem>>
 

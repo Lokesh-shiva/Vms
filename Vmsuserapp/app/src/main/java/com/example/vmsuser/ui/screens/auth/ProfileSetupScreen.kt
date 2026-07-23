@@ -1,5 +1,8 @@
 package com.example.vmsuser.ui.screens.auth
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -7,13 +10,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -25,6 +32,7 @@ import com.example.vmsuser.models.LocationOption
 import com.example.vmsuser.navigation.Screen
 import com.example.vmsuser.network.RetrofitClient
 import com.example.vmsuser.network.UserSession
+import com.example.vmsuser.network.lastKnownLocation
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
 import kotlinx.coroutines.launch
@@ -66,9 +74,48 @@ fun ProfileSetupScreen(navController: NavController) {
     var errorMsg by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val repo = remember { AuthRepository() }
+    val context = LocalContext.current
 
     val usernameValid = username.isBlank() || USERNAME_REGEX.matches(username)
     val emailValid = email.isBlank() || EMAIL_REGEX.matches(email)
+
+    var detectingLocation by remember { mutableStateOf(false) }
+    var locationSuggestion by remember { mutableStateOf<LocationOption?>(null) }
+    var locationError by remember { mutableStateOf<String?>(null) }
+
+    fun detectNearestLocation() {
+        val fix = lastKnownLocation(context)
+        if (fix == null) {
+            locationError = "Couldn't get your location. Pick your area manually."
+            detectingLocation = false
+            return
+        }
+        scope.launch {
+            try {
+                val res = RetrofitClient.api.getNearestLocations(fix.first, fix.second)
+                val nearest = res.data?.firstOrNull()
+                if (res.success && nearest != null) {
+                    locationSuggestion = nearest
+                } else {
+                    locationError = "No serviceable area found near you yet."
+                }
+            } catch (_: Exception) {
+                locationError = "Couldn't detect your area. Pick it manually."
+            }
+            detectingLocation = false
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            detectNearestLocation()
+        } else {
+            detectingLocation = false
+            locationError = "Location permission denied. Pick your area manually."
+        }
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -266,6 +313,63 @@ fun ProfileSetupScreen(navController: NavController) {
                     }
                 }
                 Spacer(Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = !detectingLocation,
+                    ) {
+                        locationError = null
+                        detectingLocation = true
+                        locationPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                    },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.MyLocation, null, tint = PlixoPrimary, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        if (detectingLocation) "Detecting your area…" else "Use my current location",
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        color = PlixoPrimary,
+                    )
+                }
+                if (locationError != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(locationError!!, fontFamily = PlusJakartaSans, fontSize = 12.sp, color = PlixoText3)
+                }
+                locationSuggestion?.let { suggestion ->
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                            .background(PlixoPrimaryLight, RoundedCornerShape(12.dp))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Detected: ${suggestion.name}",
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 13.sp,
+                                color = PlixoPrimaryDark,
+                            )
+                            Text(
+                                "Not right? Pick another area below.",
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 11.sp,
+                                color = PlixoText3,
+                            )
+                        }
+                        TextButton(onClick = {
+                            city = suggestion.name
+                            locationSuggestion = null
+                        }) { Text("Use this") }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
 
                 ExposedDropdownMenuBox(
                     expanded = areaExpanded,

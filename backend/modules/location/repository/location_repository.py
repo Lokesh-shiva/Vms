@@ -29,6 +29,8 @@ class LocationRepository:
             location = Location(
                 name=location_data.get("name"),
                 is_serviceable=location_data.get("is_serviceable", True),
+                latitude=location_data.get("latitude"),
+                longitude=location_data.get("longitude"),
             )
             session.add(location)
             session.commit()
@@ -70,6 +72,35 @@ class LocationRepository:
         try:
             locations = session.query(Location).all()
             return [loc.to_dict() for loc in locations]
+        finally:
+            session.close()
+
+    def find_nearest(self, lat: float, lng: float, limit: int = 5) -> list[dict]:
+        """Return up to `limit` serviceable locations with known coordinates,
+        nearest-first by haversine distance (km). Locations without coordinates
+        are excluded — there's nothing to measure distance against."""
+        from modules.location.utils.geo import haversine_km
+
+        session = self._session_factory()
+        try:
+            candidates = (
+                session.query(Location)
+                .filter(
+                    Location.is_serviceable == True,  # noqa: E712
+                    Location.latitude.isnot(None),
+                    Location.longitude.isnot(None),
+                )
+                .all()
+            )
+            scored = [
+                (haversine_km(lat, lng, loc.latitude, loc.longitude), loc)
+                for loc in candidates
+            ]
+            scored.sort(key=lambda pair: pair[0])
+            return [
+                {**loc.to_dict(), "distance_km": round(distance, 2)}
+                for distance, loc in scored[:limit]
+            ]
         finally:
             session.close()
 

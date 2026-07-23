@@ -172,7 +172,9 @@ def get_open_matches(
         finally:
             db.close()
 
-    matches = match_repository.find_waiting_in_region(region_id, sport_id)
+    matches = match_repository.find_waiting_in_region(
+        region_id, sport_id, requester_age=current_user.get("age")
+    )
     return _success(matches)
 
 

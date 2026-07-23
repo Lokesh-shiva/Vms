@@ -3230,3 +3230,142 @@ already exists and works; nothing in the admin app calls it yet (addressed in a 
 - Migrations 28-29 applied directly against the live Neon DB via `run_migrations.py`.
 - Not build-verified by me on the app — user's own build/run is the check, as with every UI change
   this project.
+
+---
+## [2026-07-23] Feature (Part 2/6) — age-based matchmaking filter
+
+Second slice of the onboarding overhaul (`docs/plan-user-registration-onboarding.md`). Store-only
+DOB from Part 1 becomes a real matching constraint: ±5 years, fixed (user's explicit choice — not
+configurable).
+
+### Investigation before writing code
+The `matchmaking_service.py` file (QueueEntry-based join_queue/leave_queue) looked like the obvious
+place to add this, but it's dead code — the actual play-now flow was fully rewritten to a
+Match-based model back on 2026-06-16 and nothing calls into `matchmaking_service.py` anymore
+(confirmed via grep — zero callers). The real pairing logic lives in
+`match_repository.find_waiting_in_region()` (the "Open Matches" list) and
+`match_service.join_match()` (the actual join transaction). Both needed the filter — filtering the
+list without also enforcing it on join would let someone bypass the filter by hitting the join
+endpoint directly with a known match_id.
+
+### Added
+**Backend**
+- `modules/match/utils/age_compatibility.py` (new) — `is_age_compatible(age_a, age_b)`: true if
+  either age is unknown (exempts pre-existing users without a DOB from being locked out) or the
+  difference is ≤5 years.
+- `match_repository.find_waiting_in_region()` — new optional `requester_age` param; when given,
+  filters out matches whose creator's age falls outside the window. `_enrich()` now also returns
+  `creator_age` (computed from the creator's DOB) so the app can display it later if wanted.
+- `match_routes.py` `GET /matches/open` — passes `current_user.get("age")` through automatically
+  (already present on every authenticated user's dict since Part 1's `to_dict()` change).
+- `match_service.join_match()` — added a real age-compatibility check (step 4b) alongside the
+  existing skill-level check. Notably, the skill-level check next to it is actually a **no-op
+  placeholder** ("MVP: strict enforcement is future work") — the age check is written to actually
+  block, per the user's explicit "filter matchmaking by range" request, not mirror that no-op.
+- `MatchService.__init__()` gained a `user_repository` constructor param (defaulting to the
+  production singleton) so `join_match()` could look up both players' ages through it instead of a
+  bare module-level import — this is the same DI pattern used everywhere else in the codebase.
+  Necessary because a bare import would have made every isolated-SQLite test that calls
+  `join_match()` silently hit the real production database for user lookups.
+
+**Tests**
+- `test_age_compatibility.py` — 7 cases (within/at/outside window, unknown-age exemption both
+  directions, same age).
+- `test_captain_created_matches.py` — added `UserRepository` DI to `TestCaptainCreateMatchService`
+  (previously missing it entirely — same production-DB-leak class of bug caught and fixed here
+  before it could bite), plus 3 new cases: age-filtered `find_waiting_in_region`, `join_match`
+  rejecting an incompatible pair, `join_match` allowing a compatible pair.
+
+### Verified
+- Full backend suite: 478 passed (468 prior + 10 new), zero regressions.
+
+---
+## [2026-07-23] Feature (Part 3/6) — GPS nearest-location endpoint
+
+Third slice. `Location` had zero coordinate data (flagged in Part 1's entry as a known gap) — this
+adds the schema support and lookup endpoint; existing location rows stay uncoordinated until
+someone backfills real lat/long, per the user's explicit "ship now, backfill later" choice.
+
+### Added
+**Backend**
+- `modules/location/utils/geo.py` (new) — `haversine_km()`, pure Python, no new dependency.
+- `location_repository.find_nearest(lat, lng, limit)` — filters to `is_serviceable=true` locations
+  with non-null coordinates, sorts by haversine distance, returns each with a `distance_km` field.
+  Locations without coordinates are silently excluded rather than erroring — the fallback is "no
+  suggestion, pick manually," not a broken request.
+- `location_service.find_nearest_locations()` — validates lat/lng are in a sane range before
+  hitting the DB.
+- `GET /api/v1/locations/nearest?lat=&lng=` (new route, `require_user`) — registered *before*
+  `/{location_id}` in the file; FastAPI's int-typed path converter for `location_id` means this
+  wasn't strictly a routing hazard, but ordering it first avoids any ambiguity.
+- `location_repository.create()` now also accepts `latitude`/`longitude` (previously silently
+  dropped them even though the model already had the columns from Part 1's migration 29).
+
+**App — Vmsuserapp**
+- `network/DeviceLocation.kt` (new) — `lastKnownLocation(context)`: best-effort GPS/network fix via
+  `android.location.LocationManager` directly. Deliberately did **not** add
+  `play-services-location` as a new Gradle dependency — grepped the whole app first and confirmed
+  nothing uses Play Services location today (the arrival-GPS-check flow the model docstrings
+  reference doesn't have a client-side implementation yet either), so pulling in a new dependency
+  for this one feature wasn't justified when the plain Android API covers "best-effort suggestion"
+  well enough.
+- `ProfileSetupScreen.kt` — "Use my current location" row above the area dropdown; on tap, requests
+  `ACCESS_COARSE_LOCATION` (already declared in the manifest), reads a last-known fix, calls
+  `/locations/nearest`, and shows a "Detected: X — Use this?" card the user can accept or ignore.
+  Graceful fallback text for permission-denied, no-fix-available, and no-nearby-location-yet cases.
+- `Models.kt` — `LocationOption` gained `distance_km`; `OpenMatch` gained `creator_age` (surfacing
+  the field Part 2 added, not yet rendered in any card — available for a future polish pass).
+
+### Verified
+- Full backend suite: 487 passed (478 prior + 9 new: 3 haversine + 6 find_nearest).
+- Not build-verified by me on the app — user's own build/run is the check.
+
+---
+## [2026-07-23] Feature — real OTP delivery via MSG91 (dev-mode mock kept as default)
+
+Not part of the registration-overhaul plan — a separate, explicitly-flagged gap: OTP was fully
+mocked (`OTP_DEV_MODE` defaults `true`, every code is `123456`, non-dev mode raised
+`NotImplementedError` with a `# TODO: integrate MSG91` comment already sitting in the code from
+earlier). User confirmed MSG91 as the provider. Real delivery requires an MSG91 account and,
+independent of provider choice, DLT (Distributed Ledger Technology) template registration —
+mandatory under Indian telecom regulation for any transactional/OTP SMS. Neither of those is
+something that can be set up from here; the code is written to activate the moment those exist.
+
+### Added
+**Backend**
+- `otp_service.py` — `_send_via_msg91()`: posts to MSG91's Flow API
+  (`https://control.msg91.com/api/v5/flow/`) with the same code already generated and stored
+  locally (so `verify_otp()` needed zero changes — verification still matches against our own
+  `otp_repository`, not MSG91's). Raises `NotImplementedError` if `MSG91_AUTH_KEY`/
+  `MSG91_TEMPLATE_ID` aren't set (mirrors the pre-existing "not configured" signal), or the new
+  `OtpDeliveryError` if MSG91 is configured but the send itself fails (bad response body or network
+  error) — these are two different failure modes and now get two different HTTP statuses.
+- `auth_routes.py` `POST /send-otp` — added an `OtpDeliveryError` → 502 handler alongside the
+  existing `NotImplementedError` → 503 handler.
+- `requirements.txt` — added `requests` explicitly (was already present transitively via
+  `firebase-admin`, but an OTP-critical HTTP call depending on an undeclared transitive dependency
+  felt like exactly the kind of thing that silently breaks later).
+- `.env.example` — documented `OTP_DEV_MODE`, `OTP_EXPIRY_MINUTES`, `MSG91_AUTH_KEY`,
+  `MSG91_TEMPLATE_ID`, `MSG91_OTP_VAR` (must match the variable name inside the DLT-approved
+  template — MSG91 surfaces this when the template is created), with an explicit note that
+  `OTP_DEV_MODE` must stay `true` until DLT registration is actually done, not just the API key.
+- `test_otp_service.py` (new, first tests this module has ever had) — 7 cases: dev-mode never calls
+  the provider, dev-mode always accepts `123456`, missing-config raises `NotImplementedError`, a
+  successful send posts the same code that got persisted (verified by asserting the SMS payload's
+  code matches what `otp_repository.create()` was called with), MSG91 error-response and
+  network-failure both raise `OtpDeliveryError`, and real-code verification still checks the
+  repository when the submitted code isn't the dev fallback.
+
+### Architectural decisions
+- Kept our own OTP generation/storage/verification instead of delegating to MSG91's own
+  OTP-management endpoints — smaller change (only the *send* step talks to MSG91), and
+  `verify_otp()`'s existing repository-backed matching didn't need to change at all.
+- `OTP_DEV_MODE` still defaults to `true` and nothing in `.env` currently overrides it — this change
+  is inert in production until the user has both an MSG91 API key and a DLT-approved template and
+  flips the flag themselves.
+
+### Verified
+- Full backend suite: 494 passed (487 prior + 7 new OTP tests), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Not build-verified — no app-side changes in this entry (OTP flow already exists — this only swaps
+  what happens server-side when `OTP_DEV_MODE=false`, which nothing currently sets).

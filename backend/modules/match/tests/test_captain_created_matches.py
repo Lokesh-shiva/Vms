@@ -37,6 +37,7 @@ from modules.cart_type.repository.cart_type_repository import CartTypeRepository
 from modules.location.repository.location_repository import LocationRepository
 from modules.society.repository.society_member_repository import SocietyMemberRepository
 from modules.society.repository.society_repository import SocietyRepository
+from modules.user.repository.user_repository import UserRepository
 
 
 def _make_test_session_factory():
@@ -152,6 +153,35 @@ class TestCaptainCreatedMatches(unittest.TestCase):
     def test_find_by_invite_code_unknown_returns_none(self):
         self.assertIsNone(self.repo.find_by_invite_code("ZZZZZZ"))
 
+    def test_find_waiting_in_region_filters_by_age_window(self):
+        """A requester's age filters out matches organized by a creator too far outside the window."""
+        from datetime import date
+        session = self.session_factory()
+        # user_id=10 (the organizing captain's user) — DOB implies age ~40
+        session.query(User).filter(User.id == 10).delete()
+        session.add(User(
+            id=10, name="Old Captain", phone="+1000000010", password_hash="",
+            date_of_birth=date(date.today().year - 40, 1, 1).isoformat(),
+        ))
+        session.commit()
+        session.close()
+
+        self.repo.create_captain_match(
+            user_id=10, captain_id=1, region_id=1, cart_type_id=1, max_players=4, visibility="OPEN"
+        )
+
+        # Requester age 22 is >5yrs from creator age ~40 — filtered out
+        far_results = self.repo.find_waiting_in_region(region_id=1, requester_age=22)
+        self.assertEqual(len(far_results), 0)
+
+        # Requester age 38 is within 5yrs of creator age ~40 — included
+        close_results = self.repo.find_waiting_in_region(region_id=1, requester_age=38)
+        self.assertEqual(len(close_results), 1)
+
+        # No requester_age given — no filtering
+        unfiltered = self.repo.find_waiting_in_region(region_id=1)
+        self.assertEqual(len(unfiltered), 1)
+
 
 class TestCaptainCreateMatchService(unittest.TestCase):
     def setUp(self):
@@ -160,6 +190,7 @@ class TestCaptainCreateMatchService(unittest.TestCase):
         self.captain_repo = CaptainRepository(session_factory=self.session_factory)
         self.society_member_repo = SocietyMemberRepository(session_factory=self.session_factory)
         self.society_repo = SocietyRepository(session_factory=self.session_factory)
+        self.user_repo = UserRepository(session_factory=self.session_factory)
         self.service = MatchService(
             match_repository=self.match_repo,
             cart_repository=CartRepository(session_factory=self.session_factory),
@@ -169,6 +200,7 @@ class TestCaptainCreateMatchService(unittest.TestCase):
             captain_repository=self.captain_repo,
             society_member_repository=self.society_member_repo,
             society_repository=self.society_repo,
+            user_repository=self.user_repo,
         )
 
         session = self.session_factory()
@@ -306,6 +338,59 @@ class TestCaptainCreateMatchService(unittest.TestCase):
                 },
             )
         self.assertIn("already organizing another match", str(ctx.exception))
+
+    def test_join_match_rejects_incompatible_age(self):
+        """A joiner far outside the creator's age window is rejected."""
+        from datetime import date
+        session = self.session_factory()
+        session.query(User).filter(User.id.in_([10, 20])).delete(synchronize_session=False)
+        session.add(User(
+            id=10, name="Old Captain", phone="+1000000010", password_hash="",
+            date_of_birth=date(date.today().year - 40, 1, 1).isoformat(),
+        ))
+        session.add(User(
+            id=20, name="Young Joiner", phone="+1000000020", password_hash="",
+            date_of_birth=date(date.today().year - 20, 1, 1).isoformat(),
+        ))
+        session.commit()
+        session.close()
+
+        match = self.service.captain_create_match(
+            user_id=10,
+            data={
+                "cart_type_id": 1, "region_id": 1, "max_players": 4,
+                "visibility": "OPEN", "society_id": None, "skill_level": None,
+            },
+        )
+        with self.assertRaises(ValueError) as ctx:
+            self.service.join_match(20, match["id"])
+        self.assertIn("age match", str(ctx.exception))
+
+    def test_join_match_allows_compatible_age(self):
+        """A joiner within the creator's age window succeeds."""
+        from datetime import date
+        session = self.session_factory()
+        session.query(User).filter(User.id.in_([10, 20])).delete(synchronize_session=False)
+        session.add(User(
+            id=10, name="Captain", phone="+1000000010", password_hash="",
+            date_of_birth=date(date.today().year - 30, 1, 1).isoformat(),
+        ))
+        session.add(User(
+            id=20, name="Joiner", phone="+1000000020", password_hash="",
+            date_of_birth=date(date.today().year - 28, 1, 1).isoformat(),
+        ))
+        session.commit()
+        session.close()
+
+        match = self.service.captain_create_match(
+            user_id=10,
+            data={
+                "cart_type_id": 1, "region_id": 1, "max_players": 4,
+                "visibility": "OPEN", "society_id": None, "skill_level": None,
+            },
+        )
+        joined = self.service.join_match(20, match["id"])
+        self.assertEqual(joined["joined_players"], 1)
 
     def test_join_by_code_full_match_raises(self):
         """join_by_code on an already-full match surfaces join_match's capacity error."""

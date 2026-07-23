@@ -214,9 +214,16 @@ class MatchRepository:
             session.close()
 
     def find_waiting_in_region(
-        self, region_id: int, sport_id: int | None = None
+        self, region_id: int, sport_id: int | None = None, requester_age: int | None = None
     ) -> list[dict]:
-        """Return OPEN-visibility WAITING matches in a region, newest first."""
+        """Return OPEN-visibility WAITING matches in a region, newest first.
+
+        When requester_age is given, matches whose creator's age is more than
+        AGE_COMPATIBILITY_WINDOW_YEARS away are filtered out. Matches where either
+        side's age is unknown are always included (age filtering is opt-in per user).
+        """
+        from modules.match.utils.age_compatibility import is_age_compatible
+
         session = self._session_factory()
         try:
             query = session.query(Match).filter(
@@ -227,7 +234,10 @@ class MatchRepository:
             if sport_id:
                 query = query.filter(Match.cart_type_id == sport_id)
             rows = query.order_by(Match.created_at.desc()).all()
-            return [self._enrich(m, session) for m in rows]
+            enriched = [self._enrich(m, session) for m in rows]
+            if requester_age is None:
+                return enriched
+            return [m for m in enriched if is_age_compatible(requester_age, m.get("creator_age"))]
         finally:
             session.close()
 
@@ -322,6 +332,7 @@ class MatchRepository:
         from modules.location.model.location_model import Location
         from modules.timeslot.model.timeslot_model import Timeslot
         from modules.user.model.user_model import User
+        from modules.user.utils.age_utils import compute_age
 
         base = m.to_dict()
 
@@ -350,12 +361,14 @@ class MatchRepository:
             if ts:
                 scheduled_at = f"{ts.date}T{ts.start_time}"
 
-        # Captain name via created_by
+        # Captain name + age via created_by
         captain_name = None
+        creator_age = None
         if m.created_by:
             u = session.query(User).filter(User.id == m.created_by).first()
             if u:
                 captain_name = u.name
+                creator_age = compute_age(u.date_of_birth)
 
         # Player IDs via match_players
         player_ids = [
@@ -371,6 +384,7 @@ class MatchRepository:
             "scheduled_at": scheduled_at,
             "captain_name": captain_name,
             "captain_id": m.created_by,
+            "creator_age": creator_age,
             "player_ids": player_ids,
             "price": 0,
         }

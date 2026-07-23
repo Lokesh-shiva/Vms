@@ -26,6 +26,9 @@ from modules.society.repository.society_member_repository import (
 from modules.society.repository.society_repository import (
     society_repository as _default_society_repo,
 )
+from modules.user.repository.user_repository import (
+    user_repository as _default_user_repo,
+)
 
 
 class MatchService(BaseService):
@@ -51,6 +54,7 @@ class MatchService(BaseService):
         captain_repository=None,
         society_member_repository=None,
         society_repository=None,
+        user_repository=None,
     ):
         super().__init__()
         self.match_repo = match_repository or _default_match_repo
@@ -62,6 +66,7 @@ class MatchService(BaseService):
         self.captain_repo = captain_repository or _default_captain_repo
         self.society_member_repo = society_member_repository or _default_society_member_repo
         self.society_repo = society_repository or _default_society_repo
+        self.user_repo = user_repository or _default_user_repo
 
     # ── Helpers ───────────────────────────────────────────────────────
 
@@ -253,6 +258,16 @@ class MatchService(BaseService):
                 # MVP: client sends user skill level; strict enforcement is future work.
                 # The field is available on match for display — no strict block for now.
                 pass
+
+            # 4b. Age compatibility enforcement
+            from modules.match.utils.age_compatibility import is_age_compatible
+
+            joiner = self.user_repo.find_by_id(user_id)
+            creator = self.user_repo.find_by_id(match_orm.created_by) if match_orm.created_by else None
+            if joiner and creator and not is_age_compatible(joiner.get("age"), creator.get("age")):
+                raise ValueError(
+                    "This match isn't a great age match for you. Try one from the open list instead."
+                )
 
             # 5. Double-join guard
             if self.match_repo.has_player(match_id, user_id):
