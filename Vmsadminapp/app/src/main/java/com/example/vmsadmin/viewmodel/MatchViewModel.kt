@@ -4,10 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.MatchRepository
+import com.example.vmsadmin.models.AdminChatMessage
 import com.example.vmsadmin.models.Match
+import com.example.vmsadmin.models.MatchDetail
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+
+private const val MESSAGE_POLL_INTERVAL_MS = 5000L
 
 class MatchViewModel(private val repository: MatchRepository) : ViewModel() {
 
@@ -23,8 +29,55 @@ class MatchViewModel(private val repository: MatchRepository) : ViewModel() {
     private val _reapMessage = MutableStateFlow<String?>(null)
     val reapMessage: StateFlow<String?> = _reapMessage
 
+    private val _matchDetail = MutableStateFlow<MatchDetail?>(null)
+    val matchDetail: StateFlow<MatchDetail?> = _matchDetail
+
+    private val _detailLoading = MutableStateFlow(false)
+    val detailLoading: StateFlow<Boolean> = _detailLoading
+
+    private val _detailError = MutableStateFlow<String?>(null)
+    val detailError: StateFlow<String?> = _detailError
+
+    private val _matchMessages = MutableStateFlow<List<AdminChatMessage>>(emptyList())
+    val matchMessages: StateFlow<List<AdminChatMessage>> = _matchMessages
+
+    private var messagePollJob: Job? = null
+
     init {
         loadMatches()
+    }
+
+    fun openMatchDetail(matchId: Int) {
+        _matchDetail.value = null
+        _matchMessages.value = emptyList()
+        _detailError.value = null
+        viewModelScope.launch {
+            _detailLoading.value = true
+            try {
+                _matchDetail.value = repository.getMatchDetail(matchId)
+            } catch (e: Exception) {
+                _detailError.value = e.message ?: "Failed to load match detail"
+            } finally {
+                _detailLoading.value = false
+            }
+        }
+
+        messagePollJob?.cancel()
+        messagePollJob = viewModelScope.launch {
+            while (true) {
+                try {
+                    _matchMessages.value = repository.getMatchMessages(matchId)
+                } catch (_: Exception) {
+                    // Non-fatal — chat is a secondary view; keep polling.
+                }
+                delay(MESSAGE_POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    fun stopMatchDetailPolling() {
+        messagePollJob?.cancel()
+        messagePollJob = null
     }
 
     fun reapAbandonedSessions() {
@@ -81,6 +134,11 @@ class MatchViewModel(private val repository: MatchRepository) : ViewModel() {
                 _isLoading.value = false
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        messagePollJob?.cancel()
     }
 }
 

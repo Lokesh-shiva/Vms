@@ -1,6 +1,8 @@
 package com.example.vmsadmin.data
 
+import com.example.vmsadmin.models.AdminChatMessage
 import com.example.vmsadmin.models.Match
+import com.example.vmsadmin.models.MatchDetail
 import com.example.vmsadmin.network.ApiService
 import retrofit2.HttpException
 
@@ -43,6 +45,26 @@ class MatchRepository(private val apiService: ApiService) {
             else throw Exception(response.message ?: "Failed to reap abandoned sessions")
         } catch (e: HttpException) {
             throw Exception("Failed to reap abandoned sessions: ${e.message()}")
+        }
+    }
+
+    suspend fun getMatchDetail(matchId: Int): MatchDetail {
+        return try {
+            val response = apiService.getAdminMatchDetail(matchId)
+            if (response.success && response.data != null) response.data
+            else throw Exception(response.message ?: "Failed to fetch match detail")
+        } catch (e: HttpException) {
+            throw Exception("Failed to fetch match detail: ${e.message()}")
+        }
+    }
+
+    suspend fun getMatchMessages(matchId: Int): List<AdminChatMessage> {
+        return try {
+            val response = apiService.getAdminMatchMessages(matchId)
+            if (response.success && response.data != null) response.data
+            else throw Exception(response.message ?: "Failed to fetch match chat")
+        } catch (e: HttpException) {
+            throw Exception("Failed to fetch match chat: ${e.message()}")
         }
     }
 }

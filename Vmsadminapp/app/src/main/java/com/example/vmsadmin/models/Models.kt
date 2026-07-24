@@ -355,6 +355,51 @@ data class Match(
 )
 
 @Serializable
+data class MatchPlayerInfo(
+    val id: Int,
+    val name: String,
+    val phone: String,
+    val username: String? = null,
+)
+
+@Serializable
+data class MatchDetail(
+    val id: Int,
+    val created_by: Int? = null,
+    val region_id: Int,
+    val cart_type_id: Int,
+    val cart_id: Int? = null,
+    val timeslot_id: Int? = null,
+    val visibility: String? = null,
+    val society_id: Int? = null,
+    val invite_code: String? = null,
+    val captain_id: Int? = null,
+    val captain_name: String? = null,
+    val skill_level: String? = null,
+    val max_players: Int,
+    val joined_players: Int,
+    val status: String,
+    val sport: String? = null,
+    val ground_name: String? = null,
+    val ground_address: String? = null,
+    val scheduled_at: String? = null,
+    val creator_age: Int? = null,
+    val players: List<MatchPlayerInfo> = emptyList(),
+    val created_at: String? = null,
+    val updated_at: String? = null,
+)
+
+@Serializable
+data class AdminChatMessage(
+    val id: Int,
+    val match_id: Int,
+    val sender_id: Int? = null,
+    val sender_name: String = "Unknown",
+    val body: String,
+    val created_at: String? = null,
+)
+
+@Serializable
 data class CreateMatchRequest(
     val cart_type_id: Int,
     val timeslot_id: Int,

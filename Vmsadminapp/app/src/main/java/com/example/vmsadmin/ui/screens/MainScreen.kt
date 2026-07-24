@@ -253,7 +253,11 @@ fun MainScreen(
                     if (role !in (MANAGE_ROLES + TOURNAMENT_ROLES)) {
                         LaunchedEffect(Unit) { onForbidden() }
                     } else {
-                        MatchesScreen(viewModel = matchViewModel, onBack = null)
+                        MatchesScreen(
+                            viewModel = matchViewModel,
+                            onBack = null,
+                            onOpenDetail = { matchId -> navController.navigate("matches/$matchId/detail") }
+                        )
                     }
                 }
                 composable(BottomNavItem.Csr.route) {
@@ -316,7 +320,25 @@ fun MainScreen(
                 }
                 composable("manage/matches") {
                     if (role !in (MANAGE_ROLES + TOURNAMENT_ROLES)) { LaunchedEffect(Unit) { onForbidden() } }
-                    else MatchesScreen(viewModel = matchViewModel, onBack = { navController.popBackStack() })
+                    else MatchesScreen(
+                        viewModel = matchViewModel,
+                        onBack = { navController.popBackStack() },
+                        onOpenDetail = { matchId -> navController.navigate("matches/$matchId/detail") }
+                    )
+                }
+                composable(
+                    "matches/{matchId}/detail",
+                    arguments = listOf(navArgument("matchId") { type = NavType.IntType })
+                ) { entry ->
+                    if (role !in (MANAGE_ROLES + TOURNAMENT_ROLES)) {
+                        LaunchedEffect(Unit) { onForbidden() }
+                    } else {
+                        MatchDetailScreen(
+                            viewModel = matchViewModel,
+                            matchId = entry.arguments?.getInt("matchId") ?: 0,
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
                 }
                 composable("manage/grounds") {
                     if (role !in MANAGE_ROLES) { LaunchedEffect(Unit) { onForbidden() } }

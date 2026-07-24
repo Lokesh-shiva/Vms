@@ -5,6 +5,10 @@ from modules.chat.repository.message_repository import (
 )
 from modules.match.model.match_model import Match, MatchPlayer
 from modules.user.model.user_model import User
+from modules.user.repository.user_repository import (
+    UserRepository,
+    user_repository as _default_user_repo,
+)
 
 
 class ChatService:
@@ -13,9 +17,15 @@ class ChatService:
     message history. Polling-based, no websockets.
     """
 
-    def __init__(self, message_repository: MessageRepository | None = None, session_factory=None):
+    def __init__(
+        self,
+        message_repository: MessageRepository | None = None,
+        session_factory=None,
+        user_repository: UserRepository | None = None,
+    ):
         self.message_repository = message_repository or _default_message_repo
         self._session_factory = session_factory or SessionLocal
+        self.user_repository = user_repository or _default_user_repo
 
     def _is_participant(self, match_id: int, user_id: int) -> bool:
         session = self._session_factory()
@@ -76,6 +86,16 @@ class ChatService:
         if not self._is_participant(match_id, user_id):
             raise PermissionError("You are not a participant in this match's chat.")
         return self.message_repository.find_by_match(match_id)
+
+    def get_messages_admin(self, match_id: int) -> list[dict]:
+        """Read-only chat access for admin/support investigation — bypasses the
+        participant check (that's the point: staff aren't in the match) and
+        enriches each message with the sender's name."""
+        messages = self.message_repository.find_by_match(match_id)
+        for m in messages:
+            sender = self.user_repository.find_by_id(m.get("sender_id"))
+            m["sender_name"] = sender["name"] if sender else "Unknown"
+        return messages
 
     def send_message(self, match_id: int, sender_id: int, body: str) -> dict:
         if not body or not body.strip():

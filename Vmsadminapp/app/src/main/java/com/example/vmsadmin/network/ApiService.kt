@@ -33,6 +33,8 @@ import com.example.vmsadmin.models.UpdateItemRequest
 import com.example.vmsadmin.models.Ground
 import com.example.vmsadmin.models.UpdateGroundRequest
 import com.example.vmsadmin.models.Match
+import com.example.vmsadmin.models.MatchDetail
+import com.example.vmsadmin.models.AdminChatMessage
 import com.example.vmsadmin.models.CreateMatchRequest
 import com.example.vmsadmin.models.SystemConfigListResponse
 import com.example.vmsadmin.models.SystemConfigResponse
@@ -269,6 +271,12 @@ interface ApiService {
 
     @POST("/api/v1/admin/matches/reap-abandoned")
     suspend fun reapAbandonedSessions(): ApiResponse<Map<String, Int>>
+
+    @GET("/api/v1/admin/matches/{match_id}/detail")
+    suspend fun getAdminMatchDetail(@Path("match_id") matchId: Int): ApiResponse<MatchDetail>
+
+    @GET("/api/v1/admin/matches/{match_id}/messages")
+    suspend fun getAdminMatchMessages(@Path("match_id") matchId: Int): ApiResponse<List<AdminChatMessage>>
 
     // ── User Management endpoints (super_admin only) ─────────────────
     @GET("/api/v1/users")

@@ -224,6 +224,38 @@ def list_all_matches(
     return _success(match_service.list_all_matches())
 
 
+@router.get("/matches/{match_id}/detail")
+def get_admin_match_detail(
+    match_id: int,
+    current_user: dict = require_role(
+        UserRole.SUPER_ADMIN, UserRole.OPS_MANAGER, UserRole.SUPPORT
+    ),
+):
+    """Full match detail for admin/support investigation — enriched fields plus
+    each player's resolved identity (name/phone/username), not just raw IDs."""
+    from fastapi import HTTPException
+    from modules.match.service.match_service import match_service
+
+    detail = match_service.get_admin_match_detail(match_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Match not found.")
+    return _success(detail)
+
+
+@router.get("/matches/{match_id}/messages")
+def get_admin_match_messages(
+    match_id: int,
+    current_user: dict = require_role(
+        UserRole.SUPER_ADMIN, UserRole.OPS_MANAGER, UserRole.SUPPORT
+    ),
+):
+    """Read-only chat history for a match — for dispute investigation. Staff can
+    read but not post; sending stays participant-only via the regular chat route."""
+    from modules.chat.service.chat_service import chat_service
+
+    return _success(chat_service.get_messages_admin(match_id))
+
+
 @router.post("/matches/reap-abandoned")
 def reap_abandoned_sessions_now(
     current_user: dict = require_role(UserRole.SUPER_ADMIN, UserRole.OPS_MANAGER),

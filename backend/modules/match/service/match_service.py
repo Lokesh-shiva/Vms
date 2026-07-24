@@ -599,6 +599,16 @@ class MatchService(BaseService):
         matches = self.match_repo.find_all_matches()
         return self._enrich_matches(matches)
 
+    def get_admin_match_detail(self, match_id: int) -> dict | None:
+        """Full match detail for admin/support investigation — enriched fields plus each
+        player's identity (name/phone/username), not just their raw user_id."""
+        match = self.match_repo.find_by_id_enriched(match_id)
+        if not match:
+            return None
+        players = [self.user_repo.find_by_id(pid) for pid in match.get("player_ids", [])]
+        match["players"] = [p for p in players if p]
+        return match
+
     # ── Arrive ────────────────────────────────────────────────────────
 
     def arrive_match(

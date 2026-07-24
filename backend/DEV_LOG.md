@@ -3463,3 +3463,74 @@ had zero caller anywhere in the admin app until now.
 username/email, real DOB validation feeding an actual age-based matchmaking filter, GPS-based
 city auto-detect, profile photo upload, and admin-side user management — all 6 parts shipped
 across 4 commits this session.
+
+---
+## [2026-07-24] Feature — admin match detail: player identities + read-only chat
+
+Separate from the registration overhaul — user asked for a broader audit of "stuff that's in the
+user app but has no connectivity on the admin side." Comparing both apps' screen inventories plus
+their backing endpoints turned up three real gaps: no admin wallet visibility at all (no endpoint,
+not just no UI), no admin-initiated notifications, and admin's match cards showing only
+`"3/4 players"` with zero player identity or chat visibility — directly relevant given the
+dispute-ticket-thread feature shipped earlier this session. User picked match detail first; wallet
+and notifications are noted for later, not started.
+
+### Investigation before writing code
+`GET /api/v1/matches/{id}` already had no participant-scoping (any authenticated user could fetch
+any match's enriched detail, including `player_ids`) — it just wasn't being resolved to actual
+names anywhere, and no admin screen called it. Chat was the real gate: `chat_service.get_messages()`
+raises `PermissionError` for anyone not a match participant, which is correct for the regular
+user-facing route and exactly the thing that needed a deliberate, separate bypass for staff — not
+a router-level RBAC swap, since sending must stay participant-only (the user explicitly scoped this
+as "read but not send in").
+
+### Added
+**Backend**
+- `match_service.get_admin_match_detail(match_id)` — wraps `find_by_id_enriched()` (already had
+  `player_ids` from Part 2's age-filter work) and resolves each ID to a full user record via the
+  already-injected `user_repo`.
+- `chat_service.get_messages_admin(match_id)` — new method, deliberately separate from
+  `get_messages()` rather than adding an `is_admin` bypass flag to the existing one, so the
+  participant-only send path can never accidentally inherit a bypass. Enriches each message with
+  `sender_name`. Added `user_repository` DI to `ChatService.__init__` (mirrors the same pattern
+  applied to `MatchService` in Part 2) — this class previously queried `User` directly via raw
+  session access in a couple of spots; this method needed a cleaner lookup, and having no DI here
+  would have repeated the same "silently hits production DB in tests" risk flagged twice already
+  this session.
+- `GET /api/v1/admin/matches/{match_id}/detail` and `GET /api/v1/admin/matches/{match_id}/messages`
+  (both `SUPER_ADMIN`/`OPS_MANAGER`/`SUPPORT`) in `admin_routes.py`, alongside the existing
+  `reap-abandoned` admin match endpoint.
+- Tests: `test_chat_service.py` (new file — chat module had zero tests before this) — 4 cases
+  confirming the admin path bypasses the participant check that the regular path still enforces,
+  sender-name enrichment, empty-match handling, orphaned-sender (`sender_id IS NULL`) handling.
+  `test_captain_created_matches.py` gained 2 cases for `get_admin_match_detail` (identity
+  resolution, unknown-match `None`).
+
+**App — Vmsadminapp**
+- `Models.kt` — `MatchPlayerInfo`, `MatchDetail` (full enriched shape matching the new endpoint),
+  `AdminChatMessage`.
+- `ApiService.kt` / `MatchRepository.kt` — `getAdminMatchDetail()` / `getAdminMatchMessages()`.
+- `MatchViewModel.kt` — `openMatchDetail()`/`stopMatchDetailPolling()`, polling the chat endpoint
+  every 5s (looser than the 3s used for active two-way threads elsewhere, since this is read-only
+  investigation, not a live conversation someone's waiting on).
+- `MatchDetailScreen.kt` (new) — match summary card, player list (name/phone/@username), read-only
+  chat transcript below (no input row — sending stays participant-only, enforced both client-side
+  by omission and server-side by the separate endpoint).
+- `MatchesScreen.kt` — `MatchAdminCard` is now tappable (`AppCard(onClick = ...)`, same pattern
+  used for `DisputeCard` earlier this session) from both places it's rendered (the bottom-nav
+  Matches tab and `manage/matches`), navigating to `matches/{id}/detail`. Gated to the same
+  `MANAGE_ROLES + TOURNAMENT_ROLES` as the list itself — `SUPPORT` has backend access to the new
+  endpoints (for a future entry point, e.g. linked from a dispute) but no UI path to reach this
+  screen yet, since there's currently no support-facing surface that lists matches at all.
+
+### Not built this round — flagged, not started
+- Wallet: no admin endpoint exists at all (`GET /wallet/balance`/`transactions` are both
+  self-only), no admin screen.
+- Admin-initiated notifications: every notification is system-triggered; no way for staff to
+  message a specific user or broadcast one.
+
+### Verified
+- New tests: 6 passed (4 chat + 2 match detail).
+- Full backend suite: 513 passed (507 prior + 6 new), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Not build-verified on the app — user's own build/run is the check.

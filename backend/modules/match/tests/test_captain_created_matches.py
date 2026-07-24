@@ -320,6 +320,33 @@ class TestCaptainCreateMatchService(unittest.TestCase):
         self.assertFalse(captain_after.is_available)
         session.close()
 
+    def test_get_admin_match_detail_resolves_player_identities(self):
+        """Admin match detail includes each player's real identity, not just their raw user_id."""
+        session = self.session_factory()
+        session.add(User(id=30, name="Priya", phone="+1000000030", password_hash="", username="priya_p"))
+        session.add(User(id=31, name="Rahul", phone="+1000000031", password_hash="", username="rahul_r"))
+        session.commit()
+        session.close()
+
+        match = self.service.captain_create_match(
+            user_id=10,
+            data={
+                "cart_type_id": 1, "region_id": 1, "max_players": 4,
+                "visibility": "OPEN", "society_id": None, "skill_level": None,
+            },
+        )
+        self.service.join_match(30, match["id"])
+        self.service.join_match(31, match["id"])
+
+        detail = self.service.get_admin_match_detail(match["id"])
+        self.assertIsNotNone(detail)
+        player_names = sorted(p["name"] for p in detail["players"])
+        self.assertEqual(player_names, ["Priya", "Rahul"])
+        self.assertEqual(detail["captain_id"], 10)
+
+    def test_get_admin_match_detail_unknown_match_returns_none(self):
+        self.assertIsNone(self.service.get_admin_match_detail(999))
+
     def test_captain_create_match_rejected_while_already_organizing(self):
         """A captain already organizing a match cannot create a second one."""
         self.service.captain_create_match(

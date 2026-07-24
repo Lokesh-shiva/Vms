@@ -24,7 +24,8 @@ import com.example.vmsadmin.viewmodel.MatchViewModel
 @Composable
 fun MatchesScreen(
     viewModel: MatchViewModel,
-    onBack: (() -> Unit)? = null
+    onBack: (() -> Unit)? = null,
+    onOpenDetail: (Int) -> Unit = {}
 ) {
     val matches by viewModel.matches.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -130,7 +131,8 @@ fun MatchesScreen(
                     MatchAdminCard(
                         match = match,
                         onCancel = { confirmAction = "cancel" to match.id },
-                        onComplete = { confirmAction = "complete" to match.id }
+                        onComplete = { confirmAction = "complete" to match.id },
+                        onOpenDetail = { onOpenDetail(match.id) }
                     )
                 }
             }
@@ -142,9 +144,10 @@ fun MatchesScreen(
 private fun MatchAdminCard(
     match: Match,
     onCancel: () -> Unit,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    onOpenDetail: () -> Unit = {}
 ) {
-    AppCard {
+    AppCard(onClick = onOpenDetail) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
