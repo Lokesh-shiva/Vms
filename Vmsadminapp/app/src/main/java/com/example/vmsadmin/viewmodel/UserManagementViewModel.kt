@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.UserManagementRepository
 import com.example.vmsadmin.models.AppUser
+import com.example.vmsadmin.models.CreateUserRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,9 +43,36 @@ class UserManagementViewModel(
     private val _assignableRoles = MutableStateFlow<List<String>>(emptyList())
     val assignableRoles: StateFlow<List<String>> = _assignableRoles.asStateFlow()
 
+    private val _creatingUser = MutableStateFlow(false)
+    val creatingUser: StateFlow<Boolean> = _creatingUser.asStateFlow()
+
+    private val _createUserError = MutableStateFlow<String?>(null)
+    val createUserError: StateFlow<String?> = _createUserError.asStateFlow()
+
     init {
         loadUsers()
         loadAssignableRoles()
+    }
+
+    fun createUser(request: CreateUserRequest, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _creatingUser.value = true
+            _createUserError.value = null
+            try {
+                val created = repository.createUser(request)
+                val current = (_state.value as? UserManagementState.Success)?.users ?: emptyList()
+                _state.value = UserManagementState.Success(listOf(created) + current)
+                onSuccess()
+            } catch (e: Exception) {
+                _createUserError.value = e.message ?: "Failed to create user"
+            } finally {
+                _creatingUser.value = false
+            }
+        }
+    }
+
+    fun clearCreateUserError() {
+        _createUserError.value = null
     }
 
     fun loadUsers() {

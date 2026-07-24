@@ -28,11 +28,17 @@ data class AppUser(
     val id: Int,
     val name: String,
     val phone: String,
+    val username: String? = null,
+    val email: String? = null,
     val role: String,
     val is_active: Boolean,
     val region_id: Int? = null,
     val ghost_strikes: Int = 0,
     val can_create_society: Boolean = false,
+    val date_of_birth: String? = null,
+    val age: Int? = null,
+    val city: String? = null,
+    val profile_photo_url: String? = null,
     val created_at: String? = null,
     val updated_at: String? = null
 )
@@ -42,6 +48,16 @@ data class UpdateUserRequest(
     val role: String? = null,
     val is_active: Boolean? = null,
     val can_create_society: Boolean? = null,
+)
+
+@Serializable
+data class CreateUserRequest(
+    val name: String,
+    val phone: String,
+    val role: String = "user",
+    val is_active: Boolean = true,
+    val username: String? = null,
+    val email: String? = null,
 )
 
 @Serializable

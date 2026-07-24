@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -20,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.vmsadmin.models.AppUser
+import com.example.vmsadmin.models.CreateUserRequest
 import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.ui.components.shimmerEffect
 import com.example.vmsadmin.viewmodel.UserManagementState
@@ -36,15 +38,36 @@ fun UsersScreen(
     val pendingIds by viewModel.pendingIds.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showCreateDialog by remember { mutableStateOf(false) }
 
     val errorMessage = (state as? UserManagementState.Error)?.message
     LaunchedEffect(errorMessage) {
         errorMessage?.let { snackbarHostState.showSnackbar(it) }
     }
 
+    if (showCreateDialog) {
+        val assignableRoles by viewModel.assignableRoles.collectAsState()
+        val creating by viewModel.creatingUser.collectAsState()
+        val createError by viewModel.createUserError.collectAsState()
+        CreateUserDialog(
+            assignableRoles = assignableRoles,
+            creating = creating,
+            error = createError,
+            onDismiss = { showCreateDialog = false; viewModel.clearCreateUserError() },
+            onCreate = { request ->
+                viewModel.createUser(request) { showCreateDialog = false }
+            },
+        )
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            FloatingActionButton(onClick = { showCreateDialog = true }) {
+                Icon(Icons.Filled.Add, contentDescription = "Create user")
+            }
+        },
         topBar = {
             TopAppBar(
                 title = {
@@ -291,7 +314,11 @@ private fun UserRow(
                     }
                 }
                 Text(
-                    text = user.phone,
+                    text = listOfNotNull(
+                        user.phone,
+                        user.username?.let { "@$it" },
+                        user.age?.let { "$it yrs" },
+                    ).joinToString("  ·  "),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -429,4 +456,112 @@ private fun UserRow(
             }
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreateUserDialog(
+    assignableRoles: List<String>,
+    creating: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onCreate: (CreateUserRequest) -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var role by remember(assignableRoles) { mutableStateOf(assignableRoles.firstOrNull { it == "user" } ?: assignableRoles.firstOrNull() ?: "user") }
+    var roleExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = { if (!creating) onDismiss() },
+        title = { Text("Create User") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Full name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !creating,
+                )
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = { Text("Phone") },
+                    placeholder = { Text("+91XXXXXXXXXX") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !creating,
+                )
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username · optional") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !creating,
+                )
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email · optional") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !creating,
+                )
+                if (assignableRoles.isNotEmpty()) {
+                    ExposedDropdownMenuBox(
+                        expanded = roleExpanded,
+                        onExpandedChange = { if (!creating) roleExpanded = it },
+                    ) {
+                        OutlinedTextField(
+                            value = role,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Role") },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = roleExpanded) },
+                            enabled = !creating,
+                        )
+                        ExposedDropdownMenu(expanded = roleExpanded, onDismissRequest = { roleExpanded = false }) {
+                            assignableRoles.forEach { r ->
+                                DropdownMenuItem(text = { Text(r) }, onClick = { role = r; roleExpanded = false })
+                            }
+                        }
+                    }
+                }
+                if (error != null) {
+                    Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onCreate(
+                        CreateUserRequest(
+                            name = name.trim(),
+                            phone = phone.trim(),
+                            role = role,
+                            username = username.trim().ifBlank { null },
+                            email = email.trim().ifBlank { null },
+                        )
+                    )
+                },
+                enabled = !creating && name.isNotBlank() && phone.isNotBlank(),
+            ) {
+                if (creating) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Create")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !creating) { Text("Cancel") }
+        }
+    )
 }

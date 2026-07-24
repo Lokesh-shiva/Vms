@@ -127,4 +127,9 @@ other feature this session shipped as an individually-committed vertical slice.
       the KYC route this avoids needing the `?token=` query-param workaround for AsyncImage/Coil)
 - [x] Part 5c — App (Vmsuserapp): photo picker wired into onboarding (circular avatar, tap to pick
       via GetContent, auto-uploads immediately on selection)
-- [ ] Part 6 — App (Vmsadminapp): user management (show new fields, wire admin-create-user)
+- [x] Part 6 — App (Vmsadminapp): user management. `AppUser` gained the new fields, `UsersScreen`
+      shows username/age inline, and a FAB + dialog now calls the already-working
+      `POST /api/v1/users` (no backend changes needed — the route, schema, and audit logging all
+      existed from earlier in the project, just had zero app-side caller until now).
+
+**Plan complete — all 6 parts shipped.**

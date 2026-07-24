@@ -6,6 +6,7 @@ import com.example.vmsadmin.models.Booking
 import com.example.vmsadmin.models.Cart
 import com.example.vmsadmin.models.CartType
 import com.example.vmsadmin.models.CreateCartRequest
+import com.example.vmsadmin.models.CreateUserRequest
 import com.example.vmsadmin.models.CreateCartTypeRequest
 import com.example.vmsadmin.models.DashboardStats
 import com.example.vmsadmin.models.CreateFeeConfigRequest
@@ -275,6 +276,9 @@ interface ApiService {
 
     @GET("users/assignable-roles")
     suspend fun getAssignableRoles(): ApiResponse<AssignableRolesResponse>
+
+    @POST("/api/v1/users")
+    suspend fun createUser(@Body request: CreateUserRequest): ApiResponse<AppUser>
 
     @PUT("/api/v1/users/{id}")
     suspend fun updateUser(

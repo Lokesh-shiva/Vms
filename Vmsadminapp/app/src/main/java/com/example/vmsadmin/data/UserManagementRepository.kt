@@ -1,6 +1,7 @@
 package com.example.vmsadmin.data
 
 import com.example.vmsadmin.models.AppUser
+import com.example.vmsadmin.models.CreateUserRequest
 import com.example.vmsadmin.models.UpdateUserRequest
 import com.example.vmsadmin.network.ApiService
 import kotlinx.serialization.json.Json
@@ -18,6 +19,18 @@ class UserManagementRepository(private val apiService: ApiService) {
             return response.data
         }
         throw Exception(response.message ?: "Failed to fetch users")
+    }
+
+    suspend fun createUser(request: CreateUserRequest): AppUser {
+        try {
+            val response = apiService.createUser(request)
+            if (response.success && response.data != null) {
+                return response.data
+            }
+            throw Exception(response.message ?: "Failed to create user")
+        } catch (e: HttpException) {
+            throw Exception(parseErrorDetail(e) ?: "Failed to create user")
+        }
     }
 
     suspend fun getAssignableRoles(): List<String> {

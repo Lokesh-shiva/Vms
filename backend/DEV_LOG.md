@@ -3431,3 +3431,35 @@ and deliberately not scope-crept into this slice.
 - Full backend suite: 507 passed (494 prior + 13 new), zero regressions.
 - `python -c "import backend.main"` — clean import.
 - Not build-verified on the app — user's own build/run is the check.
+
+---
+## [2026-07-24] Feature (Part 6/6) — admin app user management, plan complete
+
+Final slice of `docs/plan-user-registration-onboarding.md`. App-only — no backend changes needed,
+since `POST /api/v1/users` (`CreateUserSchema`, audit-logged) already existed and worked; it just
+had zero caller anywhere in the admin app until now.
+
+### Added
+**App — Vmsadminapp**
+- `Models.kt` — `AppUser` gained `username`, `email`, `date_of_birth`, `age`, `city`,
+  `profile_photo_url` (all already returned by the backend's `User.to_dict()`, just never modeled
+  on this side). New `CreateUserRequest` matching `CreateUserSchema`'s shape exactly.
+- `ApiService.kt` / `UserManagementRepository.kt` / `UserManagementViewModel.kt` — `createUser()`
+  wired straight through, reusing the existing `parseErrorDetail()` HTTP-error-extraction helper
+  already used by `updateRole`/`setActive`/`setSocietyPermission`.
+- `UsersScreen.kt` — `UserRow`'s secondary line now shows phone · @username · age when present
+  (falls back gracefully — `listOfNotNull` drops anything null rather than showing empty
+  placeholders). New FAB opens a `CreateUserDialog` (name, phone, optional username/email, role
+  picker sourced from the same `assignableRoles` the existing "Change role" dialog already uses)
+  that calls the newly-wired endpoint and prepends the created user into the list state directly
+  rather than triggering a full reload.
+
+### Verified
+- No backend changes in this slice — full suite unaffected (507 passed, confirmed via
+  `python -c "import backend.main"` + no code touched under `backend/`).
+- Not build-verified — user's own build/run is the check, as with every UI change this project.
+
+**This closes out the full registration-and-onboarding overhaul** (`docs/plan-user-registration-onboarding.md`):
+username/email, real DOB validation feeding an actual age-based matchmaking filter, GPS-based
+city auto-detect, profile photo upload, and admin-side user management — all 6 parts shipped
+across 4 commits this session.
