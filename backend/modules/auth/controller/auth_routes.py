@@ -1,13 +1,16 @@
 import re
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
+from core.storage.profile_photo_storage import save_profile_photo
 from modules.auth.dependencies.auth_dependencies import get_current_user
 from modules.auth.service.auth_service import AuthService
 from modules.otp.service.otp_service import otp_service, OtpDeliveryError
 from modules.user.repository.user_repository import user_repository
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
+
+_MAX_PHOTO_BYTES = 5 * 1024 * 1024
 
 auth_service = AuthService()
 
@@ -152,6 +155,24 @@ def complete_profile(
     if not updated:
         raise HTTPException(status_code=404, detail="User not found.")
     return _success(updated, "Profile saved.")
+
+
+@router.post("/me/profile-photo", status_code=200)
+async def upload_profile_photo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Upload (or replace) the caller's own profile photo. Public to view, owner-only to change."""
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image.")
+    content = await file.read()
+    if len(content) > _MAX_PHOTO_BYTES:
+        raise HTTPException(status_code=400, detail="Image must be under 5MB.")
+
+    save_profile_photo(current_user["id"], file.filename or "photo.jpg", content)
+    photo_url = f"/api/v1/users/{current_user['id']}/profile-photo"
+    updated = user_repository.update(current_user["id"], {"profile_photo_url": photo_url})
+    return _success(updated, "Profile photo updated.")
 
 
 # ── Existing endpoints ────────────────────────────────────────────────

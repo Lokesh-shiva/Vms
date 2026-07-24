@@ -122,6 +122,9 @@ other feature this session shipped as an individually-committed vertical slice.
       auto-detect + confirm card in onboarding, no new Gradle dependency — uses
       `android.location.LocationManager` directly since play-services-location wasn't already a
       dependency)
-- [ ] Part 4 — Backend: profile photo upload
-- [ ] Part 5c — App (Vmsuserapp): photo picker
+- [x] Part 4 — Backend: profile photo upload (POST /auth/me/profile-photo, GET /users/{id}/profile-photo
+      public — deliberately unauthenticated since avatars aren't sensitive like KYC docs, unlike
+      the KYC route this avoids needing the `?token=` query-param workaround for AsyncImage/Coil)
+- [x] Part 5c — App (Vmsuserapp): photo picker wired into onboarding (circular avatar, tap to pick
+      via GetContent, auto-uploads immediately on selection)
 - [ ] Part 6 — App (Vmsadminapp): user management (show new fields, wire admin-create-user)

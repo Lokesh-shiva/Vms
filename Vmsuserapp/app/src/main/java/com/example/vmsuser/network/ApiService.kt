@@ -17,6 +17,10 @@ interface ApiService {
     @POST("api/v1/auth/complete-profile")
     suspend fun completeProfile(@Body body: CompleteProfileRequest): ApiResponse<User>
 
+    @Multipart
+    @POST("api/v1/auth/me/profile-photo")
+    suspend fun uploadProfilePhoto(@Part file: MultipartBody.Part): ApiResponse<User>
+
     @GET("api/v1/auth/me")
     suspend fun getMe(): ApiResponse<User>
 

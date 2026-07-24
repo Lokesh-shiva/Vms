@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
+from core.storage.profile_photo_storage import read_profile_photo
 from modules.audit.service.audit_service import audit_service
 from modules.user.service.user_service import UserService
 from modules.user.schemas.user_schema import CreateUserSchema, UpdateUserSchema
@@ -134,6 +135,17 @@ def update_me(
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
     return _success(user, "Profile updated.")
+
+
+@router.get("/{user_id}/profile-photo")
+def get_profile_photo(user_id: int):
+    """Public avatar image — not sensitive, servable without auth so AsyncImage/Coil
+    can load it directly by URL without any header trickery."""
+    result = read_profile_photo(user_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No profile photo uploaded.")
+    content, media_type = result
+    return Response(content=content, media_type=media_type)
 
 
 @router.get("/{user_id}")

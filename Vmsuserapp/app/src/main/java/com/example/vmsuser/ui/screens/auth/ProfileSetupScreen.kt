@@ -1,6 +1,7 @@
 package com.example.vmsuser.ui.screens.auth
 
 import android.Manifest
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
@@ -10,23 +11,29 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.example.vmsuser.data.AuthRepository
 import com.example.vmsuser.models.LocationOption
 import com.example.vmsuser.navigation.Screen
@@ -82,6 +89,26 @@ fun ProfileSetupScreen(navController: NavController) {
     var detectingLocation by remember { mutableStateOf(false) }
     var locationSuggestion by remember { mutableStateOf<LocationOption?>(null) }
     var locationError by remember { mutableStateOf<String?>(null) }
+
+    var photoUri by remember { mutableStateOf<Uri?>(null) }
+    var profilePhotoUrl by remember { mutableStateOf<String?>(null) }
+    var uploadingPhoto by remember { mutableStateOf(false) }
+    var photoError by remember { mutableStateOf<String?>(null) }
+
+    val photoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        photoUri = uri
+        photoError = null
+        uploadingPhoto = true
+        scope.launch {
+            repo.uploadProfilePhoto(context.contentResolver, uri)
+                .onSuccess { user -> profilePhotoUrl = user.profilePhotoUrl }
+                .onFailure { e -> photoError = e.message ?: "Couldn't upload photo. Try again." }
+            uploadingPhoto = false
+        }
+    }
 
     fun detectNearestLocation() {
         val fix = lastKnownLocation(context)
@@ -142,7 +169,7 @@ fun ProfileSetupScreen(navController: NavController) {
                 dateOfBirth = dob.trim().ifBlank { null },
                 city = city.trim(),
                 sportPreferences = sports.toList(),
-                profilePhotoUrl = null,
+                profilePhotoUrl = profilePhotoUrl,
             ).onSuccess { user ->
                 UserSession.setUser(user)
                 navController.navigate(Screen.Home.route) {
@@ -198,7 +225,54 @@ fun ProfileSetupScreen(navController: NavController) {
                 )
                 Spacer(Modifier.height(6.dp))
                 Text("Tell us a little about yourself", fontFamily = PlusJakartaSans, fontSize = 14.sp, color = PlixoText2)
-                Spacer(Modifier.height(26.dp))
+                Spacer(Modifier.height(20.dp))
+
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(CircleShape)
+                            .background(PlixoSurface2)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                enabled = !uploadingPhoto,
+                            ) { photoPicker.launch("image/*") },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (photoUri != null) {
+                            AsyncImage(model = photoUri, contentDescription = null, modifier = Modifier.fillMaxSize())
+                        } else {
+                            Icon(Icons.Filled.Person, null, tint = PlixoText3, modifier = Modifier.size(44.dp))
+                        }
+                        if (uploadingPhoto) {
+                            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                            }
+                        }
+                        Box(
+                            modifier = Modifier.align(Alignment.BottomEnd)
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(PlixoPrimary),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(Icons.Filled.CameraAlt, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
+                if (photoError != null) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        photoError!!,
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 12.sp,
+                        color = PlixoDanger,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                Spacer(Modifier.height(20.dp))
 
                 OutlinedTextField(
                     value = name,

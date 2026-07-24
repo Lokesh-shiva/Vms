@@ -1,9 +1,17 @@
 package com.example.vmsuser.data
 
+import android.content.ContentResolver
+import android.net.Uri
+import android.util.Log
 import com.example.vmsuser.models.CompleteProfileRequest
 import com.example.vmsuser.models.OtpVerifyResponse
 import com.example.vmsuser.models.User
 import com.example.vmsuser.network.RetrofitClient
+import com.example.vmsuser.network.toUserMessage
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
 
 class AuthRepository {
     private val api = RetrofitClient.api
@@ -44,5 +52,22 @@ class AuthRepository {
     suspend fun getMe(): Result<User> = runCatching {
         val resp = api.getMe()
         resp.data ?: error(resp.message ?: "Failed to load profile.")
+    }
+
+    suspend fun uploadProfilePhoto(contentResolver: ContentResolver, imageUri: Uri): Result<User> = try {
+        val tempFile = File.createTempFile("profile_", ".jpg")
+        contentResolver.openInputStream(imageUri)?.use { input ->
+            tempFile.outputStream().use { output -> input.copyTo(output) }
+        }
+        val filePart = MultipartBody.Part.createFormData(
+            "file", tempFile.name, tempFile.asRequestBody("image/*".toMediaTypeOrNull())
+        )
+        val res = api.uploadProfilePhoto(filePart)
+        tempFile.delete()
+        if (res.success && res.data != null) Result.success(res.data)
+        else Result.failure(Exception(res.message ?: "Failed"))
+    } catch (e: Exception) {
+        Log.e("AuthRepo", "uploadProfilePhoto", e)
+        Result.failure(Exception(e.toUserMessage("Upload failed. Try again.")))
     }
 }

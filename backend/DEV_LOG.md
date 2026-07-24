@@ -3369,3 +3369,65 @@ something that can be set up from here; the code is written to activate the mome
 - `python -c "import backend.main"` — clean import.
 - Not build-verified — no app-side changes in this entry (OTP flow already exists — this only swaps
   what happens server-side when `OTP_DEV_MODE=false`, which nothing currently sets).
+
+---
+## [2026-07-24] Feature (Part 4/6) — profile photo upload
+
+Fourth slice of the onboarding overhaul. `complete-profile` already accepted `profile_photo_url`
+but the app always sent `null` — this adds the actual upload path.
+
+### Investigation before writing code
+Looked at the existing KYC document pattern (`core/storage/kyc_storage.py`,
+`POST /captains/me/kyc`, `GET /captains/{id}/kyc-document`) to reuse rather than invent a new
+pattern. One deliberate difference: KYC documents are admin-only and require a `_decode_token_or_query`
+helper so `AsyncImage`/`<img>` requests (which can't set an Authorization header) can still
+authenticate via a `?token=` query param. Profile photos aren't sensitive the same way — they're
+meant to be visible to other players on match cards, society lists, etc. — so making the GET route
+require auth at all would mean adding that same query-param workaround to every screen that shows
+an avatar. Serving it fully public instead (unguessable only in the sense that you need the numeric
+user_id, same trust model as most avatar systems) avoids that complexity entirely. The user_id in
+the URL isn't a secret already (used throughout the app), so this doesn't leak anything new.
+
+### Added
+**Backend**
+- `core/storage/profile_photo_storage.py` (new) — `save_profile_photo()`/`read_profile_photo()`/
+  `delete_profile_photo()`. One active photo per user: re-upload replaces the previous file
+  (deterministic `user_{id}.<ext>` naming) rather than accumulating like KYC's UUID-per-document
+  approach — a profile photo has no audit-trail reason to keep old versions.
+- `POST /api/v1/auth/me/profile-photo` (auth required, owner-only) — validates content-type starts
+  with `image/` and enforces a 5MB cap before touching disk. Sets `profile_photo_url` to the
+  servable route path (not a raw disk path — the two were conflated in an earlier draft of this
+  work before realizing the app needs an actual loadable URL, not a filesystem path).
+- `GET /api/v1/users/{user_id}/profile-photo` (no auth) — streams the file with the correct
+  `media_type` derived from its extension (jpeg/png/webp; unrecognized extensions fall back to
+  jpeg rather than erroring). Registered before `/{user_id}` in the file for the same reasons as
+  the `/locations/nearest` ordering in Part 3.
+- No new migration — `profile_photo_url` already existed on `User` from before this session.
+- Tests: `test_profile_photo_storage.py` (8 cases, patches `_UPLOAD_DIR` to a temp dir so tests
+  never touch the real `backend/uploads/profile_photos/`), `test_profile_photo_routes.py` (5 cases
+  via `TestClient` — successful upload, non-image rejection, oversized rejection, public GET
+  succeeding with no auth override set, missing-photo 404).
+
+**App — Vmsuserapp**
+- `ApiService.kt` / `AuthRepository.kt` — `uploadProfilePhoto()`, mirroring the existing
+  `CaptainRepository.uploadKyc()` temp-file-then-multipart pattern exactly (same
+  `contentResolver.openInputStream` → temp file → `MultipartBody.Part` → delete temp file flow).
+- `ProfileSetupScreen.kt` — circular avatar picker at the top of step 1 (tap → `GetContent("image/*")`,
+  matching the exact picker mechanism `KycUploadScreen` already uses, not the newer
+  `PickVisualMedia` API, for consistency with the rest of the app). Uploads immediately on
+  selection rather than waiting for a separate confirm step — shows a spinner overlay on the
+  avatar while in flight, camera-badge affordance, graceful inline error text on failure. Skippable
+  — nothing in step 1's `enabled` gate depends on it. `submit()` now passes the real uploaded URL
+  instead of the previous hardcoded `null`.
+
+### Not built this round
+Displaying uploaded photos anywhere *other* than the picker's own local preview during onboarding —
+e.g. showing other players' avatars on match cards, society member lists, or `ProfileScreen`. That's
+a broader "surface avatars across the app" pass, not part of what was asked (a working upload path),
+and deliberately not scope-crept into this slice.
+
+### Verified
+- New tests: 13 passed (`test_profile_photo_storage.py` + `test_profile_photo_routes.py`).
+- Full backend suite: 507 passed (494 prior + 13 new), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Not build-verified on the app — user's own build/run is the check.
