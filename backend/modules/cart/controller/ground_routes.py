@@ -9,8 +9,9 @@ to domain names (name, sport_id, location_id) at the boundary.
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 
+from core.storage.media_storage import read_media, save_media
 from modules.audit.service.audit_service import audit_service
 from modules.auth.dependencies.auth_dependencies import _ADMIN_ROLES, get_current_user, require_admin
 from modules.cart.service.cart_service import CartService
@@ -25,6 +26,8 @@ from modules.user.model.user_model import UserRole
 router = APIRouter(prefix="/api/v1/grounds", tags=["Grounds"])
 
 _cart_service = CartService()
+_IMAGE_NAMESPACE = "grounds"
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 _GROUND_OWNER_ALLOWED_FIELDS = frozenset({"is_active", "latitude", "longitude"})
 # Same admin roles that previously had full access via require_admin, minus
@@ -153,6 +156,46 @@ def update_ground(
         return _success(_to_ground(cart), "Ground updated successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{ground_id}/image")
+async def upload_ground_image(
+    ground_id: int,
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Upload (or replace) a ground's photo. Owner (their own grounds) or admin roles."""
+    is_ground_owner = current_user["role"].lower() == "ground_owner"
+    if not is_ground_owner and current_user["role"] not in _GROUND_ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Admin privileges required.")
+
+    existing = _cart_service.get_cart(ground_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Ground not found.")
+
+    if is_ground_owner and existing.get("owner_user_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You do not own this ground.")
+
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image.")
+    content = await file.read()
+    if len(content) > _MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=400, detail="Image must be under 5MB.")
+
+    save_media(_IMAGE_NAMESPACE, ground_id, file.filename or "photo.jpg", content)
+    image_url = f"/api/v1/grounds/{ground_id}/image"
+    cart = _cart_service.update_cart(ground_id, {"image_url": image_url})
+    return _success(_to_ground(cart), "Ground photo updated.")
+
+
+@router.get("/{ground_id}/image")
+def get_ground_image(ground_id: int):
+    """Public ground photo — not sensitive, servable without auth for AsyncImage/Coil."""
+    result = read_media(_IMAGE_NAMESPACE, ground_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No image uploaded for this ground.")
+    content, media_type = result
+    return Response(content=content, media_type=media_type)
 
 
 @router.delete("/{ground_id}")

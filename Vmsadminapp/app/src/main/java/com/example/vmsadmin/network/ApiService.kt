@@ -66,11 +66,14 @@ import com.example.vmsadmin.models.SocietyMember
 import com.example.vmsadmin.models.SocietyLeaderboardEntry
 import com.example.vmsadmin.models.CreateSocietyRequest
 import kotlinx.serialization.json.JsonElement
+import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.Streaming
@@ -257,6 +260,13 @@ interface ApiService {
     suspend fun updateGround(
         @Path("id") id: Int,
         @Body request: UpdateGroundRequest
+    ): ApiResponse<Ground>
+
+    @Multipart
+    @POST("/api/v1/grounds/{id}/image")
+    suspend fun uploadGroundImage(
+        @Path("id") id: Int,
+        @Part file: MultipartBody.Part,
     ): ApiResponse<Ground>
 
     // ── Match endpoints ───────────────────────────────────────────────

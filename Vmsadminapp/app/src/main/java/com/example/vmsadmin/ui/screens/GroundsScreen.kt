@@ -1,10 +1,18 @@
 package com.example.vmsadmin.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
@@ -14,10 +22,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.vmsadmin.models.AppUser
 import com.example.vmsadmin.models.Ground
+import com.example.vmsadmin.network.absoluteMediaUrl
 import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.ui.components.StatusBadge
 import com.example.vmsadmin.ui.components.shimmerEffect
@@ -32,6 +44,7 @@ fun GroundsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val contentResolver = LocalContext.current.contentResolver
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let { snackbarHostState.showSnackbar(it) }
@@ -122,13 +135,15 @@ fun GroundsScreen(
                                 GroundCard(
                                     ground = ground,
                                     isUpdating = uiState.updatingIds.contains(ground.id),
+                                    isUploadingImage = uiState.uploadingImageIds.contains(ground.id),
                                     currentUserRole = currentUserRole,
                                     foundOwner = uiState.ownerSearchResult,
                                     ownerSearchLoading = uiState.ownerSearchLoading,
                                     ownerSearchError = uiState.ownerSearchError,
                                     onToggle = { isActive -> viewModel.toggleGround(ground.id, isActive) },
                                     onSearchOwner = { phone -> viewModel.searchOwnerByPhone(phone) },
-                                    onAssignOwner = { gId, uId -> viewModel.assignOwner(gId, uId) }
+                                    onAssignOwner = { gId, uId -> viewModel.assignOwner(gId, uId) },
+                                    onUploadImage = { uri -> viewModel.uploadGroundImage(contentResolver, ground.id, uri) }
                                 )
                             }
                         }
@@ -143,6 +158,7 @@ fun GroundsScreen(
 private fun GroundCard(
     ground: Ground,
     isUpdating: Boolean,
+    isUploadingImage: Boolean,
     currentUserRole: String,
     foundOwner: AppUser?,
     ownerSearchLoading: Boolean,
@@ -150,13 +166,43 @@ private fun GroundCard(
     onToggle: (Boolean) -> Unit,
     onSearchOwner: (String) -> Unit,
     onAssignOwner: (Int, Int) -> Unit,
+    onUploadImage: (Uri) -> Unit,
 ) {
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let(onUploadImage) }
+
     AppCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = !isUploadingImage,
+                    ) { imagePicker.launch("image/*") },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isUploadingImage) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else if (!ground.image_url.isNullOrBlank()) {
+                    AsyncImage(
+                        model = absoluteMediaUrl(ground.image_url),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Icon(Icons.Outlined.CameraAlt, contentDescription = "Add photo", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                }
+            }
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = ground.name.ifBlank { "Ground #${ground.id}" },

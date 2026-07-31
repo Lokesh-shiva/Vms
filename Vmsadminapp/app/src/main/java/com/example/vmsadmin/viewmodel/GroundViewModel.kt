@@ -1,5 +1,7 @@
 package com.example.vmsadmin.viewmodel
 
+import android.content.ContentResolver
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -21,6 +23,7 @@ data class GroundUiState(
     val ownerSearchResult: AppUser? = null,
     val ownerSearchLoading: Boolean = false,
     val ownerSearchError: String? = null,
+    val uploadingImageIds: Set<Int> = emptySet(),
 )
 
 class GroundViewModel(private val repository: GroundRepository) : ViewModel() {
@@ -102,6 +105,25 @@ class GroundViewModel(private val repository: GroundRepository) : ViewModel() {
 
     fun clearOwnerSearch() {
         _uiState.update { it.copy(ownerSearchResult = null, ownerSearchError = null) }
+    }
+
+    fun uploadGroundImage(contentResolver: ContentResolver, groundId: Int, imageUri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(uploadingImageIds = it.uploadingImageIds + groundId, error = null) }
+            try {
+                val updated = repository.uploadGroundImage(contentResolver, groundId, imageUri)
+                _uiState.update { state ->
+                    state.copy(
+                        grounds = state.grounds.map { if (it.id == groundId) updated else it },
+                        uploadingImageIds = state.uploadingImageIds - groundId,
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(uploadingImageIds = it.uploadingImageIds - groundId, error = e.message ?: "Failed to upload image")
+                }
+            }
+        }
     }
 
     fun toggleGround(id: Int, isActive: Boolean) {

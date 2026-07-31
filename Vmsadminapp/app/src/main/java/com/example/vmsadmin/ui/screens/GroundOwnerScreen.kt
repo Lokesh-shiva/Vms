@@ -1,18 +1,30 @@
 package com.example.vmsadmin.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.vmsadmin.models.Booking
 import com.example.vmsadmin.models.Ground
+import com.example.vmsadmin.network.absoluteMediaUrl
 import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.ui.components.StatusBadge
 import com.example.vmsadmin.viewmodel.BookingViewModel
@@ -40,6 +52,7 @@ fun GroundOwnerScreen(
     val groundsError = groundState.error
 
     val bookingState by bookingViewModel.uiState.collectAsState()
+    val contentResolver = LocalContext.current.contentResolver
 
     LaunchedEffect(Unit) {
         groundViewModel.loadGrounds()
@@ -96,7 +109,9 @@ fun GroundOwnerScreen(
                     GroundCard(
                         ground = ground,
                         updating = ground.id in groundState.updatingIds,
+                        uploadingImage = ground.id in groundState.uploadingImageIds,
                         onToggleActive = { isActive -> groundViewModel.toggleGround(ground.id, isActive) },
+                        onUploadImage = { uri -> groundViewModel.uploadGroundImage(contentResolver, ground.id, uri) },
                     )
                 }
             }
@@ -137,13 +152,18 @@ fun GroundOwnerScreen(
 private fun GroundCard(
     ground: Ground,
     updating: Boolean,
+    uploadingImage: Boolean,
     onToggleActive: (Boolean) -> Unit,
+    onUploadImage: (Uri) -> Unit,
 ) {
     val statusColor = when (ground.status.uppercase()) {
         "AVAILABLE" -> Color(0xFF4CAF50)
         "BUSY"      -> Color(0xFFE65100)
         else        -> MaterialTheme.colorScheme.onSurfaceVariant
     }
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let(onUploadImage) }
 
     AppCard {
         Row(
@@ -151,6 +171,31 @@ private fun GroundCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = !uploadingImage,
+                    ) { imagePicker.launch("image/*") },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (uploadingImage) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else if (!ground.image_url.isNullOrBlank()) {
+                    AsyncImage(
+                        model = absoluteMediaUrl(ground.image_url),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Icon(Icons.Outlined.CameraAlt, contentDescription = "Add photo", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = ground.name,

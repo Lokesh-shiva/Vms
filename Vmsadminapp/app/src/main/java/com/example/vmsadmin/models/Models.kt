@@ -234,6 +234,7 @@ data class Ground(
     val is_active: Boolean = true,
     val latitude: Double? = null,
     val longitude: Double? = null,
+    val image_url: String? = null,
     val owner_user_id: Int? = null,
     val created_at: String? = null,
     val updated_at: String? = null

@@ -354,6 +354,11 @@ cur.execute("""
         ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
 """)
 
+print("Running migration 30: add image_url to carts (grounds) ...")
+cur.execute("""
+    ALTER TABLE carts ADD COLUMN IF NOT EXISTS image_url VARCHAR;
+""")
+
 conn.commit()
 cur.close()
 conn.close()

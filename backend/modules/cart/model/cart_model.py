@@ -43,6 +43,7 @@ class Cart(Base):
     is_active = Column(Boolean, nullable=False, default=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
+    image_url = Column(String, nullable=True)
     owner_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
@@ -60,6 +61,7 @@ class Cart(Base):
             "is_active": self.is_active,
             "latitude": self.latitude,
             "longitude": self.longitude,
+            "image_url": self.image_url,
             "owner_user_id": self.owner_user_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

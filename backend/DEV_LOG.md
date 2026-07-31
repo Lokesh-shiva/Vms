@@ -3582,3 +3582,53 @@ dialog gained a date picker for it, using the corrected Box+disabled-field patte
 - Full backend suite: 520 passed (513 prior + 7 new), zero regressions.
 - `python -c "import backend.main"` — clean import.
 - Not build-verified on the app — user's own build/run is the check.
+
+---
+## [2026-07-31] Feature (1/3) — ground photo upload
+
+User asked for real image upload (not paste-a-URL) across grounds, sports, and items, for both
+super_admin and ground_owner where relevant. Tracked in `docs/plan-resource-image-uploads.md`.
+This is the first of three resource types — the shared storage utility lands here.
+
+### Added
+**Backend**
+- `core/storage/media_storage.py` (new) — generalizes `profile_photo_storage.py` with a
+  `namespace` param (`save_media(namespace, entity_id, ...)` /
+  `read_media(namespace, entity_id)` / `delete_media(...)`) so grounds/sports/items share one
+  implementation instead of three near-copies. `profile_photo_storage.py` itself is left
+  untouched — already shipped and tested, not worth the refactor risk for this slice.
+- `Cart` model — new `image_url` column (was completely absent before). Migration 30.
+- `POST /api/v1/grounds/{id}/image` — ground owner (their own ground only) or
+  `SUPER_ADMIN`/`OPS_MANAGER`. `GET /api/v1/grounds/{id}/image` — public, same reasoning as
+  profile photos (not sensitive, avoids the `?token=` workaround for `AsyncImage`).
+- `_to_ground()` mapping updated to include `image_url`.
+- Tests: `test_media_storage.py` (6 cases, temp-dir-patched like `profile_photo_storage`'s tests),
+  8 new cases added to the existing `test_ground_owner_update.py` (reusing its established
+  owner/admin/regular-user fixture pattern) for the upload + public-GET routes.
+
+**Bug caught by the tests before shipping:** the first draft of `upload_ground_image` fetched the
+ground via `_cart_service.get_cart()` *before* checking whether the caller's role was even allowed
+to upload at all — so a regular `user` role got a 404 instead of a 403 (mildly info-leaky: it
+reveals whether a ground_id exists to someone with no business asking). Fixed by checking role
+eligibility first, matching the order `update_ground` already uses. This mirrors the ordering
+bug pattern already caught twice elsewhere this session (production-DB test leaks) — writing the
+authorization test cases up front is what caught it here too.
+
+**App — Vmsadminapp**
+- `Ground` model gained `image_url`. `ApiService.kt`/`GroundRepository.kt` gained
+  `uploadGroundImage()` (same temp-file-multipart pattern established for KYC/profile-photo
+  uploads this session). `GroundViewModel.kt` gained `uploadingImageIds` state +
+  `uploadGroundImage()`.
+- `network/MediaUrl.kt` (new) — `absoluteMediaUrl()`, the admin-app equivalent of the helper added
+  to Vmsuserapp for the earlier avatar-display fix. Required exposing `ApiClient.BASE_URL` (was
+  `private`) so this new file could resolve relative paths against it.
+- `GroundsScreen.kt` (super_admin/ops_manager) and `GroundOwnerScreen.kt` (ground_owner, own
+  grounds only) both gained a tappable photo thumbnail on each ground card — `GetContent("image/*")`
+  picker, upload-in-flight spinner overlay, falls back to a camera-icon placeholder when no photo
+  exists yet.
+
+### Verified
+- New tests: 14 (6 storage + 8 route).
+- Full backend suite: 534 passed (520 prior + 14 new), zero regressions.
+- Migration 30 applied directly against the live Neon DB via `run_migrations.py`.
+- Not build-verified on the app — user's own build/run is the check.

@@ -28,6 +28,7 @@ def _to_ground(cart: dict) -> dict:
         "is_active": cart.get("is_active"),
         "latitude": cart.get("latitude"),
         "longitude": cart.get("longitude"),
+        "image_url": cart.get("image_url"),
         "created_at": cart.get("created_at"),
         "updated_at": cart.get("updated_at"),
         "owner_user_id": cart.get("owner_user_id"),

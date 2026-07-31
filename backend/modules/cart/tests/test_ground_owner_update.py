@@ -84,5 +84,104 @@ class TestGroundOwnerUpdateScoping(unittest.TestCase):
         self.assertEqual(resp.status_code, 403)
 
 
+class TestGroundImageUpload(unittest.TestCase):
+    """POST /api/v1/grounds/{id}/image and the public GET serve route."""
+
+    def setUp(self):
+        self.app = _build_app()
+        self.client = TestClient(self.app, raise_server_exceptions=False)
+
+    def tearDown(self):
+        self.app.dependency_overrides.clear()
+
+    def _set_user(self, user):
+        self.app.dependency_overrides[get_current_user] = lambda: user
+
+    def _base_cart(self, owner_user_id=None):
+        return {
+            "id": 5, "owner_user_id": owner_user_id, "label": "X", "region_id": 1,
+            "cart_type_id": 1, "status": "AVAILABLE", "is_active": True,
+            "latitude": None, "longitude": None, "image_url": None,
+            "created_at": None, "updated_at": None,
+        }
+
+    @patch("modules.cart.controller.ground_routes.save_media")
+    @patch("modules.cart.controller.ground_routes._cart_service")
+    def test_owner_can_upload_own_ground_image(self, mock_service, mock_save):
+        self._set_user(GROUND_OWNER)
+        mock_service.get_cart.return_value = self._base_cart(owner_user_id=10)
+        mock_service.update_cart.return_value = {
+            **self._base_cart(owner_user_id=10), "image_url": "/api/v1/grounds/5/image",
+        }
+        resp = self.client.post(
+            "/api/v1/grounds/5/image", files={"file": ("photo.jpg", b"fake-bytes", "image/jpeg")}
+        )
+        self.assertEqual(resp.status_code, 200)
+        mock_save.assert_called_once_with("grounds", 5, "photo.jpg", b"fake-bytes")
+        mock_service.update_cart.assert_called_once_with(5, {"image_url": "/api/v1/grounds/5/image"})
+
+    @patch("modules.cart.controller.ground_routes.save_media")
+    @patch("modules.cart.controller.ground_routes._cart_service")
+    def test_owner_cannot_upload_someone_elses_ground_image(self, mock_service, mock_save):
+        self._set_user(OTHER_GROUND_OWNER)
+        mock_service.get_cart.return_value = self._base_cart(owner_user_id=10)
+        resp = self.client.post(
+            "/api/v1/grounds/5/image", files={"file": ("photo.jpg", b"fake-bytes", "image/jpeg")}
+        )
+        self.assertEqual(resp.status_code, 403)
+        mock_save.assert_not_called()
+
+    @patch("modules.cart.controller.ground_routes.save_media")
+    @patch("modules.cart.controller.ground_routes._cart_service")
+    def test_super_admin_can_upload_any_ground_image(self, mock_service, mock_save):
+        self._set_user(SUPER_ADMIN)
+        mock_service.get_cart.return_value = self._base_cart(owner_user_id=99)
+        mock_service.update_cart.return_value = {
+            **self._base_cart(owner_user_id=99), "image_url": "/api/v1/grounds/5/image",
+        }
+        resp = self.client.post(
+            "/api/v1/grounds/5/image", files={"file": ("photo.jpg", b"fake-bytes", "image/jpeg")}
+        )
+        self.assertEqual(resp.status_code, 200)
+
+    def test_regular_user_cannot_upload(self):
+        self._set_user(REGULAR_USER)
+        resp = self.client.post(
+            "/api/v1/grounds/5/image", files={"file": ("photo.jpg", b"fake-bytes", "image/jpeg")}
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    @patch("modules.cart.controller.ground_routes._cart_service")
+    def test_upload_rejects_non_image(self, mock_service):
+        self._set_user(SUPER_ADMIN)
+        mock_service.get_cart.return_value = self._base_cart(owner_user_id=99)
+        resp = self.client.post(
+            "/api/v1/grounds/5/image", files={"file": ("doc.pdf", b"not-an-image", "application/pdf")}
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    @patch("modules.cart.controller.ground_routes._cart_service")
+    def test_upload_unknown_ground_404s(self, mock_service):
+        self._set_user(SUPER_ADMIN)
+        mock_service.get_cart.return_value = None
+        resp = self.client.post(
+            "/api/v1/grounds/999/image", files={"file": ("photo.jpg", b"fake-bytes", "image/jpeg")}
+        )
+        self.assertEqual(resp.status_code, 404)
+
+    @patch("modules.cart.controller.ground_routes.read_media")
+    def test_get_image_success_no_auth_required(self, mock_read):
+        mock_read.return_value = (b"fake-bytes", "image/jpeg")
+        resp = self.client.get("/api/v1/grounds/5/image")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.content, b"fake-bytes")
+
+    @patch("modules.cart.controller.ground_routes.read_media")
+    def test_get_image_missing_returns_404(self, mock_read):
+        mock_read.return_value = None
+        resp = self.client.get("/api/v1/grounds/999/image")
+        self.assertEqual(resp.status_code, 404)
+
+
 if __name__ == "__main__":
     unittest.main()
