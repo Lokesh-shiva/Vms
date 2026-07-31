@@ -342,25 +342,31 @@ fun ProfileSetupScreen(navController: NavController) {
                 )
                 Spacer(Modifier.height(14.dp))
 
-                OutlinedTextField(
-                    value = if (dob.isBlank()) "" else displayDate(dob),
-                    onValueChange = {},
-                    readOnly = true,
+                Box(
                     modifier = Modifier.fillMaxWidth().clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                     ) { showDatePicker = true },
-                    label = { Text("Date of birth") },
-                    placeholder = { Text("Used to find age-appropriate matches") },
-                    shape = PlixoShape.Input,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PlixoPrimary,
-                        unfocusedBorderColor = PlixoBorder,
-                        focusedContainerColor = PlixoSurface2,
-                        unfocusedContainerColor = PlixoSurface2,
-                    ),
-                    singleLine = true,
-                )
+                ) {
+                    OutlinedTextField(
+                        value = if (dob.isBlank()) "" else displayDate(dob),
+                        onValueChange = {},
+                        readOnly = true,
+                        enabled = false,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Date of birth") },
+                        placeholder = { Text("Used to find age-appropriate matches") },
+                        shape = PlixoShape.Input,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledBorderColor = PlixoBorder,
+                            disabledContainerColor = PlixoSurface2,
+                            disabledTextColor = PlixoText,
+                            disabledLabelColor = PlixoText3,
+                            disabledPlaceholderColor = PlixoText3,
+                        ),
+                        singleLine = true,
+                    )
+                }
                 if (showDatePicker) {
                     val maxMillis = remember {
                         Calendar.getInstance().apply { add(Calendar.YEAR, -MIN_AGE_YEARS) }.timeInMillis
