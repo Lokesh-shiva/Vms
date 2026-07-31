@@ -3711,3 +3711,45 @@ alongside it.
 
 **This closes out `docs/plan-resource-image-uploads.md`** — grounds, sports, and items all have
 real photo upload now, sharing one `core/storage/media_storage.py` utility across all three.
+
+---
+## [2026-07-31] Fix — EditProfileScreen missing fields (app-only, no backend changes)
+
+User feedback after testing: "in edit there's not much options" — `EditProfileScreen.kt` only ever
+had name + city, despite `PUT /users/me` (`UpdateUserSchema`) already supporting username, email,
+and date_of_birth since Part 1 of the registration overhaul. Onboarding got all these fields;
+editing an existing profile never did.
+
+Also investigated a second report — "previously uploaded pfp are not showing well" — confirmed via
+follow-up as broken/missing images, not a rendering bug. Root cause: profile photos (and now
+ground/sport/item photos) are stored on local disk, which Render wipes on every redeploy — a known
+limitation already flagged for KYC documents, now affecting five media types after today's work.
+**Not fixed in this entry** — moving to persistent storage (S3/Cloudinary) needs an external
+account and credentials that can't be set up from here; flagged to the user, no code changed for
+this part. Re-uploading a photo now works until the next deploy.
+
+### Added
+**App — Vmsuserapp (no backend changes — `UpdateUserSchema` already had everything needed)**
+- `EditProfileScreen.kt` — full rewrite. Added: avatar picker (tap to upload, same pattern as
+  onboarding), username field (regex-validated, matches the backend's format rule), optional email
+  field, DOB date picker (same `Box` + `enabled = false` fix from the earlier date-picker bug,
+  applied here from the start rather than repeating the original mistake), pre-filled from the
+  current user's existing values via `UserSession`. Error display wired to a real failure path
+  (see below).
+- `ProfileRepository.kt` — `updateProfile()` gained optional `username`/`email`/`dateOfBirth`
+  params, included in the request body only when non-null.
+- `ProfileViewModel.kt` — `updateProfile()` gained the same optional params, plus `updating`/
+  `updateError` state. Previously `onFailure` wasn't handled at all — the map body would fail
+  silently (e.g. a duplicate username) and the UI would call `onDone()` regardless, closing the
+  screen as if it saved successfully. Now surfaces the real error via `updateError` and only calls
+  `onDone()` on actual success.
+
+### Not built this round — flagged, needs the user's decision
+Persistent media storage (S3, Cloudinary, or similar) to replace local-disk storage across all five
+upload features (profile photos, KYC docs, ground/sport/item photos) — requires an external
+provider account and credentials.
+
+### Verified
+- No backend changes — full suite unaffected (546 passed, confirmed via
+  `python -c "import backend.main"`, no code touched under `backend/`).
+- Not build-verified — user's own build/run is the check.

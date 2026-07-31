@@ -9,8 +9,18 @@ import com.example.vmsuser.network.UserSession
 class ProfileRepository {
     private val api = RetrofitClient.api
 
-    suspend fun updateProfile(name: String, city: String): Result<Unit> = try {
-        val res = api.updateProfile(mapOf("name" to name, "city" to city))
+    suspend fun updateProfile(
+        name: String,
+        city: String,
+        username: String? = null,
+        email: String? = null,
+        dateOfBirth: String? = null,
+    ): Result<Unit> = try {
+        val body = mutableMapOf("name" to name, "city" to city)
+        username?.let { body["username"] = it }
+        email?.let { body["email"] = it }
+        dateOfBirth?.let { body["date_of_birth"] = it }
+        val res = api.updateProfile(body)
         if (res.success && res.data != null) { UserSession.setUser(res.data); Result.success(Unit) }
         else Result.failure(Exception(res.message ?: "Failed"))
     } catch (e: Exception) { Log.e("ProfileRepo", "updateProfile", e); Result.failure(e) }

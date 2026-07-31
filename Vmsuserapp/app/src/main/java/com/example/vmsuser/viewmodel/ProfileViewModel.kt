@@ -25,6 +25,12 @@ class ProfileViewModel : ViewModel() {
     private val _walletBalance = MutableStateFlow(0)
     val walletBalance: StateFlow<Int> = _walletBalance
 
+    private val _updateError = MutableStateFlow<String?>(null)
+    val updateError: StateFlow<String?> = _updateError
+
+    private val _updating = MutableStateFlow(false)
+    val updating: StateFlow<Boolean> = _updating
+
     fun loadNotifications() {
         viewModelScope.launch {
             try {
@@ -53,12 +59,30 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    fun updateProfile(name: String, region: String, onDone: () -> Unit) {
+    fun updateProfile(
+        name: String,
+        region: String,
+        username: String? = null,
+        email: String? = null,
+        dateOfBirth: String? = null,
+        onDone: () -> Unit,
+    ) {
         viewModelScope.launch {
+            _updating.value = true
+            _updateError.value = null
             try {
-                repo.updateProfile(name, region).onSuccess { onDone() }
-            } catch (e: Exception) { Log.e("ProfileVM", "updateProfile", e); onDone() }
+                repo.updateProfile(name, region, username, email, dateOfBirth)
+                    .onSuccess { onDone() }
+                    .onFailure { _updateError.value = it.message ?: "Could not save profile." }
+            } catch (e: Exception) {
+                Log.e("ProfileVM", "updateProfile", e)
+                _updateError.value = e.message ?: "Could not save profile."
+            } finally {
+                _updating.value = false
+            }
         }
     }
+
+    fun clearUpdateError() { _updateError.value = null }
 
 }
