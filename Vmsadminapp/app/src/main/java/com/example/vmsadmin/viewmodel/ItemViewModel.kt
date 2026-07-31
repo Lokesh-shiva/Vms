@@ -1,5 +1,7 @@
 package com.example.vmsadmin.viewmodel
 
+import android.content.ContentResolver
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -29,7 +31,8 @@ data class ItemUiState(
     val showDeleteConfirm: Boolean = false,
     val deletingItem: Item? = null,
     val updatingIds: Set<Int> = emptySet(),
-    val updatingCartTypeIds: Set<Int> = emptySet()
+    val updatingCartTypeIds: Set<Int> = emptySet(),
+    val uploadingImageIds: Set<Int> = emptySet(),
 )
 
 class ItemViewModel(
@@ -218,6 +221,20 @@ class ItemViewModel(
                     updatingCartTypeIds = _uiState.value.updatingCartTypeIds - cartTypeId,
                     updatingIds = _uiState.value.updatingIds - affectedIds
                 )
+            }
+        }
+    }
+
+    fun uploadItemImage(contentResolver: ContentResolver, id: Int, imageUri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(uploadingImageIds = it.uploadingImageIds + id, error = null) }
+            try {
+                itemRepository.uploadItemImage(contentResolver, id, imageUri)
+                loadItems()
+            } catch (e: Exception) {
+                _uiState.update { it.copy(error = e.message ?: "Failed to upload image") }
+            } finally {
+                _uiState.update { it.copy(uploadingImageIds = it.uploadingImageIds - id) }
             }
         }
     }

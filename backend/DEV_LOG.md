@@ -3673,3 +3673,41 @@ inconsistency, just two entry points into one implementation.
 - Full backend suite: 540 passed (534 prior + 6 new), zero regressions.
 - Migration 31 applied directly against the live Neon DB via `run_migrations.py`.
 - Not build-verified on the app — user's own build/run is the check.
+
+---
+## [2026-07-31] Feature (3/3) — item photo upload, plan complete
+
+Final slice of `docs/plan-resource-image-uploads.md`. No migration needed — `Item.image_url`
+already existed (from an earlier manual paste-a-URL feature), so this just adds a real upload path
+alongside it.
+
+### Added
+**Backend**
+- `POST /api/v1/items/{id}/image` / `GET /api/v1/items/{id}/image` — admin-only upload, public
+  serve, same `media_storage.py` reuse as grounds/sports. Upload overwrites whatever was in
+  `image_url`, including a manually-pasted external link if one was set that way — upload always
+  wins once used, the two paths write to the same field.
+- Tests: `test_item_image_routes.py` (new file, 6 cases, same shape as the sports test file).
+
+**App — Vmsadminapp**
+- Fixed a display bug this slice would otherwise have hit: `ItemCard`'s existing `hasImage` check
+  was `item.image_url.startsWith("http")` — true for a manually-pasted external link, but false for
+  our new upload's relative path (`/api/v1/items/{id}/image`), so a freshly-uploaded item photo
+  would have silently failed to render. Changed the check to just "non-blank" and route the value
+  through `absoluteMediaUrl()` (added in the grounds slice) either way — manually-pasted absolute
+  URLs pass through unchanged, uploaded relative paths get resolved against the API host.
+- `ApiService.kt`/`ItemRepository.kt`/`ItemViewModel.kt` gained the same
+  temp-file-multipart-upload / `uploadingImageIds` pattern as grounds and sports.
+- `ItemsScreen.kt` — the existing image-preview area (previously just a static "No image"
+  placeholder when nothing was pasted) is now itself the tap target for uploading, with a spinner
+  during upload and a camera-icon "Tap to add photo" empty state. The manual "Image URL" paste
+  field in the add/edit dialog is untouched — both paths still work, upload just also exists now.
+
+### Verified
+- New tests: 6.
+- Full backend suite: 546 passed (540 prior + 6 new), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Not build-verified on the app — user's own build/run is the check.
+
+**This closes out `docs/plan-resource-image-uploads.md`** — grounds, sports, and items all have
+real photo upload now, sharing one `core/storage/media_storage.py` utility across all three.

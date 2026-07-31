@@ -256,6 +256,13 @@ interface ApiService {
     @DELETE("/api/v1/items/{item_id}")
     suspend fun deleteItem(@Path("item_id") itemId: Int): ApiResponse<JsonElement>
 
+    @Multipart
+    @POST("/api/v1/items/{item_id}/image")
+    suspend fun uploadItemImage(
+        @Path("item_id") itemId: Int,
+        @Part file: MultipartBody.Part,
+    ): ApiResponse<Item>
+
     // ── Ground endpoints ─────────────────────────────────────────────
     @GET("/api/v1/grounds")
     suspend fun getGrounds(): ApiResponse<List<Ground>>

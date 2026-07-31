@@ -7,7 +7,11 @@
       `/api/v1/sports` router (admin app's other sport CRUD calls still go through the deprecated
       `/api/v1/cart-types` router — not migrated, out of scope for this slice), CartTypesScreen
       picker UI.
-- [ ] Items
+- [x] Items — no migration needed (`image_url` already existed), upload/serve routes added
+      alongside the existing manual paste-a-URL field, ItemsScreen picker UI. `hasImage` display
+      check fixed to work for both absolute (manually-pasted) and relative (uploaded) URLs.
+
+**Plan complete — all 3 resource types shipped.**
 
 ## Scope
 Real file upload (not paste-a-URL) for three resource types, mirroring the profile-photo upload
