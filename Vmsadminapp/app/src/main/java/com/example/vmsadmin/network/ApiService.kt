@@ -35,6 +35,7 @@ import com.example.vmsadmin.models.UpdateGroundRequest
 import com.example.vmsadmin.models.Match
 import com.example.vmsadmin.models.MatchDetail
 import com.example.vmsadmin.models.AdminChatMessage
+import com.example.vmsadmin.models.AdminWallet
 import com.example.vmsadmin.models.CreateMatchRequest
 import com.example.vmsadmin.models.SystemConfigListResponse
 import com.example.vmsadmin.models.SystemConfigResponse
@@ -301,6 +302,9 @@ interface ApiService {
 
     @GET("/api/v1/admin/matches/{match_id}/messages")
     suspend fun getAdminMatchMessages(@Path("match_id") matchId: Int): ApiResponse<List<AdminChatMessage>>
+
+    @GET("/api/v1/admin/wallet/{user_id}")
+    suspend fun getAdminWallet(@Path("user_id") userId: Int): ApiResponse<AdminWallet>
 
     // ── User Management endpoints (super_admin only) ─────────────────
     @GET("/api/v1/users")

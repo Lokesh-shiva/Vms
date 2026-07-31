@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.vmsadmin.data.UserManagementRepository
+import com.example.vmsadmin.models.AdminWallet
 import com.example.vmsadmin.models.AppUser
 import com.example.vmsadmin.models.CreateUserRequest
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -135,6 +136,7 @@ class UserManagementViewModel(
         viewModelScope.launch {
             _searchStatus.value = SearchStatus.Loading
             _searchResult.value = null
+            clearWallet()
             try {
                 val user = repository.searchByPhone(phone)
                 _searchResult.value = user
@@ -148,6 +150,36 @@ class UserManagementViewModel(
     fun clearSearch() {
         _searchResult.value = null
         _searchStatus.value = SearchStatus.Idle
+        clearWallet()
+    }
+
+    // ── Support: wallet lookup ──────────────────────────────────────
+    private val _wallet = MutableStateFlow<AdminWallet?>(null)
+    val wallet: StateFlow<AdminWallet?> = _wallet.asStateFlow()
+
+    private val _walletLoading = MutableStateFlow(false)
+    val walletLoading: StateFlow<Boolean> = _walletLoading.asStateFlow()
+
+    private val _walletError = MutableStateFlow<String?>(null)
+    val walletError: StateFlow<String?> = _walletError.asStateFlow()
+
+    fun loadWallet(userId: Int) {
+        viewModelScope.launch {
+            _walletLoading.value = true
+            _walletError.value = null
+            try {
+                _wallet.value = repository.getWallet(userId)
+            } catch (e: Exception) {
+                _walletError.value = e.message ?: "Failed to load wallet"
+            } finally {
+                _walletLoading.value = false
+            }
+        }
+    }
+
+    fun clearWallet() {
+        _wallet.value = null
+        _walletError.value = null
     }
 
     fun toggleActive(id: Int, currentActive: Boolean) {

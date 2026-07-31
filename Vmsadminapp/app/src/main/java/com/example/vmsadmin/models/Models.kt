@@ -735,3 +735,18 @@ data class CreateSocietyRequest(
     val max_members: Int = 50,
     val owner_user_id: Int? = null
 )
+
+@Serializable
+data class AdminWalletTransaction(
+    val id: Int,
+    val type: String,
+    val amount: Int,
+    val description: String,
+    val created_at: String? = null,
+)
+
+@Serializable
+data class AdminWallet(
+    val balance: Int,
+    val transactions: List<AdminWalletTransaction> = emptyList(),
+)

@@ -1,5 +1,6 @@
 package com.example.vmsadmin.data
 
+import com.example.vmsadmin.models.AdminWallet
 import com.example.vmsadmin.models.AppUser
 import com.example.vmsadmin.models.CreateUserRequest
 import com.example.vmsadmin.models.UpdateUserRequest
@@ -67,6 +68,16 @@ class UserManagementRepository(private val apiService: ApiService) {
             throw Exception(response.message ?: "Failed to update status")
         } catch (e: HttpException) {
             throw Exception(parseErrorDetail(e) ?: "Failed to update status")
+        }
+    }
+
+    suspend fun getWallet(userId: Int): AdminWallet {
+        try {
+            val response = apiService.getAdminWallet(userId)
+            if (response.success && response.data != null) return response.data
+            throw Exception(response.message ?: "Failed to fetch wallet")
+        } catch (e: HttpException) {
+            throw Exception(parseErrorDetail(e) ?: "Failed to fetch wallet")
         }
     }
 

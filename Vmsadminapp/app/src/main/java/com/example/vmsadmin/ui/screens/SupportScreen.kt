@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
@@ -20,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.vmsadmin.models.AdminWallet
 import com.example.vmsadmin.models.AppUser
 import com.example.vmsadmin.models.Booking
 import com.example.vmsadmin.models.CreateDisputeRequest
@@ -39,6 +41,9 @@ fun SupportScreen(
 ) {
     val searchStatus by userManagementViewModel.searchStatus.collectAsState()
     val searchResult by userManagementViewModel.searchResult.collectAsState()
+    val wallet by userManagementViewModel.wallet.collectAsState()
+    val walletLoading by userManagementViewModel.walletLoading.collectAsState()
+    val walletError by userManagementViewModel.walletError.collectAsState()
     val bookingState by bookingViewModel.uiState.collectAsState()
     val disputeState by disputeViewModel.uiState.collectAsState()
     var phone by remember { mutableStateOf("") }
@@ -113,7 +118,15 @@ fun SupportScreen(
             // ── Search result ────────────────────────────────────────────
             when (searchStatus) {
                 is SearchStatus.Found -> searchResult?.let { user ->
-                    item { UserResultCard(user) }
+                    item {
+                        UserResultCard(
+                            user = user,
+                            wallet = wallet,
+                            walletLoading = walletLoading,
+                            walletError = walletError,
+                            onViewWallet = { userManagementViewModel.loadWallet(user.id) },
+                        )
+                    }
                 }
                 is SearchStatus.NotFound -> item {
                     Text(
@@ -318,7 +331,13 @@ private fun SupportBookingCard(
 }
 
 @Composable
-private fun UserResultCard(user: AppUser) {
+private fun UserResultCard(
+    user: AppUser,
+    wallet: AdminWallet?,
+    walletLoading: Boolean,
+    walletError: String?,
+    onViewWallet: () -> Unit,
+) {
     AppCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -361,6 +380,78 @@ private fun UserResultCard(user: AppUser) {
                     color = if (user.is_active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.SemiBold
                 )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        HorizontalDivider()
+        Spacer(Modifier.height(8.dp))
+
+        if (wallet == null) {
+            OutlinedButton(onClick = onViewWallet, enabled = !walletLoading) {
+                if (walletLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Outlined.AccountBalanceWallet, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("View Wallet")
+                }
+            }
+            walletError?.let {
+                Spacer(Modifier.height(6.dp))
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Wallet Balance",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "${wallet.balance} coins",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            if (wallet.transactions.isEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "No transactions yet.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Spacer(Modifier.height(8.dp))
+                wallet.transactions.take(10).forEach { txn ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(txn.description, style = MaterialTheme.typography.bodySmall)
+                            txn.created_at?.let {
+                                Text(
+                                    it.take(10),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        Text(
+                            text = if (txn.amount >= 0) "+${txn.amount}" else "${txn.amount}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (txn.amount >= 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             }
         }
     }

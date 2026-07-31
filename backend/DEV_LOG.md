@@ -3752,4 +3752,45 @@ provider account and credentials.
 ### Verified
 - No backend changes — full suite unaffected (546 passed, confirmed via
   `python -c "import backend.main"`, no code touched under `backend/`).
+
+---
+## [2026-07-31] Feature — Wallet admin visibility (support/finance investigation)
+
+User request after a cost-related VPS/Neon discussion: "complete wallet endpoint" — finish the
+admin-visibility wallet feature that was scoped earlier (AskUserQuestion answer: "Admin visibility
+only"). No self-service wallet UI in the admin app is needed — `GET /api/v1/wallet/balance` already
+covers a player's own wallet in Vmsuserapp. This adds a support/finance-facing lookup so staff can
+investigate a player's balance/transaction history (e.g. a disputed balance) without DB access.
+
+### Added
+**Backend**
+- `admin_routes.py` — `GET /admin/wallet/{user_id}`, gated to `SUPER_ADMIN`, `OPS_MANAGER`,
+  `SUPPORT`, `FINANCE` via `require_role(...)`. Looks up the user (404 if unknown), then returns
+  `wallet_service.get_balance(user_id)` + `wallet_service.get_transactions(user_id)` — both already
+  accepted an arbitrary `user_id` internally, no changes needed in `wallet_service.py`.
+- `backend/modules/admin/tests/test_admin_wallet_routes.py` (new file, new test dir, no
+  `__init__.py` — matches repo convention) — 4 tests: support can view any wallet, finance can view
+  any wallet, regular user gets 403, unknown user_id gets 404.
+
+**App — Vmsadminapp**
+- `Models.kt` — `AdminWalletTransaction`, `AdminWallet`.
+- `ApiService.kt` — `getAdminWallet(userId)` (`GET /admin/wallet/{user_id}`).
+- `UserManagementRepository.kt` — `getWallet(userId)`.
+- `UserManagementViewModel.kt` — `wallet`/`walletLoading`/`walletError` state, `loadWallet()`,
+  `clearWallet()` (also called from `searchByPhone()` and `clearSearch()` so a stale wallet from a
+  previous search never lingers under a new result).
+- `SupportScreen.kt` — `UserResultCard` extended with a "View Wallet" button that lazy-loads balance
+  + last 10 transactions inline (amount color-coded credit/debit), collapsed by default.
+
+### Architectural decisions
+- Read-only, on-demand (button press, not auto-loaded with every search) — keeps the support search
+  flow fast for the common case where wallet detail isn't needed.
+- Reused `wallet_service` as-is rather than adding an admin-specific service method — the existing
+  functions were already user_id-parameterized with no self-scoping to work around.
+
+### Verified
+- New tests: 4, passing in isolation.
+- Full backend suite: 550 passed (546 prior + 4 new), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Not build-verified on the app — user's own build/run is the check.
 - Not build-verified — user's own build/run is the check.

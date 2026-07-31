@@ -256,6 +256,30 @@ def get_admin_match_messages(
     return _success(chat_service.get_messages_admin(match_id))
 
 
+@router.get("/wallet/{user_id}")
+def get_admin_wallet(
+    user_id: int,
+    current_user: dict = require_role(
+        UserRole.SUPER_ADMIN, UserRole.OPS_MANAGER, UserRole.SUPPORT, UserRole.FINANCE
+    ),
+):
+    """Balance + transaction history for any user's coin wallet — for support/finance
+    investigation (e.g. a player disputing their balance). No self-service equivalent
+    needed here since GET /api/v1/wallet/balance already covers "my own wallet"."""
+    from fastapi import HTTPException
+    from modules.user.repository.user_repository import user_repository
+    from modules.wallet.service.wallet_service import wallet_service
+
+    user = user_repository.find_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    return _success({
+        "balance": wallet_service.get_balance(user_id),
+        "transactions": wallet_service.get_transactions(user_id),
+    })
+
+
 @router.post("/matches/reap-abandoned")
 def reap_abandoned_sessions_now(
     current_user: dict = require_role(UserRole.SUPER_ADMIN, UserRole.OPS_MANAGER),
