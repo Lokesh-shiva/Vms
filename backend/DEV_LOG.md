@@ -3534,3 +3534,51 @@ as "read but not send in").
 - Full backend suite: 513 passed (507 prior + 6 new), zero regressions.
 - `python -c "import backend.main"` — clean import.
 - Not build-verified on the app — user's own build/run is the check.
+
+---
+## [2026-07-31] Fixes — real-device QA round: DOB picker, avatar display, admin-user DOB
+
+User rebuilt both apps and ran through the manual QA checklist from the registration-overhaul
+work. Three issues came back.
+
+### 1. DOB date picker not opening on tap (Vmsuserapp)
+Reported with a logcat dump that turned out to be irrelevant OEM noise ("OplusBracketLog",
+"IJankManager" — Oppo/OnePlus system logging, not a crash). Root cause was a genuine Compose
+gotcha: the field was `enabled = true` + `readOnly = true` with a `clickable` modifier attached
+directly to the `OutlinedTextField`. Material3's text field installs its own tap-to-focus gesture
+handling whenever `enabled`, regardless of `readOnly` — that can swallow the touch before the
+outer `clickable` ever fires. The working "Your area" dropdown next to it never had this problem
+because `ExposedDropdownMenuBox` handles tap-to-open through its own dedicated mechanism, not a
+bare `clickable`.
+
+**Fixed:** wrapped the field in a `clickable` `Box` and set `enabled = false` on the
+`OutlinedTextField` itself — a disabled field installs no pointer input at all, so the tap passes
+through to the `Box` reliably. Applied the same corrected pattern to the equivalent DOB field added
+to Vmsadminapp's Create User dialog in the next fix below, rather than repeating the original bug.
+
+### 2. Uploaded profile photo never appears anywhere after onboarding
+`PlixoAvatar` already accepted an `imageUrl` param and rendered it correctly when present — nothing
+was ever passing it. `HomeScreen.kt` and `ProfileScreen.kt` both called `PlixoAvatar(name = ...)`
+with no `imageUrl`, so it always fell back to text initials even for users with a photo uploaded.
+
+**Fixed:** added `network/MediaUrl.kt` (`absoluteMediaUrl()`) to resolve the backend's relative
+photo path (`/api/v1/users/{id}/profile-photo`) against `BuildConfig.BASE_URL`, and wired it into
+both call sites. Other `PlixoAvatar` usages (chat list, match participant rows) intentionally left
+alone — those render *other* players by name only, and fetching every other player's photo is a
+separate, unrequested scope expansion.
+
+### 3. Admin-created users had no way to set a date of birth
+`CreateUserSchema`/`UpdateUserSchema` never had a `date_of_birth` field at all — an admin creating
+an account on someone's behalf (the "hire someone" captain path, or general admin user management)
+had no way to set it, unlike self-registration.
+
+**Fixed:** added `date_of_birth` to both schemas (same `validate_dob()` 13+ check as
+self-registration), `user_repository.create()` now passes it through. Vmsadminapp's Create User
+dialog gained a date picker for it, using the corrected Box+disabled-field pattern from fix #1.
+
+### Verified
+- New tests: 7 (4 `CreateUserSchema` DOB cases, 2 `UpdateUserSchema` DOB cases, 1 `user_service`
+  DOB-passthrough case).
+- Full backend suite: 520 passed (513 prior + 7 new), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Not build-verified on the app — user's own build/run is the check.
