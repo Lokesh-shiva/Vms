@@ -3632,3 +3632,44 @@ authorization test cases up front is what caught it here too.
 - Full backend suite: 534 passed (520 prior + 14 new), zero regressions.
 - Migration 30 applied directly against the live Neon DB via `run_migrations.py`.
 - Not build-verified on the app — user's own build/run is the check.
+
+---
+## [2026-07-31] Feature (2/3) — sport photo upload
+
+Second of three resource types tracked in `docs/plan-resource-image-uploads.md`, reusing the
+`media_storage.py` utility from the grounds slice.
+
+### Investigation before writing code
+`CartType` (sports) has two parallel routers: the deprecated `/api/v1/cart-types` (which the admin
+app's existing CRUD — create/list/update/delete — still actually calls) and the newer
+`/api/v1/sports` (domain-named facade over the same `CartTypeService`, meant to eventually replace
+it). Added the image endpoints only to `/api/v1/sports/{id}/image`, not duplicated into the
+deprecated router — the admin app's *other* sport calls keep using `/api/v1/cart-types` unchanged
+(migrating those is a separate, unrequested cleanup), it just calls the new image endpoint at its
+`/api/v1/sports` path specifically. Both routers proxy the same service, so this isn't a data
+inconsistency, just two entry points into one implementation.
+
+### Added
+**Backend**
+- `CartType` model — new `image_url` column. Migration 31.
+- `POST /api/v1/sports/{id}/image` / `GET /api/v1/sports/{id}/image` — admin-only upload
+  (`dependencies=[Depends(require_admin)]` at the route level, so — unlike the grounds route —
+  there's no way to write the ordering bug from the previous entry here; the role check runs
+  before any route body code by construction, not by manual ordering).
+- `_to_sport()` mapping updated to include `image_url`.
+- Tests: `test_sport_image_routes.py` (new file, 6 cases) — admin upload success, regular-user
+  403, non-image rejection, unknown-sport 404, public GET success/404.
+
+**App — Vmsadminapp**
+- `CartType` model gained `image_url`. `ApiService.kt` gained `uploadSportImage()` pointed at
+  `/api/v1/sports/{id}/image` specifically (not the cart-types path the rest of this repository
+  class uses). `CartTypeRepository.kt`/`CartTypeViewModel.kt` gained the same
+  temp-file-multipart-upload / `uploadingImageIds` pattern used for grounds.
+- `CartTypesScreen.kt` — same tappable photo-thumbnail treatment as `GroundsScreen`/
+  `GroundOwnerScreen`.
+
+### Verified
+- New tests: 6.
+- Full backend suite: 540 passed (534 prior + 6 new), zero regressions.
+- Migration 31 applied directly against the live Neon DB via `run_migrations.py`.
+- Not build-verified on the app — user's own build/run is the check.

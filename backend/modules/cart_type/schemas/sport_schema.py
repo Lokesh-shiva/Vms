@@ -22,6 +22,7 @@ def _to_sport(cart_type: dict) -> dict:
         "name": cart_type.get("name"),
         "description": cart_type.get("description") or "",
         "is_active": cart_type.get("is_active"),
+        "image_url": cart_type.get("image_url"),
         "created_at": cart_type.get("created_at"),
         "updated_at": cart_type.get("updated_at"),
     }

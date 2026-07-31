@@ -1,10 +1,16 @@
 package com.example.vmsadmin.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -14,6 +20,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
@@ -21,11 +28,15 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.vmsadmin.models.CartType
+import com.example.vmsadmin.network.absoluteMediaUrl
 import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.ui.components.shimmerEffect
 import com.example.vmsadmin.viewmodel.CartTypeViewModel
@@ -36,6 +47,7 @@ fun CartTypesScreen(viewModel: CartTypeViewModel, onBack: () -> Unit = {}) {
     val uiState by viewModel.uiState.collectAsState()
     var visible by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+    val contentResolver = LocalContext.current.contentResolver
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
@@ -230,11 +242,13 @@ fun CartTypesScreen(viewModel: CartTypeViewModel, onBack: () -> Unit = {}) {
                                     CartTypeCard(
                                         cartType = cartType,
                                         isUpdating = uiState.updatingIds.contains(cartType.id),
+                                        isUploadingImage = uiState.uploadingImageIds.contains(cartType.id),
                                         onEdit = { viewModel.showEditDialog(cartType) },
                                         onDelete = { viewModel.showDeleteConfirm(cartType) },
                                         onToggle = { isActive ->
                                             viewModel.toggleCartType(cartType.id, isActive)
-                                        }
+                                        },
+                                        onUploadImage = { uri -> viewModel.uploadCartTypeImage(contentResolver, cartType.id, uri) }
                                     )
                                 }
                             }
@@ -250,16 +264,47 @@ fun CartTypesScreen(viewModel: CartTypeViewModel, onBack: () -> Unit = {}) {
 private fun CartTypeCard(
     cartType: CartType,
     isUpdating: Boolean,
+    isUploadingImage: Boolean,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onToggle: (Boolean) -> Unit
+    onToggle: (Boolean) -> Unit,
+    onUploadImage: (Uri) -> Unit,
 ) {
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri -> uri?.let(onUploadImage) }
+
     AppCard {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = !isUploadingImage,
+                    ) { imagePicker.launch("image/*") },
+                contentAlignment = Alignment.Center,
+            ) {
+                if (isUploadingImage) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                } else if (!cartType.image_url.isNullOrBlank()) {
+                    AsyncImage(
+                        model = absoluteMediaUrl(cartType.image_url),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Icon(Icons.Outlined.CameraAlt, contentDescription = "Add photo", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = cartType.name,

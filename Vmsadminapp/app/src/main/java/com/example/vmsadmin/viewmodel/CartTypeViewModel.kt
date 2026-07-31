@@ -1,5 +1,7 @@
 package com.example.vmsadmin.viewmodel
 
+import android.content.ContentResolver
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -24,7 +26,8 @@ data class CartTypeUiState(
     val editingCartType: CartType? = null,
     val showDeleteConfirm: Boolean = false,
     val deletingCartType: CartType? = null,
-    val updatingIds: Set<Int> = emptySet()
+    val updatingIds: Set<Int> = emptySet(),
+    val uploadingImageIds: Set<Int> = emptySet(),
 )
 
 class CartTypeViewModel(
@@ -126,6 +129,25 @@ class CartTypeViewModel(
                     updatingIds = _uiState.value.updatingIds - id,
                     error = e.message ?: "Failed to toggle cart type"
                 )
+            }
+        }
+    }
+
+    fun uploadCartTypeImage(contentResolver: ContentResolver, id: Int, imageUri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(uploadingImageIds = it.uploadingImageIds + id, error = null) }
+            try {
+                val updated = cartTypeRepository.uploadCartTypeImage(contentResolver, id, imageUri)
+                _uiState.update { state ->
+                    state.copy(
+                        cartTypes = state.cartTypes.map { if (it.id == id) updated else it },
+                        uploadingImageIds = state.uploadingImageIds - id,
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(uploadingImageIds = it.uploadingImageIds - id, error = e.message ?: "Failed to upload image")
+                }
             }
         }
     }

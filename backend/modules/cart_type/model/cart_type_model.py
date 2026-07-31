@@ -24,6 +24,7 @@ class CartType(Base):
     name = Column(String, unique=True, nullable=False, index=True)
     description = Column(String, nullable=True, default="")
     is_active = Column(Boolean, nullable=False, default=True)
+    image_url = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
@@ -36,6 +37,7 @@ class CartType(Base):
             "name": self.name,
             "description": self.description or "",
             "is_active": self.is_active,
+            "image_url": self.image_url,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

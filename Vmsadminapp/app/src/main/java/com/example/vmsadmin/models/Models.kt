@@ -153,6 +153,7 @@ data class CartType(
     val name: String,
     val description: String? = null,
     val is_active: Boolean = true,
+    val image_url: String? = null,
     val created_at: String? = null,
     val updated_at: String? = null
 )

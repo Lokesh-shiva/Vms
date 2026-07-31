@@ -3,7 +3,10 @@
 ## Progress
 - [x] Grounds (Cart) — shared `media_storage.py` utility, migration 30, upload/serve routes,
       GroundsScreen + GroundOwnerScreen picker UI.
-- [ ] Sports (CartType)
+- [x] Sports (CartType) — migration 31, upload/serve routes added to the non-deprecated
+      `/api/v1/sports` router (admin app's other sport CRUD calls still go through the deprecated
+      `/api/v1/cart-types` router — not migrated, out of scope for this slice), CartTypesScreen
+      picker UI.
 - [ ] Items
 
 ## Scope

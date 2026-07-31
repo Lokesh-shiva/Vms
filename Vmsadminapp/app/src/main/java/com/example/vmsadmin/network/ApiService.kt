@@ -168,6 +168,13 @@ interface ApiService {
     @DELETE("/api/v1/cart-types/{cart_type_id}")
     suspend fun deleteCartType(@Path("cart_type_id") cartTypeId: Int): ApiResponse<JsonElement>
 
+    @Multipart
+    @POST("/api/v1/sports/{sport_id}/image")
+    suspend fun uploadSportImage(
+        @Path("sport_id") sportId: Int,
+        @Part file: MultipartBody.Part,
+    ): ApiResponse<CartType>
+
     // ── Timeslot endpoints ───────────────────────────────────────────
     @GET("/api/v1/timeslots")
     suspend fun getTimeslots(): ApiResponse<List<Timeslot>>

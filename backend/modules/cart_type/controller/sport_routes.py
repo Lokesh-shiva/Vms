@@ -13,8 +13,9 @@ references the legacy `sports` table.  These are currently two parallel
 sport taxonomies; they share the same names but different integer IDs.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 
+from core.storage.media_storage import read_media, save_media
 from modules.auth.dependencies.auth_dependencies import require_admin
 from modules.cart_type.service.cart_type_service import CartTypeService
 from modules.cart_type.schemas.sport_schema import (
@@ -27,6 +28,8 @@ from modules.cart_type.schemas.sport_schema import (
 router = APIRouter(prefix="/api/v1/sports", tags=["Sports"])
 
 _cart_type_service = CartTypeService()
+_IMAGE_NAMESPACE = "sports"
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024
 
 
 # ── Response helper ───────────────────────────────────────────────────
@@ -90,6 +93,35 @@ def update_sport(sport_id: int, request_data: dict):
         return _success(_to_sport(cart_type), "Sport updated successfully.")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/{sport_id}/image", dependencies=[Depends(require_admin)])
+async def upload_sport_image(sport_id: int, file: UploadFile = File(...)):
+    """Upload (or replace) a sport's photo. Admin only."""
+    existing = _cart_type_service.get_cart_type(sport_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="Sport not found.")
+
+    if not (file.content_type or "").startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image.")
+    content = await file.read()
+    if len(content) > _MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=400, detail="Image must be under 5MB.")
+
+    save_media(_IMAGE_NAMESPACE, sport_id, file.filename or "photo.jpg", content)
+    image_url = f"/api/v1/sports/{sport_id}/image"
+    cart_type = _cart_type_service.update_cart_type(sport_id, {"image_url": image_url})
+    return _success(_to_sport(cart_type), "Sport photo updated.")
+
+
+@router.get("/{sport_id}/image")
+def get_sport_image(sport_id: int):
+    """Public sport photo — not sensitive, servable without auth for AsyncImage/Coil."""
+    result = read_media(_IMAGE_NAMESPACE, sport_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No image uploaded for this sport.")
+    content, media_type = result
+    return Response(content=content, media_type=media_type)
 
 
 @router.delete("/{sport_id}", dependencies=[Depends(require_admin)])

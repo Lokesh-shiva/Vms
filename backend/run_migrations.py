@@ -359,6 +359,11 @@ cur.execute("""
     ALTER TABLE carts ADD COLUMN IF NOT EXISTS image_url VARCHAR;
 """)
 
+print("Running migration 31: add image_url to cart_types (sports) ...")
+cur.execute("""
+    ALTER TABLE cart_types ADD COLUMN IF NOT EXISTS image_url VARCHAR;
+""")
+
 conn.commit()
 cur.close()
 conn.close()
