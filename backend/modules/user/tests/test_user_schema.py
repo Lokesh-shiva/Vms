@@ -22,6 +22,24 @@ class TestCreateUserSchema(unittest.TestCase):
         schema = CreateUserSchema({"phone": "+1234567890"})
         self.assertFalse(schema.is_valid())
 
+    def test_valid_date_of_birth_accepted(self):
+        schema = CreateUserSchema({"name": "Alice", "phone": "+1234567890", "date_of_birth": "2000-01-01"})
+        self.assertTrue(schema.is_valid())
+        self.assertEqual(schema.validated_data["date_of_birth"], "2000-01-01")
+
+    def test_date_of_birth_under_min_age_rejected(self):
+        schema = CreateUserSchema({"name": "Alice", "phone": "+1234567890", "date_of_birth": "2020-01-01"})
+        self.assertFalse(schema.is_valid())
+
+    def test_date_of_birth_bad_format_rejected(self):
+        schema = CreateUserSchema({"name": "Alice", "phone": "+1234567890", "date_of_birth": "01-01-2000"})
+        self.assertFalse(schema.is_valid())
+
+    def test_date_of_birth_omitted_is_fine(self):
+        schema = CreateUserSchema({"name": "Alice", "phone": "+1234567890"})
+        self.assertTrue(schema.is_valid())
+        self.assertNotIn("date_of_birth", schema.validated_data)
+
     def test_invalid_phone(self):
         schema = CreateUserSchema({"name": "Alice", "phone": "abc"})
         self.assertFalse(schema.is_valid())
@@ -83,6 +101,15 @@ class TestUpdateUserSchema(unittest.TestCase):
         schema = UpdateUserSchema({"role": "super_admin"})
         self.assertTrue(schema.is_valid())
         self.assertEqual(schema.validated_data["role"], "super_admin")
+
+    def test_valid_date_of_birth_update_accepted(self):
+        schema = UpdateUserSchema({"date_of_birth": "1995-06-15"})
+        self.assertTrue(schema.is_valid())
+        self.assertEqual(schema.validated_data["date_of_birth"], "1995-06-15")
+
+    def test_date_of_birth_update_under_min_age_rejected(self):
+        schema = UpdateUserSchema({"date_of_birth": "2020-01-01"})
+        self.assertFalse(schema.is_valid())
 
     def test_role_case_insensitive_update(self):
         """Update schema normalises role to lowercase."""

@@ -1,6 +1,7 @@
 import re
 
 from modules.user.model.user_model import UserRole
+from modules.user.utils.age_utils import validate_dob
 
 # Derive allowed roles directly from the enum — single source of truth.
 VALID_ROLES = {role.value for role in UserRole}
@@ -87,6 +88,14 @@ class CreateUserSchema:
                 self.errors.append(err)
             else:
                 self.validated_data["email"] = email
+
+        # date_of_birth — optional
+        if self._data.get("date_of_birth"):
+            try:
+                validate_dob(str(self._data["date_of_birth"]))
+                self.validated_data["date_of_birth"] = str(self._data["date_of_birth"])
+            except ValueError as exc:
+                self.errors.append(str(exc))
 
         return len(self.errors) == 0
 
@@ -175,5 +184,12 @@ class UpdateUserSchema:
                 self.errors.append("'can_create_society' must be a boolean.")
             else:
                 self.validated_data["can_create_society"] = val
+
+        if "date_of_birth" in self._data and self._data["date_of_birth"]:
+            try:
+                validate_dob(str(self._data["date_of_birth"]))
+                self.validated_data["date_of_birth"] = str(self._data["date_of_birth"])
+            except ValueError as exc:
+                self.errors.append(str(exc))
 
         return len(self.errors) == 0

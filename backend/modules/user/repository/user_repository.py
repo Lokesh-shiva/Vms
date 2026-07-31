@@ -29,6 +29,7 @@ class UserRepository:
                 phone=user_data.get("phone"),
                 username=user_data.get("username"),
                 email=user_data.get("email"),
+                date_of_birth=user_data.get("date_of_birth"),
                 password_hash=user_data.get("password_hash", ""),
                 role=user_data.get("role", UserRole.USER.value),
                 is_active=user_data.get("is_active", True),

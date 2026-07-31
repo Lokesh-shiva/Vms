@@ -58,6 +58,7 @@ data class CreateUserRequest(
     val is_active: Boolean = true,
     val username: String? = null,
     val email: String? = null,
+    val date_of_birth: String? = null,
 )
 
 @Serializable

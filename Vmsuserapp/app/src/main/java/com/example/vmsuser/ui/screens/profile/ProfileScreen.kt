@@ -29,6 +29,7 @@ import com.example.vmsuser.config.FeatureFlags
 import com.example.vmsuser.navigation.Screen
 import com.example.vmsuser.network.AuthTokenManager
 import com.example.vmsuser.network.UserSession
+import com.example.vmsuser.network.absoluteMediaUrl
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
 import com.example.vmsuser.viewmodel.ProfileViewModel
@@ -103,7 +104,7 @@ fun ProfileScreen(navController: NavController) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                PlixoAvatar(name = name, size = 64.dp)
+                PlixoAvatar(name = name, imageUrl = absoluteMediaUrl(user?.profilePhotoUrl), size = 64.dp)
                 Column(modifier = Modifier.weight(1f)) {
                     Text(name, fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = PlixoText, letterSpacing = (-0.5).sp)
                     Text(region, fontFamily = PlusJakartaSans, fontSize = 12.sp, color = PlixoText2)

@@ -34,6 +34,7 @@ import coil.compose.AsyncImage
 import com.example.vmsuser.config.FeatureFlags
 import com.example.vmsuser.navigation.Screen
 import com.example.vmsuser.network.UserSession
+import com.example.vmsuser.network.absoluteMediaUrl
 import com.example.vmsuser.network.registerFcmToken
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
@@ -199,7 +200,12 @@ fun HomeScreen(navController: NavController) {
                         Icon(Icons.Outlined.Notifications, "Notifications", tint = PlixoText2, modifier = Modifier.size(22.dp))
                     }
                 }
-                PlixoAvatar(name = user?.name?.takeIf { it.isNotBlank() } ?: "Player", size = 44.dp, onClick = { navController.navigate(Screen.Profile.route) })
+                PlixoAvatar(
+                    name = user?.name?.takeIf { it.isNotBlank() } ?: "Player",
+                    imageUrl = absoluteMediaUrl(user?.profilePhotoUrl),
+                    size = 44.dp,
+                    onClick = { navController.navigate(Screen.Profile.route) },
+                )
             }
         }
 

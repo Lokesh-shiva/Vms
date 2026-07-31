@@ -60,6 +60,14 @@ class TestUserService(unittest.TestCase):
         )
         self.assertEqual(result["role"], "admin")
 
+    def test_create_user_with_date_of_birth(self):
+        """Creating a user with date_of_birth persists it and computes age."""
+        result = self.service.create_user(
+            {"name": "Dana", "phone": "+1231231234", "date_of_birth": "2000-01-01"}
+        )
+        self.assertEqual(result["date_of_birth"], "2000-01-01")
+        self.assertIsNotNone(result["age"])
+
     def test_create_user_with_username_and_email(self):
         """Creating a user with username/email persists both."""
         result = self.service.create_user(

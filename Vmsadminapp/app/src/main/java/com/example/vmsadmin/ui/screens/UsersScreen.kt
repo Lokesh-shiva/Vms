@@ -26,6 +26,10 @@ import com.example.vmsadmin.ui.components.AppCard
 import com.example.vmsadmin.ui.components.shimmerEffect
 import com.example.vmsadmin.viewmodel.UserManagementState
 import com.example.vmsadmin.viewmodel.UserManagementViewModel
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -471,6 +475,8 @@ private fun CreateUserDialog(
     var phone by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var dob by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
     var role by remember(assignableRoles) { mutableStateOf(assignableRoles.firstOrNull { it == "user" } ?: assignableRoles.firstOrNull() ?: "user") }
     var roleExpanded by remember { mutableStateOf(false) }
 
@@ -512,6 +518,51 @@ private fun CreateUserDialog(
                     singleLine = true,
                     enabled = !creating,
                 )
+                Box(
+                    modifier = Modifier.fillMaxWidth().clickable(enabled = !creating) { showDatePicker = true },
+                ) {
+                    OutlinedTextField(
+                        value = dob,
+                        onValueChange = {},
+                        readOnly = true,
+                        enabled = false,
+                        label = { Text("Date of birth · optional") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                            disabledBorderColor = MaterialTheme.colorScheme.outline,
+                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                }
+                if (showDatePicker) {
+                    val maxMillis = remember {
+                        Calendar.getInstance().apply { add(Calendar.YEAR, -13) }.timeInMillis
+                    }
+                    val datePickerState = rememberDatePickerState(
+                        initialSelectedDateMillis = maxMillis,
+                        selectableDates = object : SelectableDates {
+                            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= maxMillis
+                        },
+                    )
+                    DatePickerDialog(
+                        onDismissRequest = { showDatePicker = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                datePickerState.selectedDateMillis?.let {
+                                    dob = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(it))
+                                }
+                                showDatePicker = false
+                            }) { Text("Confirm") }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                        },
+                    ) {
+                        DatePicker(state = datePickerState)
+                    }
+                }
                 if (assignableRoles.isNotEmpty()) {
                     ExposedDropdownMenuBox(
                         expanded = roleExpanded,
@@ -548,6 +599,7 @@ private fun CreateUserDialog(
                             role = role,
                             username = username.trim().ifBlank { null },
                             email = email.trim().ifBlank { null },
+                            date_of_birth = dob.ifBlank { null },
                         )
                     )
                 },
