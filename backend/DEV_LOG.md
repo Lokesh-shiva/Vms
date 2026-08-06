@@ -3896,3 +3896,35 @@ Plan written first per project rule (3+ files touched): `docs/plan-username-avai
 - Not build-verified on the app — no JDK in this shell; user rebuilds via Android Studio per
   standing project rule. Kotlin changes follow the same field/state patterns already used
   throughout both files.
+
+---
+## [2026-08-06] Fix — Splash screen adds its branding delay and session-restore call sequentially (app-only)
+
+User report: profile "takes a lot of time to load" after opening the app. Traced to
+`SplashScreen.kt`, not `ProfileScreen` itself (which does no network calls on compose — it just
+reads a cached `StateFlow`).
+
+### Root cause
+`SplashScreen.kt`'s `LaunchedEffect` ran a fixed 1.8s branding-animation `delay(1800)`, and only
+*then* called `AuthRepository().getMe()` to restore the session from the saved token. The two waits
+added together — worst case on a cold Render instance (free tier, spins down after inactivity),
+`getMe()` alone can take several seconds, stacking on top of the fixed delay before the app could
+navigate anywhere.
+
+### Fixed
+- `SplashScreen.kt` — `getMe()` is now kicked off via `async` immediately (in parallel with the
+  1.8s branding delay) instead of after it; `delay(1800)` and the network call now overlap, and the
+  result is only `await()`-ed once both are ready. Total wait becomes `max(1.8s, network time)`
+  instead of the sum. Confirmed `RetrofitClient`'s OkHttp client already has a 60s read timeout
+  (`RetrofitClient.kt:42`), generous enough to survive a Render cold start rather than erroring out.
+
+### Investigated, not a bug
+User also asked about account-matching criteria on login ("every time I log out I have to create a
+new username/email"). Traced phone normalization end-to-end (app → `_normalise_phone()` →
+`find_by_phone()` exact match) — consistent, no mismatch. Confirmed by the user: they were entering
+different phone numbers during mock-OTP testing (any 10-digit number is accepted in dev mode), which
+correctly creates a distinct account per number by design — not a bug.
+
+### Verified
+- No backend changes.
+- App fix not build-verified here (no JDK in this shell) — user rebuilds via Android Studio.

@@ -25,6 +25,7 @@ import com.example.vmsuser.navigation.Screen
 import com.example.vmsuser.network.AuthTokenManager
 import com.example.vmsuser.network.UserSession
 import com.example.vmsuser.ui.theme.*
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 
 @Composable
@@ -35,14 +36,18 @@ fun SplashScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         delay(80)
         visible = true
-        delay(1800)
 
         val tokenManager = AuthTokenManager(context)
         val token = tokenManager.getToken()
 
+        // Kick off the session-restore call in parallel with the minimum branding
+        // delay below, instead of after it — avoids adding the two waits together
+        // (matters most on a cold backend, where getMe() alone can take seconds).
+        val getMeDeferred = if (token != null) async { AuthRepository().getMe() } else null
+        delay(1800)
+
         val destination = if (token != null) {
-            // Try to restore session from saved token
-            val result = AuthRepository().getMe()
+            val result = getMeDeferred!!.await()
             if (result.isSuccess) {
                 UserSession.setUser(result.getOrNull())
                 if (result.getOrNull()?.isProfileComplete == true) {
