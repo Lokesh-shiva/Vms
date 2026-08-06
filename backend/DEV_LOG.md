@@ -3849,3 +3849,50 @@ elsewhere (e.g. re-login). Fixed by calling `UserSession.setUser(it)` in the upl
 alongside the existing `photoUrl = it.profilePhotoUrl` assignment.
 - Not build-verified on the app — user's own build/run is the check.
 - Not build-verified — user's own build/run is the check.
+
+---
+## [2026-08-06] Feature — live username-availability check (onboarding + edit profile)
+
+User request: surface a "username already taken" conflict inline, on focus-loss of the username
+field, instead of only discovering it at final submit (following the swallowed-400-detail fix
+above, which exposed that this was previously invisible to the user).
+
+Plan written first per project rule (3+ files touched): `docs/plan-username-availability-check.md`.
+
+### Added
+**Backend**
+- `GET /api/v1/auth/check-username?username=<value>` (`auth_routes.py`) — auth-gated
+  (`get_current_user`, valid during onboarding since the JWT already exists post-OTP). Reuses
+  `validate_username()` for format and `user_repository.find_by_username()` for uniqueness,
+  excluding the caller's own id (same exclusion logic as `complete_profile`). Returns
+  `{"available": bool, "reason": str | None}`.
+- `backend/modules/auth/tests/test_check_username_route.py` (new) — 4 tests: free username
+  available, taken-by-someone-else unavailable with reason, own current username available
+  (self-exclusion), invalid format returns a reason without hitting the DB.
+
+**App — Vmsuserapp**
+- `Models.kt` — `UsernameAvailability(available, reason)`.
+- `ApiService.kt` — `checkUsername(username): ApiResponse<UsernameAvailability>`.
+- `AuthRepository.kt` — `checkUsername()` wrapper, same try/catch/`toUserMessage` pattern as
+  `completeProfile`.
+- `ProfileSetupScreen.kt` (onboarding) + `EditProfileScreen.kt` (edit profile) — username field
+  gains `onFocusChanged`: on focus-loss, if the value is non-blank, locally regex-valid, and
+  different from the last-checked value, fires the check and shows the red reason text in the
+  field's `supportingText` slot (same slot the local-regex error already uses — local format error
+  takes priority so the network call is skipped for an already-invalid value). "Continue"
+  (onboarding) / "Save changes" (edit) buttons are now also gated on the check having passed.
+
+### Architectural decisions
+- Focus-loss trigger only, no debounce-while-typing — matches the explicit ask and avoids hammering
+  the endpoint on every keystroke.
+- `lastCheckedUsername` tracks the last-verified value so re-focusing without editing doesn't
+  re-fire the network call; in `EditProfileScreen` it's seeded with the user's current username so
+  leaving the field unchanged never triggers a redundant check.
+
+### Verified
+- New tests: 4, passing.
+- Full backend suite: 554 passed (550 prior + 4 new), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Not build-verified on the app — no JDK in this shell; user rebuilds via Android Studio per
+  standing project rule. Kotlin changes follow the same field/state patterns already used
+  throughout both files.

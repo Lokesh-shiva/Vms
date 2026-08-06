@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -85,6 +86,10 @@ fun ProfileSetupScreen(navController: NavController) {
 
     val usernameValid = username.isBlank() || USERNAME_REGEX.matches(username)
     val emailValid = email.isBlank() || EMAIL_REGEX.matches(email)
+
+    var usernameTaken by remember { mutableStateOf<String?>(null) }
+    var checkingUsername by remember { mutableStateOf(false) }
+    var lastCheckedUsername by remember { mutableStateOf<String?>(null) }
 
     var detectingLocation by remember { mutableStateOf(false) }
     var locationSuggestion by remember { mutableStateOf<LocationOption?>(null) }
@@ -294,15 +299,38 @@ fun ProfileSetupScreen(navController: NavController) {
 
                 OutlinedTextField(
                     value = username,
-                    onValueChange = { username = it.filter { c -> !c.isWhitespace() } },
-                    modifier = Modifier.fillMaxWidth(),
+                    onValueChange = {
+                        username = it.filter { c -> !c.isWhitespace() }
+                        usernameTaken = null
+                    },
+                    modifier = Modifier.fillMaxWidth().onFocusChanged { focusState ->
+                        if (!focusState.isFocused &&
+                            username.isNotBlank() && usernameValid &&
+                            username != lastCheckedUsername
+                        ) {
+                            scope.launch {
+                                checkingUsername = true
+                                repo.checkUsername(username)
+                                    .onSuccess { result ->
+                                        lastCheckedUsername = username
+                                        usernameTaken = if (!result.available) {
+                                            result.reason ?: "This username is already taken."
+                                        } else null
+                                    }
+                                checkingUsername = false
+                            }
+                        }
+                    },
                     label = { Text("Username") },
                     placeholder = { Text("e.g. aarav_10") },
                     shape = PlixoShape.Input,
-                    isError = username.isNotBlank() && !usernameValid,
+                    isError = (username.isNotBlank() && !usernameValid) || usernameTaken != null,
                     supportingText = {
-                        if (username.isNotBlank() && !usernameValid) {
-                            Text("3-20 characters: letters, numbers, underscore only.")
+                        when {
+                            username.isNotBlank() && !usernameValid ->
+                                Text("3-20 characters: letters, numbers, underscore only.")
+                            checkingUsername -> Text("Checking availability…")
+                            usernameTaken != null -> Text(usernameTaken!!, color = PlixoDanger)
                         }
                     },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
@@ -490,7 +518,8 @@ fun ProfileSetupScreen(navController: NavController) {
                     "Continue",
                     onClick = { step = 2 },
                     enabled = name.isNotBlank() && city.isNotBlank() &&
-                        username.isNotBlank() && usernameValid && emailValid,
+                        username.isNotBlank() && usernameValid && emailValid &&
+                        usernameTaken == null && !checkingUsername,
                 )
 
             } else {

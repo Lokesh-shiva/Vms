@@ -42,6 +42,12 @@ data class OtpVerifyResponse(
 )
 
 @Serializable
+data class UsernameAvailability(
+    val available: Boolean,
+    val reason: String? = null,
+)
+
+@Serializable
 data class CompleteProfileRequest(
     val name: String,
     val username: String,

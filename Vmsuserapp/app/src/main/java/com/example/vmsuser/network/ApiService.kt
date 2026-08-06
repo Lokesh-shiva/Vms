@@ -24,6 +24,9 @@ interface ApiService {
     @GET("api/v1/auth/me")
     suspend fun getMe(): ApiResponse<User>
 
+    @GET("api/v1/auth/check-username")
+    suspend fun checkUsername(@Query("username") username: String): ApiResponse<UsernameAvailability>
+
     @GET("api/v1/locations")
     suspend fun getLocations(): ApiResponse<List<LocationOption>>
 

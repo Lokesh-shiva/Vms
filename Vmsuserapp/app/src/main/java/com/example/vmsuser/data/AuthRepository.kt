@@ -6,6 +6,7 @@ import android.util.Log
 import com.example.vmsuser.models.CompleteProfileRequest
 import com.example.vmsuser.models.OtpVerifyResponse
 import com.example.vmsuser.models.User
+import com.example.vmsuser.models.UsernameAvailability
 import com.example.vmsuser.network.RetrofitClient
 import com.example.vmsuser.network.toUserMessage
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -25,6 +26,16 @@ class AuthRepository {
     suspend fun verifyOtp(phone: String, otp: String): Result<OtpVerifyResponse> = runCatching {
         val resp = api.verifyOtp(mapOf("phone" to phone, "otp" to otp))
         resp.data ?: error(resp.message ?: "OTP verification failed.")
+    }
+
+    suspend fun checkUsername(username: String): Result<UsernameAvailability> = try {
+        val resp = api.checkUsername(username)
+        if (resp.data != null) Result.success(resp.data)
+        else Result.failure(Exception(resp.message ?: "Could not check username."))
+    } catch (e: HttpException) {
+        Result.failure(Exception(e.toUserMessage("Could not check username.")))
+    } catch (e: Exception) {
+        Result.failure(Exception(e.message ?: "Could not check username."))
     }
 
     suspend fun completeProfile(

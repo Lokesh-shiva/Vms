@@ -87,6 +87,22 @@ def verify_otp(body: dict):
     )
 
 
+@router.get("/check-username", status_code=200)
+def check_username(username: str, current_user: dict = Depends(get_current_user)):
+    """Live availability check for the username field — used on focus-loss during
+    onboarding/edit-profile so a taken username surfaces before final submit."""
+    from modules.user.schemas.user_schema import validate_username
+
+    cleaned, err = validate_username(username)
+    if err:
+        return _success({"available": False, "reason": err})
+
+    existing = user_repository.find_by_username(cleaned)
+    if existing and existing["id"] != current_user["id"]:
+        return _success({"available": False, "reason": "This username is already taken."})
+    return _success({"available": True, "reason": None})
+
+
 @router.post("/complete-profile", status_code=200)
 def complete_profile(
     body: dict,
