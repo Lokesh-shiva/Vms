@@ -364,6 +364,13 @@ cur.execute("""
     ALTER TABLE cart_types ADD COLUMN IF NOT EXISTS image_url VARCHAR;
 """)
 
+print("Running migration 32: add is_available + current_match_id to captains ...")
+cur.execute("""
+    ALTER TABLE captains
+        ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT TRUE,
+        ADD COLUMN IF NOT EXISTS current_match_id INTEGER REFERENCES matches(id) ON DELETE SET NULL;
+""")
+
 conn.commit()
 cur.close()
 conn.close()

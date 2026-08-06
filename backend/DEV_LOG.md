@@ -3792,5 +3792,60 @@ investigate a player's balance/transaction history (e.g. a disputed balance) wit
 - New tests: 4, passing in isolation.
 - Full backend suite: 550 passed (546 prior + 4 new), zero regressions.
 - `python -c "import backend.main"` — clean import.
+
+---
+## [2026-08-06] Fix — production `captains` table missing columns + swallowed error detail in onboarding
+
+User report: onboarding's "pick your sports" step returned a bare "http 400" on every tap, including
+"Skip for now". Also spotted in Render logs: `session_reaper` crashing every cycle with
+`psycopg2.errors.UndefinedColumn: column captains.is_available does not exist`.
+
+### Root causes
+1. **`captains.is_available` / `captains.current_match_id` were defined on the SQLAlchemy model
+   (`captain_model.py`) but never added by any migration in `run_migrations.py`.** The table-creation
+   migration (migration 2) predates these fields; nothing since ever ALTER'd the live table. Any code
+   path touching those columns (e.g. `session_reaper` releasing a captain on abandoned-match cancel)
+   crashed with `UndefinedColumn` on the production Neon DB, even though local dev — which someone had
+   presumably bootstrapped from a newer model snapshot at some point — didn't show it.
+2. **`AuthRepository.completeProfile()` (Vmsuserapp) discarded the backend's real error message.** It
+   used `runCatching { api.completeProfile(...) }`, and Retrofit throws `HttpException` for any non-2xx
+   response *before* the body converter runs — so the caught exception's `.message` was Retrofit's
+   generic `"HTTP 400 Bad Request"`, never the backend's actual `{"detail": "..."}` reason (bad
+   username, username taken, invalid DOB, etc.). Every other repo method in the app already handles
+   this correctly via `HttpException.toUserMessage()` (`network/ErrorUtils.kt`); this one method was
+   missed. Since the sports-picker screen's "Start playing"/"Skip for now" buttons both just replay
+   step 1's already-collected fields (sport selection isn't itself validated), the 400 always traced
+   back to something in step 1 — but the swallowed detail hid which check was actually failing.
+
+### Added / Fixed
+**Backend**
+- `run_migrations.py` — migration 32: `ALTER TABLE captains ADD COLUMN IF NOT EXISTS is_available
+  BOOLEAN NOT NULL DEFAULT TRUE, ADD COLUMN IF NOT EXISTS current_match_id INTEGER REFERENCES
+  matches(id) ON DELETE SET NULL;`. Applied live against the production Neon DB.
+
+**App — Vmsuserapp**
+- `AuthRepository.kt` — `completeProfile()` rewritten from `runCatching` to an explicit
+  try/catch(HttpException)/catch(Exception), using `e.toUserMessage(...)` to surface the backend's real
+  `detail` string — matching the pattern already used by `uploadProfilePhoto` and others.
+
+### Verified
+- `run_migrations.py` re-run against the live DB: migration 32 applied cleanly alongside all prior
+  migrations (no errors).
+- App fix not build-verified here (no JDK in this shell) — user rebuilds via Android Studio per
+  standing project rule. Change is syntactically consistent with the existing `toUserMessage` pattern
+  used elsewhere in the same file.
+
+### Not yet confirmed
+Whether there's a genuine *remaining* validation failure (e.g. an actual duplicate username from
+repeat test accounts, or an under-13 DOB) — the error-detail fix will surface that as a specific
+message on next attempt, no further backend change anticipated unless it points to a new bug.
+
+### Also included this commit — Fix: profile photo upload didn't update `UserSession` (app-only)
+User report: uploaded pfp not reflected on the Profile screen without a re-login. Root cause:
+`EditProfileScreen.kt`'s photo-upload success handler only updated a screen-local `photoUrl` var —
+`UserSession.setUser(...)` was never called, so `ProfileScreen` (which reads the avatar from
+`UserSession` via `ProfileViewModel`) kept showing the stale photo until the session was refreshed
+elsewhere (e.g. re-login). Fixed by calling `UserSession.setUser(it)` in the upload's `onSuccess`
+alongside the existing `photoUrl = it.profilePhotoUrl` assignment.
 - Not build-verified on the app — user's own build/run is the check.
 - Not build-verified — user's own build/run is the check.

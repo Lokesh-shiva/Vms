@@ -32,6 +32,7 @@ import coil.compose.AsyncImage
 import com.example.vmsuser.data.AuthRepository
 import com.example.vmsuser.models.LocationOption
 import com.example.vmsuser.network.RetrofitClient
+import com.example.vmsuser.network.UserSession
 import com.example.vmsuser.network.absoluteMediaUrl
 import com.example.vmsuser.ui.components.*
 import com.example.vmsuser.ui.theme.*
@@ -88,7 +89,10 @@ fun EditProfileScreen(navController: NavController) {
         uploadingPhoto = true
         scope.launch {
             authRepo.uploadProfilePhoto(context.contentResolver, uri)
-                .onSuccess { photoUrl = it.profilePhotoUrl }
+                .onSuccess {
+                    photoUrl = it.profilePhotoUrl
+                    UserSession.setUser(it)
+                }
                 .onFailure { e -> photoError = e.message ?: "Couldn't upload photo. Try again." }
             uploadingPhoto = false
         }

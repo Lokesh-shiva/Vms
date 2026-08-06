@@ -11,6 +11,7 @@ import com.example.vmsuser.network.toUserMessage
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import retrofit2.HttpException
 import java.io.File
 
 class AuthRepository {
@@ -34,7 +35,7 @@ class AuthRepository {
         city: String,
         sportPreferences: List<String>,
         profilePhotoUrl: String?,
-    ): Result<User> = runCatching {
+    ): Result<User> = try {
         val resp = api.completeProfile(
             CompleteProfileRequest(
                 name = name,
@@ -46,7 +47,12 @@ class AuthRepository {
                 profilePhotoUrl = profilePhotoUrl,
             )
         )
-        resp.data ?: error(resp.message ?: "Failed to save profile.")
+        if (resp.data != null) Result.success(resp.data)
+        else Result.failure(Exception(resp.message ?: "Failed to save profile."))
+    } catch (e: HttpException) {
+        Result.failure(Exception(e.toUserMessage("Failed to save profile.")))
+    } catch (e: Exception) {
+        Result.failure(Exception(e.message ?: "Failed to save profile."))
     }
 
     suspend fun getMe(): Result<User> = runCatching {
