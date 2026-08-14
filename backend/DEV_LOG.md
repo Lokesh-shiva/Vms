@@ -3966,3 +3966,29 @@ gap was isolated to `ProfileRepository`.
 ### Verified
 - No backend changes (`UpdateUserSchema` validation logic itself untouched).
 - App fix not build-verified here (no JDK in this shell) — user rebuilds via Android Studio.
+
+---
+## [2026-08-06] Fix — Open Matches had no discoverable entry point (app-only)
+
+User: "there's no open matches tab?" Investigated — `OpenMatchesScreen.kt` and its route
+(`GET /api/v1/matches/open`) were fully built and working (from an earlier session), but the only
+entry point was a small secondary "Browse open matches nearby" ghost button on the Play tab, below
+the primary "Play Now" CTA. No bottom-nav tab, no Home screen presence — easy to miss.
+
+User chose (via AskUserQuestion): add a Home screen section rather than a new bottom-nav tab (nav
+already has Home/Play/Tournaments/Captain/Chat/Profile) or restyling the existing button.
+
+### Added
+**App — Vmsuserapp**
+- `HomeScreen.kt` — new "Open matches nearby" section (below the Up-next tournament card),
+  gated behind `FeatureFlags.OPEN_MATCHES` (already `true`). Loads up to 3 via
+  `MatchRepository().getOpenMatches()` in a `LaunchedEffect`; each shown as a compact
+  `OpenMatchHomeCard` (sport, ground/region, joined/max player count pill), tapping any card or the
+  section's "See all" action navigates to the existing `OpenMatchesScreen`. Empty state shown when
+  there are no open matches nearby, rather than hiding the section entirely.
+
+### Verified
+- No backend changes.
+- App fix not build-verified here (no JDK in this shell) — user rebuilds via Android Studio.
+  Reuses existing `MatchRepository`, `OpenMatch` model, and `SectionHeader`/`PlixoPill` components
+  with signatures matched against their definitions before use.

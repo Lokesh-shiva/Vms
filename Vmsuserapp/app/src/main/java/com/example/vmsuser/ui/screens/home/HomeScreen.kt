@@ -32,6 +32,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.vmsuser.config.FeatureFlags
+import com.example.vmsuser.data.MatchRepository
+import com.example.vmsuser.models.OpenMatch
 import com.example.vmsuser.navigation.Screen
 import com.example.vmsuser.network.UserSession
 import com.example.vmsuser.network.absoluteMediaUrl
@@ -59,6 +61,13 @@ fun HomeScreen(navController: NavController) {
     val profileVm: ProfileViewModel = viewModel()
     val walletBalance by profileVm.walletBalance.collectAsState()
     LaunchedEffect(Unit) { if (FeatureFlags.WALLET) profileVm.loadTransactions() }
+
+    var openMatches by remember { mutableStateOf<List<OpenMatch>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        if (FeatureFlags.OPEN_MATCHES) {
+            MatchRepository().getOpenMatches().onSuccess { openMatches = it.take(3) }
+        }
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -426,6 +435,35 @@ fun HomeScreen(navController: NavController) {
 
             // ── Up next ───────────────────────────────────────────────────────
         }
+
+        if (FeatureFlags.OPEN_MATCHES) {
+            SectionHeader(
+                title = "Open matches nearby",
+                action = "See all",
+                onAction = { navController.navigate(Screen.OpenMatches.route) },
+            )
+            if (openMatches.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    openMatches.forEach { match ->
+                        OpenMatchHomeCard(
+                            match = match,
+                            onClick = { navController.navigate(Screen.OpenMatches.route) },
+                        )
+                    }
+                }
+            } else {
+                HomeEmptyState(
+                    icon = Icons.Filled.Group,
+                    title = "No open matches nearby",
+                    subtitle = "Start one from the Play tab and others can join.",
+                )
+            }
+            Spacer(Modifier.height(20.dp))
+        }
+
         SectionHeader(
             title = "Up next",
             action = "All cups",
@@ -580,6 +618,50 @@ private fun QuickTile(
         Text(label, fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = PlixoText, letterSpacing = (-0.3).sp)
         Spacer(Modifier.height(1.dp))
         Text(sub, fontFamily = PlusJakartaSans, fontSize = 12.sp, color = PlixoText2)
+    }
+}
+
+@Composable
+private fun OpenMatchHomeCard(match: OpenMatch, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(PlixoSurface)
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick() }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(BlockSkyBg),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.SportsSoccer, null, tint = BlockSkyFg, modifier = Modifier.size(22.dp))
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                match.sport,
+                fontFamily = BricolageGrotesque,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = PlixoText,
+            )
+            Text(
+                match.groundName.ifBlank { match.regionName },
+                fontFamily = PlusJakartaSans,
+                fontSize = 12.5.sp,
+                color = PlixoText2,
+            )
+        }
+        PlixoPill(
+            "${match.joinedPlayers}/${match.maxPlayers}",
+            bg = BlockMintBg,
+            fg = BlockMintFg,
+        )
     }
 }
 
