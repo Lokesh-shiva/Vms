@@ -1,11 +1,14 @@
 package com.example.vmsuser.ui.screens.shop
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.vmsuser.models.OrderDto
+import com.example.vmsuser.navigation.Screen
 import com.example.vmsuser.ui.components.PlixoPill
 import com.example.vmsuser.ui.components.PlixoTopBar
 import com.example.vmsuser.ui.theme.*
@@ -52,7 +56,16 @@ fun OrdersScreen(navController: NavController) {
                     contentPadding = PaddingValues(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(orders) { order -> OrderCard(order) }
+                    items(orders) { order ->
+                        OrderCard(
+                            order = order,
+                            onClick = {
+                                if (order.status == "PENDING_PAYMENT") {
+                                    navController.navigate(Screen.OrderPayment.create(order.id))
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -60,9 +73,18 @@ fun OrdersScreen(navController: NavController) {
 }
 
 @Composable
-private fun OrderCard(order: OrderDto) {
+private fun OrderCard(order: OrderDto, onClick: () -> Unit) {
+    val resumable = order.status == "PENDING_PAYMENT"
     Column(
-        modifier = Modifier.fillMaxWidth().background(PlixoSurface, RoundedCornerShape(18.dp)).padding(16.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(PlixoSurface, RoundedCornerShape(18.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                enabled = resumable,
+            ) { onClick() }
+            .padding(16.dp),
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(order.referenceCode, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = PlixoText)
@@ -73,7 +95,15 @@ private fun OrderCard(order: OrderDto) {
             Text("${it.quantity}× ${it.name}", fontFamily = PlusJakartaSans, fontSize = 12.5.sp, color = PlixoText2)
         }
         Spacer(Modifier.height(8.dp))
-        Text("₹${"%.0f".format(order.totalAmount)}", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = PlixoPrimary)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Text("₹${"%.0f".format(order.totalAmount)}", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = PlixoPrimary)
+            if (resumable) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Complete payment", fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = PlixoPrimary)
+                    Icon(Icons.Filled.ChevronRight, null, tint = PlixoPrimary, modifier = Modifier.size(16.dp))
+                }
+            }
+        }
     }
 }
 

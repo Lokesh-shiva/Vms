@@ -4273,3 +4273,39 @@ top of it. Trainer marketplace (Phase 2, full scope per user) still not started.
   the `items` shadowing bug found by careful reading rather than a compiler, did an explicit
   grep-based pass afterward (`val items\b` across all new/changed screen files) to confirm no
   other instance of the same mistake slipped through.
+
+---
+## [2026-08-06] Fix — admin orders queue never refreshed + no way to resume a pending payment
+
+User tested the shop flow end to end: placed an order without submitting a transaction ID (none
+handy), it correctly didn't show in the admin queue (still `PENDING_PAYMENT`, not `UNDER_REVIEW` —
+working as designed). Then submitted a transaction ID on a second attempt — order still didn't
+appear on the admin side, and there was no way to manually refresh.
+
+### Root causes
+1. **`OrderViewModel.loadOrders()` only ever ran once**, in `init {}`, at the moment `MainActivity`
+   constructs the ViewModel — which happens before login, same eager-init pattern as every other
+   admin ViewModel in this app. `OrdersScreen.kt` had no `LaunchedEffect` to reload when the screen
+   was actually navigated to, and no pull-to-refresh, so the list shown was whatever existed (or
+   didn't) at app-launch time — never updated again for the lifetime of the app process.
+2. **No way to resume a pending order in Vmsuserapp.** Once you backed out of `OrderPaymentScreen`
+   without submitting, the order sat in `PENDING_PAYMENT` forever with no path back to the payment
+   screen — `OrdersScreen` (order history) was read-only.
+
+### Fixed
+**App — Vmsadminapp**
+- `OrdersScreen.kt` — added `LaunchedEffect(Unit) { viewModel.loadOrders() }` so the queue refreshes
+  every time the screen is entered, plus `PullToRefreshBox` (same component already used in
+  `PaymentsScreen.kt`) on both the populated and empty states for manual refresh.
+
+**App — Vmsuserapp**
+- `OrdersScreen.kt` — order cards for `PENDING_PAYMENT` orders are now tappable ("Complete
+  payment" label + chevron), navigating to `OrderPayment/{orderId}`. That screen already handled
+  loading an order by id from scratch (`vm.loadOrder(orderId)`) since it's designed to work
+  whether or not the order was just created in the same session — no changes needed there.
+
+### Verified
+- No backend changes (confirmed via existing `test_submit_payment_moves_to_under_review` —
+  submission already correctly moves status to `UNDER_REVIEW` server-side; the bug was purely
+  the admin screen never re-fetching).
+- Neither app build-verified here (no JDK in this shell) — user rebuilds via Android Studio.

@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +28,7 @@ fun OrdersScreen(viewModel: OrderViewModel, onBack: () -> Unit = {}) {
     val pendingIds by viewModel.pendingIds.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    LaunchedEffect(Unit) { viewModel.loadOrders() }
     LaunchedEffect(error) { error?.let { snackbarHostState.showSnackbar(it); viewModel.clearError() } }
 
     Scaffold(
@@ -50,26 +52,39 @@ fun OrdersScreen(viewModel: OrderViewModel, onBack: () -> Unit = {}) {
                     }
                 }
                 orders.isEmpty() -> {
-                    Text(
-                        "No orders awaiting review.",
-                        modifier = Modifier.align(Alignment.Center),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    PullToRefreshBox(
+                        isRefreshing = loading,
+                        onRefresh = { viewModel.loadOrders() },
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        Text(
+                            "No orders awaiting review.",
+                            modifier = Modifier.align(Alignment.Center).fillMaxWidth(),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
                 }
                 else -> {
-                    LazyColumn(
+                    PullToRefreshBox(
+                        isRefreshing = loading,
+                        onRefresh = { viewModel.loadOrders() },
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        items(orders, key = { it.id }) { order ->
-                            OrderCard(
-                                order = order,
-                                pending = order.id in pendingIds,
-                                onApprove = { viewModel.approveOrder(order.id) },
-                                onReject = { viewModel.rejectOrder(order.id) },
-                            )
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            items(orders, key = { it.id }) { order ->
+                                OrderCard(
+                                    order = order,
+                                    pending = order.id in pendingIds,
+                                    onApprove = { viewModel.approveOrder(order.id) },
+                                    onReject = { viewModel.rejectOrder(order.id) },
+                                )
+                            }
                         }
                     }
                 }
