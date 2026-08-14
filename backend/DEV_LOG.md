@@ -4160,3 +4160,57 @@ carrying forward a design that couldn't support a shared shortlist+deadline.
 - `python -c "import backend.main"` — clean import.
 - Migration 34 applied live against the production Neon DB.
 - Neither app build-verified here (no JDK in this shell) — user rebuilds via Android Studio.
+
+---
+## [2026-08-06] Feature (backend only, Phase 1 of 2) — shop cart + checkout
+
+User request: "add cart items in which they can see items like food, equipment to buy" + a
+trainer page. Scoped via AskUserQuestion — both chosen at full scope (cart+checkout, full trainer
+booking marketplace) — split into two separate slices given the size; this is Phase 1 (shop) only.
+Plan: `docs/plan-shop-cart-checkout.md`. Trainer marketplace (Phase 2) not started.
+
+### Context found before building
+`backend/modules/item/` already had `price`, `cart_type_id` (sport), `is_available`, and a public
+`GET /api/v1/items` (no auth) — browse-by-sport already worked with zero backend changes. No
+cart/order/purchase concept existed anywhere (every "cart" hit in this codebase is the grounds
+module — legacy naming). `Payment.booking_id` is a required FK to `bookings`, so the existing
+payment table couldn't be reused as-is for item purchases — built a self-contained `order` module
+instead, mirroring the existing manual-UPI + admin-approval workflow's shape and status-naming
+(`PaymentService.initiate_payment`/`submit_manual_confirmation`/`approve_payment`) rather than its
+table.
+
+### Added — Backend, new `order` module
+- `model/order_model.py` — `Order`: `status` (PENDING_PAYMENT → UNDER_REVIEW → PAID/REJECTED,
+  same transition shape as `Payment.status`), `total_amount`, `reference_code`, `transaction_id`.
+- `model/order_item_model.py` — `OrderItem`: snapshots `name`/`unit_price` at order time so later
+  catalog price changes never alter a past order's total.
+- `repository/order_repository.py` — `create` (order + line items in one transaction),
+  `find_by_id`/`find_by_user`/`find_all`/`update`.
+- `service/order_service.py` — `create_order` validates every cart line (`item_id` exists,
+  `is_available`, quantity is a positive int) and **computes the total server-side from the
+  catalog price** — never trusts a client-supplied price. Reuses the same UPI-deep-link
+  construction as `PaymentService` (`_get_active_upi_id`/`_get_active_merchant_name` via the
+  shared `system_config_repository`). `submit_payment` (ownership-checked), `approve_order`/
+  `reject_order` (UNDER_REVIEW-gated, same as payment approval).
+- `controller/order_routes.py` — `POST /api/v1/orders`, `GET /api/v1/orders/mine`,
+  `GET /api/v1/orders/{id}`, `POST /api/v1/orders/{id}/submit-payment`. **Route-ordering note**
+  (same class of gotcha caught earlier this session with `/tournaments/votes`): `/mine` is
+  declared before `/{order_id}` in the same router so it isn't shadowed.
+- `controller/admin_order_routes.py` — `GET /api/v1/admin/orders` (+ `?status=`),
+  `GET/{id}`, `POST /{id}/approve`, `POST /{id}/reject`, gated to
+  `FINANCE`/`SUPPORT`/`OPS_MANAGER`/`SUPER_ADMIN`.
+- `run_migrations.py` — migration 35: `orders` + `order_items`. Applied live.
+- Tests: `test_order_service.py` (12 — total computation, empty/unavailable/unknown-item/bad-qty
+  rejection, payment submission + ownership check, approve/reject gating, admin bypass on
+  ownership) + `test_order_routes.py` (9 — success/validation paths, RBAC, `/mine` not shadowed).
+
+### Not done yet (Phase 1 continues)
+Vmsuserapp: `ShopScreen`, cart ViewModel, checkout + payment-submission screens, `OrdersScreen`,
+Home section. Vmsadminapp: orders approval queue screen. Trainer marketplace: entirely Phase 2,
+not started.
+
+### Verified
+- New tests: 21, all passing.
+- Full backend suite: 597 passed (576 prior + 21 new), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Migration 35 applied live against the production Neon DB.

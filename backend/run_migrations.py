@@ -410,6 +410,30 @@ cur.execute("""
     );
 """)
 
+print("Running migration 35: create orders + order_items tables (shop checkout) ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS orders (
+        id              SERIAL PRIMARY KEY,
+        user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status          VARCHAR(30) NOT NULL DEFAULT 'PENDING_PAYMENT',
+        total_amount    NUMERIC(10,2) NOT NULL,
+        reference_code  VARCHAR NOT NULL UNIQUE,
+        transaction_id  VARCHAR,
+        created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS order_items (
+        id                     SERIAL PRIMARY KEY,
+        order_id               INT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        item_id                INT REFERENCES items(id) ON DELETE SET NULL,
+        name_snapshot          VARCHAR NOT NULL,
+        unit_price_snapshot    NUMERIC(10,2) NOT NULL,
+        quantity                INT NOT NULL DEFAULT 1
+    );
+""")
+
 conn.commit()
 cur.close()
 conn.close()
