@@ -384,6 +384,32 @@ cur.execute("""
     );
 """)
 
+print("Running migration 34: replace region-scoped sport_votes with admin-configured "
+      "vote rounds (deadline + options) ...")
+cur.execute("DROP TABLE IF EXISTS sport_votes;")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS sport_vote_rounds (
+        id          SERIAL PRIMARY KEY,
+        options     JSONB NOT NULL,
+        closes_at   TIMESTAMP NOT NULL,
+        status      VARCHAR(20) NOT NULL DEFAULT 'OPEN',
+        is_current  BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS sport_votes (
+        id          SERIAL PRIMARY KEY,
+        round_id    INT NOT NULL REFERENCES sport_vote_rounds(id) ON DELETE CASCADE,
+        user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        sport_name  VARCHAR(100) NOT NULL,
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+        CONSTRAINT uq_sport_vote_round_user UNIQUE (round_id, user_id)
+    );
+""")
+
 conn.commit()
 cur.close()
 conn.close()

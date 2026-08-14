@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -172,15 +171,30 @@ private fun BrowseTab(
     }
 }
 
+private fun formatClosesAt(iso: String?): String {
+    if (iso.isNullOrBlank()) return ""
+    return try {
+        val parsed = java.time.LocalDateTime.parse(iso)
+        parsed.format(java.time.format.DateTimeFormatter.ofPattern("d MMM, h:mm a"))
+    } catch (_: Exception) { iso }
+}
+
 @Composable
 private fun VoteTab(vm: TournamentsViewModel) {
     val votes by vm.votes.collectAsState()
+    val voteOptions by vm.voteOptions.collectAsState()
     val myVote by vm.myVote.collectAsState()
     val totalVotes by vm.totalVotes.collectAsState()
+    val status by vm.voteStatus.collectAsState()
+    val closesAt by vm.voteClosesAt.collectAsState()
+    val winner by vm.voteWinner.collectAsState()
     val loading by vm.votesLoading.collectAsState()
     val error by vm.voteError.collectAsState()
 
     LaunchedEffect(Unit) { vm.loadVotes() }
+
+    val closed = status == "CLOSED"
+    val votesBySport = votes.associateBy { it.sport }
 
     Column(
         modifier = Modifier
@@ -198,19 +212,28 @@ private fun VoteTab(vm: TournamentsViewModel) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column {
-                Text("Votes in your area", fontFamily = PlusJakartaSans, fontSize = 12.5.sp, color = Color.White.copy(0.6f))
-                Text("$totalVotes total", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = Color.White)
+                Text(
+                    when {
+                        status == "NONE" -> "No vote right now"
+                        closed -> "Voting closed"
+                        else -> "Voting closes ${formatClosesAt(closesAt)}"
+                    },
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 12.5.sp,
+                    color = Color.White.copy(0.6f),
+                )
+                Text("$totalVotes total votes", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 22.sp, color = Color.White)
             }
             Box(
                 modifier = Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(PlixoLime.copy(alpha = 0.16f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Flag, null, tint = PlixoLime, modifier = Modifier.size(22.dp))
+                Icon(if (closed) Icons.Filled.Lock else Icons.Filled.Flag, null, tint = PlixoLime, modifier = Modifier.size(22.dp))
             }
         }
         Spacer(Modifier.height(18.dp))
         Text(
-            "The most-voted sport becomes the next city-wide tournament in your area. Tap to cast your vote.",
+            if (closed) "Voting has closed for this round." else "The most-voted sport becomes the next city-wide tournament. Tap a sport to cast or change your vote.",
             fontFamily = PlusJakartaSans,
             fontSize = 13.5.sp,
             color = PlixoText2,
@@ -222,34 +245,34 @@ private fun VoteTab(vm: TournamentsViewModel) {
             Text(error!!, fontFamily = PlusJakartaSans, fontSize = 13.sp, color = PlixoDanger, modifier = Modifier.padding(bottom = 10.dp))
         }
 
-        if (loading && votes.isEmpty()) {
+        if (loading && voteOptions.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().padding(top = 30.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = PlixoPrimary, modifier = Modifier.size(30.dp), strokeWidth = 3.dp)
             }
-        } else if (votes.isEmpty() && myVote == null) {
+        } else if (status == "NONE") {
             TournamentsEmptyState(
                 loading = false,
-                title = "No votes yet",
-                subtitle = "Be the first to vote for the next sport.",
+                title = "No vote round active",
+                subtitle = "Check back once the next voting round opens.",
             )
-            Spacer(Modifier.height(16.dp))
-            SportVoteOptions(voted = null, onVote = { vm.castVote(it) }, enabled = !loading)
         } else {
-            votes.forEachIndexed { index, v ->
-                val pct = if (totalVotes > 0) v.votes * 100 / totalVotes else 0
-                val voted = myVote == v.sport
+            voteOptions.forEachIndexed { index, sport ->
+                val sportVotes = votesBySport[sport]?.votes ?: 0
+                val pct = if (totalVotes > 0) sportVotes * 100 / totalVotes else 0
+                val voted = myVote == sport
+                val isWinner = closed && winner == sport
                 val color = VOTE_BAR_COLORS[index % VOTE_BAR_COLORS.size]
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(18.dp))
                         .background(PlixoSurface)
-                        .border(2.dp, if (voted) PlixoPrimary else Color.Transparent, RoundedCornerShape(18.dp))
+                        .border(2.dp, if (voted || isWinner) PlixoPrimary else Color.Transparent, RoundedCornerShape(18.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            enabled = !loading,
-                        ) { vm.castVote(v.sport) }
+                            enabled = !loading && !closed,
+                        ) { vm.castVote(sport) }
                         .padding(horizontal = 16.dp, vertical = 15.dp),
                 ) {
                     Row(
@@ -259,10 +282,11 @@ private fun VoteTab(vm: TournamentsViewModel) {
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                             Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(color))
-                            Text(v.sport, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 14.5.sp, color = PlixoText)
-                            if (voted) PlixoPill("Your vote", bg = PlixoPrimaryLight, fg = PlixoPrimary)
+                            Text(sport, fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 14.5.sp, color = PlixoText)
+                            if (isWinner) PlixoPill("Winner 🏆", bg = PlixoPrimaryLight, fg = PlixoPrimary)
+                            else if (voted) PlixoPill("Your vote", bg = PlixoPrimaryLight, fg = PlixoPrimary)
                         }
-                        Text("$pct%", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = if (voted) PlixoPrimary else PlixoText)
+                        Text("$pct%", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 17.sp, color = if (voted || isWinner) PlixoPrimary else PlixoText)
                     }
                     Spacer(Modifier.height(10.dp))
                     Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(99.dp)).background(PlixoSurface2)) {
@@ -271,54 +295,14 @@ private fun VoteTab(vm: TournamentsViewModel) {
                                 .fillMaxHeight()
                                 .fillMaxWidth(pct / 100f)
                                 .clip(RoundedCornerShape(99.dp))
-                                .background(if (voted) PlixoPrimary else PlixoSurface3),
+                                .background(if (voted || isWinner) PlixoPrimary else PlixoSurface3),
                         )
                     }
                 }
                 Spacer(Modifier.height(10.dp))
             }
-            if (myVote == null) {
-                Spacer(Modifier.height(6.dp))
-                Text("Haven't voted yet? Pick a sport:", fontFamily = PlusJakartaSans, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = PlixoText2)
-                Spacer(Modifier.height(10.dp))
-                SportVoteOptions(voted = null, onVote = { vm.castVote(it) }, enabled = !loading, exclude = votes.map { it.sport }.toSet())
-            }
         }
         Spacer(Modifier.height(80.dp))
-    }
-}
-
-private val VOTABLE_SPORTS = listOf("Cricket", "Football", "Badminton", "Volleyball", "Basketball", "Tennis")
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SportVoteOptions(voted: String?, onVote: (String) -> Unit, enabled: Boolean, exclude: Set<String> = emptySet()) {
-    val options = VOTABLE_SPORTS.filter { it !in exclude }
-    if (options.isEmpty()) return
-    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            options.forEach { sport ->
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(99.dp))
-                        .background(if (voted == sport) PlixoPrimary else PlixoSurface2)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            enabled = enabled,
-                        ) { onVote(sport) }
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                ) {
-                    Text(
-                        sport,
-                        fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp,
-                        color = if (voted == sport) Color.White else PlixoText,
-                    )
-                }
-            }
-        }
     }
 }
 

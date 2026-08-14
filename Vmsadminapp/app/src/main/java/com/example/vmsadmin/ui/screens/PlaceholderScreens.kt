@@ -37,6 +37,7 @@ fun ManageScreen(
     onNavigateToQueue: () -> Unit = {},
     onNavigateToCaptains: () -> Unit = {},
     onNavigateToTournaments: () -> Unit = {},
+    onNavigateToVoteRounds: () -> Unit = {},
     onNavigateToDisputes: () -> Unit = {},
     onNavigateToAuditLog: () -> Unit = {},
     onNavigateToSocieties: () -> Unit = {},
@@ -78,6 +79,7 @@ fun ManageScreen(
             item { ManageCard("Grounds", "Sports grounds and facilities", Icons.Outlined.LocationOn, onNavigateToGrounds) }
             item { ManageCard("Matches", "Scheduled and past matches", Icons.Outlined.DateRange, onNavigateToMatches) }
             item { ManageCard("Tournaments", "Tournament scheduling and status", Icons.Outlined.Star, onNavigateToTournaments) }
+            item { ManageCard("Sport Voting", "Vote round options, deadline, and results", Icons.Outlined.Flag, onNavigateToVoteRounds) }
             item { ManageCard("Societies", "Player groups and community clubs", Icons.Outlined.People, onNavigateToSocieties) }
             item { ManageCard("Disputes", "Support tickets and dispute resolution", Icons.Outlined.Flag, onNavigateToDisputes) }
 

@@ -4070,3 +4070,93 @@ loading/error/empty states rather than a new look).
   every new/changed call site (`TournamentCard.onRegister`, `HomeScreen`'s read-only
   `TournamentsViewModel` usage) for signature compatibility with the `register()`/`withdraw()`
   changes — no breakage found.
+
+---
+## [2026-08-06] Feature — admin-configurable vote rounds (deadline + shortlist) + real winner/lock
+
+User feedback after trying the vote feature shipped earlier today: "what if someone accidentally
+clicks another sport? they can't change it... we just need to keep a deadline over it (ofc
+configurable on admin side and also vote options) for change and final results." Two things here:
+
+1. **A real bug** in what shipped earlier: the "haven't voted yet" chip row (offering unvoted
+   sports to switch to) only showed sports that already had at least one vote — if you wanted to
+   switch to a sport nobody had voted for yet, there was no button to tap. Fixed by redesigning
+   around a fixed, admin-defined options list (see below) rendered as cards regardless of vote
+   count — every option is always tappable.
+2. **A real feature gap**: no deadline, no admin control over which sports are votable, no
+   "final results" concept. Scoped via AskUserQuestion: one global voting cycle (not per-region),
+   admin picks an explicit 2-8 sport shortlist per round, and voting auto-locks at the deadline
+   with the winner shown read-only.
+
+This **supersedes today's earlier region-scoped `sport_votes` schema** (migration 33) — that table
+was empty/unused (shipped only hours earlier), so replaced outright via migration 34 rather than
+carrying forward a design that couldn't support a shared shortlist+deadline.
+
+### Added — Backend
+- `model/sport_vote_round_model.py` — `SportVoteRound`: `options` (JSON list of sport names),
+  `closes_at`, `status` (OPEN/CLOSED), `is_current` (only one round is ever "current" — starting a
+  new one archives the previous, keeping its history rather than deleting it).
+- `model/sport_vote_model.py` — rewritten: `SportVote` now keys on `round_id` (was `region_id`),
+  unique `(round_id, user_id)`.
+- `repository/sport_vote_round_repository.py` — `get_current`, `create` (atomically un-currents the
+  previous round), `close`.
+- `repository/sport_vote_repository.py` — rewritten around `round_id`; `get_results` now returns a
+  `{sport: count}` dict so the service can merge in zero-vote options.
+- `service/sport_vote_service.py` — rewritten. `_build_state()` is the single source of truth for
+  both the public and admin views: builds `results` from the round's fixed `options` list (so
+  zero-vote sports still appear — this is what fixes the "can't switch" bug), computes `closed`
+  dynamically (`status == CLOSED` OR `now >= closes_at` — no cron job needed, just checked at
+  request time), and only reveals `winner_sport` once closed. `cast_vote` now rejects voting on a
+  closed round or a sport outside the round's options. New admin methods: `create_round` (validates
+  2-8 unique, currently-active — checked against `cart_types`, same admin-managed sports list from
+  earlier this session — sport names, and a future `closes_at`) and `close_round` (manual early
+  close).
+- `controller/tournament_vote_routes.py` — unchanged route signatures, now backed by the new
+  service.
+- `controller/admin_vote_round_routes.py` (new) — `GET /api/v1/admin/vote-rounds/current`,
+  `POST /api/v1/admin/vote-rounds`, `POST /api/v1/admin/vote-rounds/{id}/close`, gated to
+  `TOURNAMENT_MANAGER`/`OPS_MANAGER`/`SUPER_ADMIN` (same `_MANAGER_ROLES` pattern as tournament
+  registration admin routes).
+- `run_migrations.py` — migration 34: drops the old region-scoped `sport_votes`, creates
+  `sport_vote_rounds` + a new round-scoped `sport_votes`. Applied live.
+- Tests: `test_sport_vote_service.py` rewritten (12 — round lifecycle, zero-vote-option switching,
+  deadline rejection, admin force-close rejection, winner-only-when-closed, new-round-replaces-
+  current) + `test_admin_vote_round_routes.py` (6 — RBAC, validation-error passthrough, close-not-
+  found).
+
+### Added — App (Vmsuserapp)
+- `Models.kt` — `SportVotesResponse` gains `roundId`, `options`, `closesAt`, `status`,
+  `winnerSport`.
+- `TournamentsViewModel.kt` — new state for all of the above; `applyVoteState()` centralizes
+  mapping the response onto ViewModel state (used by both `loadVotes()` and `castVote()`).
+- `TournamentsScreen.kt` — `VoteTab` rewritten to render from the round's fixed `options` list
+  (fixes the reported bug directly — every shortlisted sport is always a tappable card, whether or
+  not it has votes yet). Shows the deadline, a lock icon + "Voting closed" state once closed
+  (cards become non-interactive), and a "Winner 🏆" pill on the winning sport. Removed the old
+  `VOTABLE_SPORTS`/`SportVoteOptions` chip-row workaround entirely — no longer needed now that all
+  options are always visible.
+
+### Added — App (Vmsadminapp)
+- `Models.kt` — `VoteRoundState`, `CreateVoteRoundRequest`.
+- `ApiService.kt` / `data/VoteRoundRepository.kt` — same wrapper pattern as every other admin repo
+  (`parseErrorDetail` on `HttpException`).
+- `viewmodel/VoteRoundViewModel.kt` (+ Factory) — `load`, `startRound`, `closeRound`.
+- `ui/screens/VoteRoundScreen.kt` (new) — current-round card (status pill, live tallies as progress
+  bars, winner marker once closed, "Force close now") + start-new-round card (`FilterChip`
+  multi-select sourced from the existing active-`cart_types` list, a date picker + a second
+  Material3 `TimePicker` dialog combined into one deadline, "Start round" validated to 2-8
+  selections). New `"Sport Voting"` entry under Manage → Venues & Matches, gated to the same
+  `TOURNAMENT_ROLES` as the Tournaments screen. Wired end-to-end:
+  `MainActivity` → `AppNavigation` → `MainScreen` → `ManageScreen`.
+- **Compatibility note**: originally wrote the date/time-combining logic with `java.time`
+  (`Instant`/`LocalDateTime`/`ZoneId`), but this app's `minSdk = 24` has no core-library
+  desugaring enabled — `java.time` requires API 26+ and would have crashed on older devices.
+  Caught before shipping (not by a failing test — desugaring gaps don't fail a JVM unit-test build)
+  and rewritten with `SimpleDateFormat`/`Calendar`, matching every other date field in this app.
+
+### Verified
+- New/changed tests: 18 (12 service + 6 admin routes), all passing.
+- Full backend suite: 576 passed, zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Migration 34 applied live against the production Neon DB.
+- Neither app build-verified here (no JDK in this shell) — user rebuilds via Android Studio.

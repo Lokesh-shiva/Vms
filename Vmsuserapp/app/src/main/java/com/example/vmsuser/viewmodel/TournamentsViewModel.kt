@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vmsuser.data.TournamentRepository
 import com.example.vmsuser.models.SportVoteResult
+import com.example.vmsuser.models.SportVotesResponse
 import com.example.vmsuser.models.Tournament
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,10 +29,18 @@ class TournamentsViewModel : ViewModel() {
 
     private val _votes = MutableStateFlow<List<SportVoteResult>>(emptyList())
     val votes: StateFlow<List<SportVoteResult>> = _votes
+    private val _voteOptions = MutableStateFlow<List<String>>(emptyList())
+    val voteOptions: StateFlow<List<String>> = _voteOptions
     private val _myVote = MutableStateFlow<String?>(null)
     val myVote: StateFlow<String?> = _myVote
     private val _totalVotes = MutableStateFlow(0)
     val totalVotes: StateFlow<Int> = _totalVotes
+    private val _voteStatus = MutableStateFlow("NONE") // NONE | OPEN | CLOSED
+    val voteStatus: StateFlow<String> = _voteStatus
+    private val _voteClosesAt = MutableStateFlow<String?>(null)
+    val voteClosesAt: StateFlow<String?> = _voteClosesAt
+    private val _voteWinner = MutableStateFlow<String?>(null)
+    val voteWinner: StateFlow<String?> = _voteWinner
     private val _votesLoading = MutableStateFlow(false)
     val votesLoading: StateFlow<Boolean> = _votesLoading
     private val _voteError = MutableStateFlow<String?>(null)
@@ -83,16 +92,22 @@ class TournamentsViewModel : ViewModel() {
 
     fun clearRegisterError() { _registerError.value = null }
 
+    private fun applyVoteState(state: SportVotesResponse) {
+        _votes.value = state.results
+        _voteOptions.value = state.options
+        _myVote.value = state.myVote
+        _totalVotes.value = state.totalVotes
+        _voteStatus.value = state.status
+        _voteClosesAt.value = state.closesAt
+        _voteWinner.value = state.winnerSport
+    }
+
     fun loadVotes() {
         viewModelScope.launch {
             _votesLoading.value = true
             _voteError.value = null
             repo.getVotes()
-                .onSuccess { state ->
-                    _votes.value = state.results
-                    _myVote.value = state.myVote
-                    _totalVotes.value = state.totalVotes
-                }
+                .onSuccess { applyVoteState(it) }
                 .onFailure { e -> _voteError.value = e.message ?: "Failed to load votes." }
             _votesLoading.value = false
         }
@@ -103,11 +118,7 @@ class TournamentsViewModel : ViewModel() {
             _votesLoading.value = true
             _voteError.value = null
             repo.castVote(sport)
-                .onSuccess { state ->
-                    _votes.value = state.results
-                    _myVote.value = state.myVote
-                    _totalVotes.value = state.totalVotes
-                }
+                .onSuccess { applyVoteState(it) }
                 .onFailure { e -> _voteError.value = e.message ?: "Failed to cast vote." }
             _votesLoading.value = false
         }

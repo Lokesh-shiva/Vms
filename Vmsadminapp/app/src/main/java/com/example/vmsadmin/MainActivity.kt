@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.vmsadmin.data.AuditLogRepository
 import com.example.vmsadmin.data.BookingRepository
 import com.example.vmsadmin.data.SocietyRepository
+import com.example.vmsadmin.data.VoteRoundRepository
 import com.example.vmsadmin.data.CartRepository
 import com.example.vmsadmin.data.CartTypeRepository
 import com.example.vmsadmin.data.DashboardRepository
@@ -37,6 +38,8 @@ import com.example.vmsadmin.viewmodel.AuditLogViewModelFactory
 import com.example.vmsadmin.viewmodel.AuthViewModel
 import com.example.vmsadmin.viewmodel.SocietyViewModel
 import com.example.vmsadmin.viewmodel.SocietyViewModelFactory
+import com.example.vmsadmin.viewmodel.VoteRoundViewModel
+import com.example.vmsadmin.viewmodel.VoteRoundViewModelFactory
 import com.example.vmsadmin.viewmodel.AuthViewModelFactory
 import com.example.vmsadmin.viewmodel.BookingViewModel
 import com.example.vmsadmin.viewmodel.BookingViewModelFactory
@@ -163,6 +166,10 @@ class MainActivity : ComponentActivity() {
         val societyViewModelFactory = SocietyViewModelFactory(societyRepository)
         val societyViewModel = ViewModelProvider(this, societyViewModelFactory)[SocietyViewModel::class.java]
 
+        val voteRoundRepository = VoteRoundRepository(apiService)
+        val voteRoundViewModelFactory = VoteRoundViewModelFactory(voteRoundRepository)
+        val voteRoundViewModel = ViewModelProvider(this, voteRoundViewModelFactory)[VoteRoundViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -193,6 +200,7 @@ class MainActivity : ComponentActivity() {
                         disputeViewModel = disputeViewModel,
                         auditLogViewModel = auditLogViewModel,
                         societyViewModel = societyViewModel,
+                        voteRoundViewModel = voteRoundViewModel,
                         startDestination = startDestination
                     )
                 }

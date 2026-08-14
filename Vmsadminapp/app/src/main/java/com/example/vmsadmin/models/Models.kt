@@ -750,3 +750,26 @@ data class AdminWallet(
     val balance: Int,
     val transactions: List<AdminWalletTransaction> = emptyList(),
 )
+
+@Serializable
+data class SportVoteResultAdmin(
+    val sport: String = "",
+    val votes: Int = 0,
+)
+
+@Serializable
+data class VoteRoundState(
+    val round_id: Int? = null,
+    val options: List<String> = emptyList(),
+    val results: List<SportVoteResultAdmin> = emptyList(),
+    val closes_at: String? = null,
+    val status: String = "NONE",
+    val total_votes: Int = 0,
+    val winner_sport: String? = null,
+)
+
+@Serializable
+data class CreateVoteRoundRequest(
+    val options: List<String>,
+    val closes_at: String,
+)

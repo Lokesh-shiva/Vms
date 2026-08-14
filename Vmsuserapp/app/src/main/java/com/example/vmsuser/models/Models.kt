@@ -310,9 +310,14 @@ data class SportVoteResult(
 
 @Serializable
 data class SportVotesResponse(
+    @SerialName("round_id") val roundId: Int? = null,
+    val options: List<String> = emptyList(),
     val results: List<SportVoteResult> = emptyList(),
+    @SerialName("closes_at") val closesAt: String? = null,
+    val status: String = "NONE", // NONE | OPEN | CLOSED
     @SerialName("my_vote") val myVote: String? = null,
     @SerialName("total_votes") val totalVotes: Int = 0,
+    @SerialName("winner_sport") val winnerSport: String? = null,
 )
 
 @Serializable

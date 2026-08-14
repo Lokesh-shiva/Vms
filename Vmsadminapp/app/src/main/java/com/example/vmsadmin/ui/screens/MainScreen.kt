@@ -59,6 +59,7 @@ import com.example.vmsadmin.viewmodel.RegionViewModel
 import com.example.vmsadmin.viewmodel.TournamentViewModel
 import com.example.vmsadmin.viewmodel.SystemConfigViewModel
 import com.example.vmsadmin.viewmodel.TimeslotViewModel
+import com.example.vmsadmin.viewmodel.VoteRoundViewModel
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Dashboard : BottomNavItem("dashboard", "Dashboard", Icons.Outlined.Home)
@@ -108,6 +109,7 @@ fun MainScreen(
     disputeViewModel: DisputeViewModel,
     auditLogViewModel: AuditLogViewModel,
     societyViewModel: SocietyViewModel,
+    voteRoundViewModel: VoteRoundViewModel,
     currentUserId: Int? = null,
     role: String = "",
     isDebugMode: Boolean = false,
@@ -284,6 +286,7 @@ fun MainScreen(
                             onNavigateToQueue        = { navController.navigate("manage/queue") },
                             onNavigateToCaptains     = { navController.navigate("manage/captains") },
                             onNavigateToTournaments  = { navController.navigate("manage/tournaments") },
+                            onNavigateToVoteRounds   = { navController.navigate("manage/vote-rounds") },
                             onNavigateToDisputes     = { navController.navigate("manage/disputes") },
                             onNavigateToAuditLog     = { navController.navigate("manage/audit-logs") },
                             onNavigateToSocieties    = { navController.navigate("manage/societies") },
@@ -391,6 +394,14 @@ fun MainScreen(
                     else TournamentDetailScreen(
                         viewModel = tournamentViewModel,
                         userManagementViewModel = userManagementViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("manage/vote-rounds") {
+                    if (role !in TOURNAMENT_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else VoteRoundScreen(
+                        viewModel = voteRoundViewModel,
+                        cartTypeViewModel = cartTypeViewModel,
                         onBack = { navController.popBackStack() }
                     )
                 }

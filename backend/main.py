@@ -63,6 +63,7 @@ from modules.chat.model.message_model import Message  # noqa: F401 — registers
 from modules.tournament.controller.tournament_routes import router as tournament_router
 from modules.tournament.controller.tournament_registration_routes import router as tournament_registration_router
 from modules.tournament.controller.tournament_vote_routes import router as tournament_vote_router
+from modules.tournament.controller.admin_vote_round_routes import router as admin_vote_round_router
 from modules.tournament.controller.tournament_match_routes import router as tournament_match_router
 from modules.tournament.controller.leaderboard_routes import router as leaderboard_router
 from modules.tournament.model.tournament_model import Tournament  # noqa: F401 — registers model
@@ -203,6 +204,7 @@ app.include_router(pricing_router)
 app.include_router(engine_router)
 app.include_router(captain_router)
 app.include_router(tournament_vote_router)  # static /votes route must precede tournament_router's /{tournament_id}
+app.include_router(admin_vote_round_router)
 app.include_router(tournament_router)
 app.include_router(tournament_registration_router)
 app.include_router(tournament_match_router)

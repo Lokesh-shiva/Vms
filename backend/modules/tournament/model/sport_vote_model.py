@@ -4,22 +4,22 @@ from core.database.db_connection import Base
 
 
 class SportVote(Base):
-    """One user's current vote for which sport the next city-wide tournament in their
-    region should be. A user has exactly one active vote per region — casting a new
-    vote updates the existing row rather than creating a duplicate."""
+    """One user's vote within a sport-vote round. A user has exactly one vote
+    per round — casting a new vote updates the existing row rather than
+    creating a duplicate."""
 
     __tablename__ = "sport_votes"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(
+    round_id = Column(
         Integer,
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("sport_vote_rounds.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    region_id = Column(
+    user_id = Column(
         Integer,
-        ForeignKey("locations.id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -30,14 +30,14 @@ class SportVote(Base):
     )
 
     __table_args__ = (
-        UniqueConstraint("user_id", "region_id", name="uq_sport_vote_user_region"),
+        UniqueConstraint("round_id", "user_id", name="uq_sport_vote_round_user"),
     )
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
+            "round_id": self.round_id,
             "user_id": self.user_id,
-            "region_id": self.region_id,
             "sport_name": self.sport_name,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,

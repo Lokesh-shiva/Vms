@@ -36,6 +36,8 @@ import com.example.vmsadmin.models.Match
 import com.example.vmsadmin.models.MatchDetail
 import com.example.vmsadmin.models.AdminChatMessage
 import com.example.vmsadmin.models.AdminWallet
+import com.example.vmsadmin.models.CreateVoteRoundRequest
+import com.example.vmsadmin.models.VoteRoundState
 import com.example.vmsadmin.models.CreateMatchRequest
 import com.example.vmsadmin.models.SystemConfigListResponse
 import com.example.vmsadmin.models.SystemConfigResponse
@@ -305,6 +307,15 @@ interface ApiService {
 
     @GET("/api/v1/admin/wallet/{user_id}")
     suspend fun getAdminWallet(@Path("user_id") userId: Int): ApiResponse<AdminWallet>
+
+    @GET("/api/v1/admin/vote-rounds/current")
+    suspend fun getCurrentVoteRound(): ApiResponse<VoteRoundState>
+
+    @POST("/api/v1/admin/vote-rounds")
+    suspend fun createVoteRound(@Body body: CreateVoteRoundRequest): ApiResponse<VoteRoundState>
+
+    @POST("/api/v1/admin/vote-rounds/{round_id}/close")
+    suspend fun closeVoteRound(@Path("round_id") roundId: Int): ApiResponse<VoteRoundState>
 
     // ── User Management endpoints (super_admin only) ─────────────────
     @GET("/api/v1/users")
