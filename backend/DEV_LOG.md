@@ -3928,3 +3928,41 @@ correctly creates a distinct account per number by design — not a bug.
 ### Verified
 - No backend changes.
 - App fix not build-verified here (no JDK in this shell) — user rebuilds via Android Studio.
+
+---
+## [2026-08-06] Fix — same swallowed-400-detail bug in EditProfileScreen's save + a list-shaped `detail` gap
+
+User pasted Render logs showing `PUT /api/v1/users/me` returning 400 after a profile-photo upload
+(200) — the third instance of the error-detail-swallowing pattern found this session (after
+`completeProfile`).
+
+### Root causes
+1. **`ProfileRepository.updateProfile()`** (`data/ProfileRepository.kt`) used a bare
+   `catch (e: Exception) { ... Result.failure(e) }` — same class of bug as `completeProfile` before
+   its fix: Retrofit's `HttpException` for a 4xx never reaches the body converter, so `e.message` was
+   the generic `"HTTP 400 Bad Request"`, never the backend's real reason.
+2. **A second, previously-latent bug in `ErrorUtils.backendDetail()`**: `PUT /users/me`
+   (`user_routes.py:130`) raises `HTTPException(status_code=400, detail=schema.errors)` where
+   `schema.errors` is a **list** of per-field messages, not a single string (unlike
+   `complete-profile`'s single-string `detail`s). The old `backendDetail()` did
+   `jsonObject["detail"]?.jsonPrimitive?.content`, which throws on a `JsonArray` — caught internally
+   and silently returning `null`, falling back to the generic message. So even after applying the
+   `completeProfile`-style fix here, the real per-field reason (e.g. an invalid DOB, bad username
+   format) would still have been hidden.
+
+### Fixed
+**App — Vmsuserapp**
+- `ProfileRepository.updateProfile()` — rewritten with explicit `catch (e: HttpException)` /
+  `catch (e: Exception)`, using `e.toUserMessage(...)`, matching the pattern now used across the app.
+- `ErrorUtils.kt` — `backendDetail()` now branches on whether `detail` is a `JsonArray` (joins the
+  per-field messages into one string) or a plain string/primitive (unchanged behavior) — handles both
+  of the backend's two `detail` shapes instead of only one.
+
+### Investigated
+Checked `MatchRepository.kt` and other repos for the same swallowing pattern — they already handle
+`HttpException` correctly via a local `backendMessage()` helper equivalent to `toUserMessage()`; this
+gap was isolated to `ProfileRepository`.
+
+### Verified
+- No backend changes (`UpdateUserSchema` validation logic itself untouched).
+- App fix not build-verified here (no JDK in this shell) — user rebuilds via Android Studio.

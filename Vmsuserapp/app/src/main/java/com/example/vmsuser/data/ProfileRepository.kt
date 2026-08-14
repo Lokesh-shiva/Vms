@@ -5,6 +5,8 @@ import com.example.vmsuser.models.Notification
 import com.example.vmsuser.models.WalletTransaction
 import com.example.vmsuser.network.RetrofitClient
 import com.example.vmsuser.network.UserSession
+import com.example.vmsuser.network.toUserMessage
+import retrofit2.HttpException
 
 class ProfileRepository {
     private val api = RetrofitClient.api
@@ -22,8 +24,14 @@ class ProfileRepository {
         dateOfBirth?.let { body["date_of_birth"] = it }
         val res = api.updateProfile(body)
         if (res.success && res.data != null) { UserSession.setUser(res.data); Result.success(Unit) }
-        else Result.failure(Exception(res.message ?: "Failed"))
-    } catch (e: Exception) { Log.e("ProfileRepo", "updateProfile", e); Result.failure(e) }
+        else Result.failure(Exception(res.message ?: "Failed to save profile."))
+    } catch (e: HttpException) {
+        Log.e("ProfileRepo", "updateProfile", e)
+        Result.failure(Exception(e.toUserMessage("Failed to save profile.")))
+    } catch (e: Exception) {
+        Log.e("ProfileRepo", "updateProfile", e)
+        Result.failure(Exception(e.message ?: "Failed to save profile."))
+    }
 
     suspend fun getNotifications(): Result<List<Notification>> = try {
         val res = api.getNotifications()
