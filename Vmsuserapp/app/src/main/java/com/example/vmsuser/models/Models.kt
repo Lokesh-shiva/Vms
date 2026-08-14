@@ -303,6 +303,51 @@ data class OpenMatch(
 )
 
 @Serializable
+data class ShopItem(
+    val id: Int = 0,
+    @SerialName("cart_type_id") val cartTypeId: Int? = null,
+    val name: String = "",
+    val description: String = "",
+    val price: Double = 0.0,
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("is_available") val isAvailable: Boolean = true,
+)
+
+@Serializable
+data class OrderItemRequest(
+    @SerialName("item_id") val itemId: Int,
+    val quantity: Int,
+)
+
+@Serializable
+data class CreateOrderRequest(
+    val items: List<OrderItemRequest>,
+)
+
+@Serializable
+data class OrderItemDto(
+    val id: Int = 0,
+    @SerialName("item_id") val itemId: Int? = null,
+    val name: String = "",
+    @SerialName("unit_price") val unitPrice: Double = 0.0,
+    val quantity: Int = 0,
+    val subtotal: Double = 0.0,
+)
+
+@Serializable
+data class OrderDto(
+    val id: Int = 0,
+    val status: String = "PENDING_PAYMENT",
+    @SerialName("total_amount") val totalAmount: Double = 0.0,
+    @SerialName("reference_code") val referenceCode: String = "",
+    @SerialName("transaction_id") val transactionId: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    val items: List<OrderItemDto> = emptyList(),
+    @SerialName("upi_id") val upiId: String? = null,
+    @SerialName("upi_link") val upiLink: String? = null,
+)
+
+@Serializable
 data class SportVoteResult(
     val sport: String = "",
     val votes: Int = 0,

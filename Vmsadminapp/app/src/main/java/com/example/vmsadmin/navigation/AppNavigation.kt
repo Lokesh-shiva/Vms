@@ -24,6 +24,7 @@ import com.example.vmsadmin.viewmodel.UserManagementViewModel
 import com.example.vmsadmin.viewmodel.PaymentViewModel
 import com.example.vmsadmin.viewmodel.CaptainViewModel
 import com.example.vmsadmin.viewmodel.AuditLogViewModel
+import com.example.vmsadmin.viewmodel.OrderViewModel
 import com.example.vmsadmin.viewmodel.SocietyViewModel
 import com.example.vmsadmin.viewmodel.VoteRoundViewModel
 import com.example.vmsadmin.viewmodel.DisputeViewModel
@@ -56,6 +57,7 @@ fun AppNavigation(
     auditLogViewModel: AuditLogViewModel,
     societyViewModel: SocietyViewModel,
     voteRoundViewModel: VoteRoundViewModel,
+    orderViewModel: OrderViewModel,
     startDestination: String
 ) {
     val navController = rememberNavController()
@@ -105,6 +107,7 @@ fun AppNavigation(
                 auditLogViewModel = auditLogViewModel,
                 societyViewModel = societyViewModel,
                 voteRoundViewModel = voteRoundViewModel,
+                orderViewModel = orderViewModel,
                 currentUserId = currentUserId,
                 role = role ?: "",
                 isDebugMode = realRole == "super_admin",

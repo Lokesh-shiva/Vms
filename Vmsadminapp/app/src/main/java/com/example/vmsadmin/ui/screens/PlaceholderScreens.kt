@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -38,6 +39,7 @@ fun ManageScreen(
     onNavigateToCaptains: () -> Unit = {},
     onNavigateToTournaments: () -> Unit = {},
     onNavigateToVoteRounds: () -> Unit = {},
+    onNavigateToOrders: () -> Unit = {},
     onNavigateToDisputes: () -> Unit = {},
     onNavigateToAuditLog: () -> Unit = {},
     onNavigateToSocieties: () -> Unit = {},
@@ -81,6 +83,7 @@ fun ManageScreen(
             item { ManageCard("Tournaments", "Tournament scheduling and status", Icons.Outlined.Star, onNavigateToTournaments) }
             item { ManageCard("Sport Voting", "Vote round options, deadline, and results", Icons.Outlined.Flag, onNavigateToVoteRounds) }
             item { ManageCard("Societies", "Player groups and community clubs", Icons.Outlined.People, onNavigateToSocieties) }
+            item { ManageCard("Shop Orders", "Review and approve shop payment submissions", Icons.Outlined.ShoppingCart, onNavigateToOrders) }
             item { ManageCard("Disputes", "Support tickets and dispute resolution", Icons.Outlined.Flag, onNavigateToDisputes) }
 
             // ── Admin ──────────────────────────────────────────────────

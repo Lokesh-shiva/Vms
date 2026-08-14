@@ -114,6 +114,28 @@ data class Payment(
 )
 
 @Serializable
+data class AdminOrderItem(
+    val id: Int = 0,
+    val item_id: Int? = null,
+    val name: String = "",
+    val unit_price: Double = 0.0,
+    val quantity: Int = 0,
+    val subtotal: Double = 0.0,
+)
+
+@Serializable
+data class AdminOrder(
+    val id: Int,
+    val user_id: Int? = null,
+    val status: String? = null,
+    val total_amount: Double? = null,
+    val reference_code: String? = null,
+    val transaction_id: String? = null,
+    val created_at: String? = null,
+    val items: List<AdminOrderItem> = emptyList(),
+)
+
+@Serializable
 data class PaymentConfig(
     val upi_id: String? = null,
     val merchant_name: String? = null

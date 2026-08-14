@@ -220,6 +220,7 @@ fun ProfileScreen(navController: NavController) {
                     add(Triple(Icons.Outlined.EmojiEvents, "My tournaments") { navController.navigate(Screen.Tournaments.route) })
                     if (FeatureFlags.WALLET) add(Triple(Icons.Outlined.AccountBalanceWallet, "Wallet") { navController.navigate(Screen.Wallet.route) })
                     add(Triple(Icons.Outlined.Group, "My groups") { navController.navigate(Screen.Societies.route) })
+                    add(Triple(Icons.Outlined.ReceiptLong, "My orders") { navController.navigate(Screen.Orders.route) })
                 },
             )
             Spacer(Modifier.height(12.dp))

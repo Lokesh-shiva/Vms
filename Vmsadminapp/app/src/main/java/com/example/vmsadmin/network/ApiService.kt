@@ -35,6 +35,7 @@ import com.example.vmsadmin.models.UpdateGroundRequest
 import com.example.vmsadmin.models.Match
 import com.example.vmsadmin.models.MatchDetail
 import com.example.vmsadmin.models.AdminChatMessage
+import com.example.vmsadmin.models.AdminOrder
 import com.example.vmsadmin.models.AdminWallet
 import com.example.vmsadmin.models.CreateVoteRoundRequest
 import com.example.vmsadmin.models.VoteRoundState
@@ -307,6 +308,15 @@ interface ApiService {
 
     @GET("/api/v1/admin/wallet/{user_id}")
     suspend fun getAdminWallet(@Path("user_id") userId: Int): ApiResponse<AdminWallet>
+
+    @GET("/api/v1/admin/orders")
+    suspend fun getAdminOrders(@Query("status") status: String? = null): ApiResponse<List<AdminOrder>>
+
+    @POST("/api/v1/admin/orders/{order_id}/approve")
+    suspend fun approveOrder(@Path("order_id") orderId: Int): ApiResponse<AdminOrder>
+
+    @POST("/api/v1/admin/orders/{order_id}/reject")
+    suspend fun rejectOrder(@Path("order_id") orderId: Int): ApiResponse<AdminOrder>
 
     @GET("/api/v1/admin/vote-rounds/current")
     suspend fun getCurrentVoteRound(): ApiResponse<VoteRoundState>

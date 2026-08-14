@@ -430,6 +430,15 @@ fun HomeScreen(navController: NavController) {
                         onClick = { navController.navigate(Screen.Tournaments.route) },
                     )
                 }
+                QuickTile(
+                    icon = Icons.Filled.Storefront,
+                    label = "Shop",
+                    sub = "Food & gear",
+                    bg = BlockLimeBg,
+                    fg = BlockLimeFg,
+                    modifier = Modifier.weight(1f),
+                    onClick = { navController.navigate(Screen.Shop.route) },
+                )
             }
             Spacer(Modifier.height(20.dp))
 

@@ -22,6 +22,14 @@ sealed class Screen(val route: String) {
     }
     object OpenMatches : Screen("open_matches")
 
+    // Shop
+    object Shop : Screen("shop")
+    object Checkout : Screen("checkout")
+    object OrderPayment : Screen("order_payment/{orderId}") {
+        fun create(orderId: Int) = "order_payment/$orderId"
+    }
+    object Orders : Screen("orders")
+
     // Tournaments
     object Tournaments : Screen("tournaments")
     object TournamentDetail : Screen("tournament_detail/{id}") {

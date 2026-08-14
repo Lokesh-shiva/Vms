@@ -58,6 +58,7 @@ import com.example.vmsadmin.viewmodel.QueueOverviewViewModel
 import com.example.vmsadmin.viewmodel.RegionViewModel
 import com.example.vmsadmin.viewmodel.TournamentViewModel
 import com.example.vmsadmin.viewmodel.SystemConfigViewModel
+import com.example.vmsadmin.viewmodel.OrderViewModel
 import com.example.vmsadmin.viewmodel.TimeslotViewModel
 import com.example.vmsadmin.viewmodel.VoteRoundViewModel
 
@@ -75,6 +76,7 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
 // ── Role permission sets ─────────────────────────────────────────────
 private val MANAGE_ROLES        = setOf("super_admin", "ops_manager")
 private val PAYMENT_ROLES       = setOf("super_admin", "finance")
+private val ORDER_ROLES         = setOf("super_admin", "finance", "support", "ops_manager")
 private val USERS_ROLES         = setOf("super_admin")
 private val SYSTEM_CONFIG_ROLES = setOf("super_admin")
 private val QUEUE_ROLES         = setOf("super_admin", "ops_manager")
@@ -110,6 +112,7 @@ fun MainScreen(
     auditLogViewModel: AuditLogViewModel,
     societyViewModel: SocietyViewModel,
     voteRoundViewModel: VoteRoundViewModel,
+    orderViewModel: OrderViewModel,
     currentUserId: Int? = null,
     role: String = "",
     isDebugMode: Boolean = false,
@@ -287,6 +290,7 @@ fun MainScreen(
                             onNavigateToCaptains     = { navController.navigate("manage/captains") },
                             onNavigateToTournaments  = { navController.navigate("manage/tournaments") },
                             onNavigateToVoteRounds   = { navController.navigate("manage/vote-rounds") },
+                            onNavigateToOrders       = { navController.navigate("manage/orders") },
                             onNavigateToDisputes     = { navController.navigate("manage/disputes") },
                             onNavigateToAuditLog     = { navController.navigate("manage/audit-logs") },
                             onNavigateToSocieties    = { navController.navigate("manage/societies") },
@@ -402,6 +406,13 @@ fun MainScreen(
                     else VoteRoundScreen(
                         viewModel = voteRoundViewModel,
                         cartTypeViewModel = cartTypeViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("manage/orders") {
+                    if (role !in ORDER_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else OrdersScreen(
+                        viewModel = orderViewModel,
                         onBack = { navController.popBackStack() }
                     )
                 }

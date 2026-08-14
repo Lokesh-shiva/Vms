@@ -13,6 +13,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.vmsuser.network.UserSession
@@ -25,6 +26,7 @@ import com.example.vmsuser.ui.screens.home.HomeScreen
 import com.example.vmsuser.ui.screens.kyc.*
 import com.example.vmsuser.ui.screens.play.*
 import com.example.vmsuser.ui.screens.profile.*
+import com.example.vmsuser.ui.screens.shop.*
 import com.example.vmsuser.ui.screens.social.*
 import com.example.vmsuser.ui.screens.tournaments.*
 
@@ -47,6 +49,8 @@ fun parentTabRoute(route: String?): String? = when {
     route == Screen.Home.route -> Screen.Home.route
     route.startsWith("play") || route.startsWith("queue") ||
         route.startsWith("active_match") || route == Screen.OpenMatches.route -> Screen.Play.route
+    route == Screen.Shop.route || route == Screen.Checkout.route ||
+        route.startsWith("order_payment") || route == Screen.Orders.route -> Screen.Home.route
     route.startsWith("tournament") -> Screen.Tournaments.route
     route.startsWith("societ") || route == Screen.CreateSociety.route -> Screen.Societies.route
     route == Screen.Profile.route || route == Screen.EditProfile.route ||
@@ -110,6 +114,20 @@ fun AppNavigation() {
                 ActiveMatchScreen(navController, matchId = entry.arguments?.getInt("matchId") ?: 0)
             }
             composable(Screen.OpenMatches.route) { OpenMatchesScreen(navController) }
+
+            // Shop — nested graph so Shop/Checkout/OrderPayment share one ShopViewModel
+            // instance (cart state must survive navigation between them).
+            navigation(startDestination = Screen.Shop.route, route = "shop_graph") {
+                composable(Screen.Shop.route) { ShopScreen(navController) }
+                composable(Screen.Checkout.route) { CheckoutScreen(navController) }
+                composable(
+                    Screen.OrderPayment.route,
+                    arguments = listOf(navArgument("orderId") { type = NavType.IntType })
+                ) { entry ->
+                    OrderPaymentScreen(navController, orderId = entry.arguments?.getInt("orderId") ?: 0)
+                }
+            }
+            composable(Screen.Orders.route) { OrdersScreen(navController) }
 
             // Tournaments
             composable(Screen.Tournaments.route) { TournamentsScreen(navController) }

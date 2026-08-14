@@ -39,6 +39,22 @@ interface ApiService {
     @GET("api/v1/sports")
     suspend fun getSports(): ApiResponse<List<SportItem>>
 
+    // Shop
+    @GET("api/v1/items")
+    suspend fun getShopItems(@Query("cart_type_id") cartTypeId: Int? = null): ApiResponse<List<ShopItem>>
+
+    @POST("api/v1/orders")
+    suspend fun createOrder(@Body body: CreateOrderRequest): ApiResponse<OrderDto>
+
+    @GET("api/v1/orders/mine")
+    suspend fun getMyOrders(): ApiResponse<List<OrderDto>>
+
+    @GET("api/v1/orders/{id}")
+    suspend fun getOrder(@Path("id") id: Int): ApiResponse<OrderDto>
+
+    @POST("api/v1/orders/{id}/submit-payment")
+    suspend fun submitOrderPayment(@Path("id") id: Int, @Body body: Map<String, String>): ApiResponse<OrderDto>
+
     @PUT("api/v1/users/me")
     suspend fun updateProfile(@Body body: Map<String, String>): ApiResponse<User>
 

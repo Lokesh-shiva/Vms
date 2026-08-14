@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
 import com.example.vmsadmin.data.AuditLogRepository
 import com.example.vmsadmin.data.BookingRepository
+import com.example.vmsadmin.data.OrderRepository
 import com.example.vmsadmin.data.SocietyRepository
 import com.example.vmsadmin.data.VoteRoundRepository
 import com.example.vmsadmin.data.CartRepository
@@ -36,6 +37,8 @@ import com.example.vmsadmin.ui.theme.VmsAdminTheme
 import com.example.vmsadmin.viewmodel.AuditLogViewModel
 import com.example.vmsadmin.viewmodel.AuditLogViewModelFactory
 import com.example.vmsadmin.viewmodel.AuthViewModel
+import com.example.vmsadmin.viewmodel.OrderViewModel
+import com.example.vmsadmin.viewmodel.OrderViewModelFactory
 import com.example.vmsadmin.viewmodel.SocietyViewModel
 import com.example.vmsadmin.viewmodel.SocietyViewModelFactory
 import com.example.vmsadmin.viewmodel.VoteRoundViewModel
@@ -170,6 +173,10 @@ class MainActivity : ComponentActivity() {
         val voteRoundViewModelFactory = VoteRoundViewModelFactory(voteRoundRepository)
         val voteRoundViewModel = ViewModelProvider(this, voteRoundViewModelFactory)[VoteRoundViewModel::class.java]
 
+        val orderRepository = OrderRepository(apiService)
+        val orderViewModelFactory = OrderViewModelFactory(orderRepository)
+        val orderViewModel = ViewModelProvider(this, orderViewModelFactory)[OrderViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -201,6 +208,7 @@ class MainActivity : ComponentActivity() {
                         auditLogViewModel = auditLogViewModel,
                         societyViewModel = societyViewModel,
                         voteRoundViewModel = voteRoundViewModel,
+                        orderViewModel = orderViewModel,
                         startDestination = startDestination
                     )
                 }

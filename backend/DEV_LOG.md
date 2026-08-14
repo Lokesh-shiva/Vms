@@ -4214,3 +4214,62 @@ not started.
 - Full backend suite: 597 passed (576 prior + 21 new), zero regressions.
 - `python -c "import backend.main"` — clean import.
 - Migration 35 applied live against the production Neon DB.
+
+---
+## [2026-08-06] Feature — shop app UI (Phase 1 completed): Vmsuserapp shop/cart/checkout + Vmsadminapp orders queue
+
+Completes Phase 1 (shop) from the plan — backend was finished earlier today; this is the app UI on
+top of it. Trainer marketplace (Phase 2, full scope per user) still not started.
+
+### Added — Vmsuserapp
+- `Models.kt` — `ShopItem`, `OrderItemRequest`, `CreateOrderRequest`, `OrderItemDto`, `OrderDto`.
+- `ApiService.kt` — `getShopItems`, `createOrder`, `getMyOrders`, `getOrder`, `submitOrderPayment`.
+- `data/ShopRepository.kt` — same `HttpException`/`toUserMessage` pattern used everywhere else this
+  session.
+- `viewmodel/ShopViewModel.kt` — item browse/filter state, an in-memory cart (`Map<itemId, qty>` —
+  no backend persistence needed pre-checkout), order placement/payment-submission/history state.
+- `ui/screens/shop/ShopScreen.kt` — sport filter chips (reuses the existing `GET /api/v1/sports`
+  the app already had), 2-column item grid with inline qty steppers, a floating cart bar.
+- `ui/screens/shop/CheckoutScreen.kt` — cart review + total, places the order.
+- `ui/screens/shop/OrderPaymentScreen.kt` — shows the reference code/amount/UPI ID from the
+  order-creation response, a transaction-ID field, submits for review.
+- `ui/screens/shop/OrdersScreen.kt` — order history with status pills, reachable from the Profile
+  menu ("My orders").
+- `navigation/Screen.kt` / `AppNavigation.kt` — `Shop`/`Checkout`/`OrderPayment`/`Orders` routes.
+  Shop/Checkout/OrderPayment are wrapped in a **nested nav graph** (`"shop_graph"`) so all three
+  share one `ShopViewModel` instance via `viewModel(navController.getBackStackEntry("shop_graph"))`
+  — necessary because the cart is client-side-only state that must survive navigating between
+  those three screens (Orders doesn't need this — it's read-only history, gets its own instance).
+- `HomeScreen.kt` — third Quick Tile ("Shop · Food & gear") alongside Groups and Wallet/Tournaments.
+
+### Added — Vmsadminapp
+- `Models.kt` — `AdminOrderItem`, `AdminOrder`.
+- `ApiService.kt` / `data/OrderRepository.kt` — same `parseErrorDetail`-on-`HttpException` wrapper
+  pattern as every other admin repo.
+- `viewmodel/OrderViewModel.kt` (+ Factory) — loads `UNDER_REVIEW` orders by default, approve/reject
+  with a per-row pending-id set (mirrors `UserManagementViewModel`'s pattern for row-level loading
+  states).
+- `ui/screens/OrdersScreen.kt` — order queue reusing `AppCard`/`StatusBadge` (already handles
+  `PENDING_PAYMENT`/`UNDER_REVIEW`/`REJECTED` out of the box; `PAID` falls through to its generic
+  title-case fallback rather than a dedicated color — cosmetic, not worth touching the shared
+  component for). New `"Shop Orders"` card under Manage → Venues & Matches, gated to
+  `FINANCE`/`SUPPORT`/`OPS_MANAGER`/`SUPER_ADMIN` (matches the backend's `_ORDER_ADMIN_ROLES`
+  exactly — a new `ORDER_ROLES` set, since the existing `PAYMENT_ROLES` is narrower — super_admin/
+  finance only). Wired end-to-end: `MainActivity` → `AppNavigation` → `MainScreen` → `ManageScreen`.
+
+### Bugs caught before shipping (self-review, not user-reported)
+- **`items` shadowing** in both `ShopScreen.kt` and `CheckoutScreen.kt`: each had
+  `val items by vm.items.collectAsState()`, which shadows the imported `LazyVerticalGrid`/
+  `LazyColumn` `items(...)` DSL function in the exact same scope — `items(items) { ... }` would not
+  have compiled (`items: List<ShopItem>` isn't callable). Renamed the local state to `shopItems` in
+  both files. Same check run across every other new screen (`OrdersScreen.kt` ×2, admin
+  `VoteRoundScreen.kt`) — none of those had a colliding local name.
+- Cleaned up two harmless-but-real unused imports (`PlixoButton`, `CircleShape`) in `ShopScreen.kt`
+  left over from an earlier draft.
+
+### Verified
+- No backend changes this entry — full suite still 597 passed (confirmed via a final pytest run).
+- Neither app build-verified here (no JDK in this shell) — user rebuilds via Android Studio. Given
+  the `items` shadowing bug found by careful reading rather than a compiler, did an explicit
+  grep-based pass afterward (`val items\b` across all new/changed screen files) to confirm no
+  other instance of the same mistake slipped through.
