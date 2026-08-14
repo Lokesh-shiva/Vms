@@ -303,6 +303,19 @@ data class OpenMatch(
 )
 
 @Serializable
+data class SportVoteResult(
+    val sport: String = "",
+    val votes: Int = 0,
+)
+
+@Serializable
+data class SportVotesResponse(
+    val results: List<SportVoteResult> = emptyList(),
+    @SerialName("my_vote") val myVote: String? = null,
+    @SerialName("total_votes") val totalVotes: Int = 0,
+)
+
+@Serializable
 data class CreateSocietyRequest(
     val name: String,
     val sport: String,

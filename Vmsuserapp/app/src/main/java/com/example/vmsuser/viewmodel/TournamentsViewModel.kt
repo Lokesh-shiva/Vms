@@ -1,9 +1,10 @@
-﻿package com.example.vmsuser.viewmodel
+package com.example.vmsuser.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vmsuser.data.TournamentRepository
+import com.example.vmsuser.models.SportVoteResult
 import com.example.vmsuser.models.Tournament
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,22 @@ class TournamentsViewModel : ViewModel() {
     val selected: StateFlow<Tournament?> = _selected
     private val _registered = MutableStateFlow<Set<Int>>(emptySet())
     val registered: StateFlow<Set<Int>> = _registered
+
+    private val _registering = MutableStateFlow(false)
+    val registering: StateFlow<Boolean> = _registering
+    private val _registerError = MutableStateFlow<String?>(null)
+    val registerError: StateFlow<String?> = _registerError
+
+    private val _votes = MutableStateFlow<List<SportVoteResult>>(emptyList())
+    val votes: StateFlow<List<SportVoteResult>> = _votes
+    private val _myVote = MutableStateFlow<String?>(null)
+    val myVote: StateFlow<String?> = _myVote
+    private val _totalVotes = MutableStateFlow(0)
+    val totalVotes: StateFlow<Int> = _totalVotes
+    private val _votesLoading = MutableStateFlow(false)
+    val votesLoading: StateFlow<Boolean> = _votesLoading
+    private val _voteError = MutableStateFlow<String?>(null)
+    val voteError: StateFlow<String?> = _voteError
 
     init { load() }
 
@@ -44,10 +61,55 @@ class TournamentsViewModel : ViewModel() {
 
     fun register(id: Int) {
         viewModelScope.launch {
-            try {
-                repo.register(id)
-            } catch (e: Exception) { Log.e("TournamentsVM", "register", e) }
-            _registered.value = _registered.value + id
+            _registering.value = true
+            _registerError.value = null
+            repo.register(id)
+                .onSuccess { _registered.value = _registered.value + id }
+                .onFailure { e -> _registerError.value = e.message ?: "Failed to register." }
+            _registering.value = false
+        }
+    }
+
+    fun withdraw(id: Int) {
+        viewModelScope.launch {
+            _registering.value = true
+            _registerError.value = null
+            repo.withdraw(id)
+                .onSuccess { _registered.value = _registered.value - id }
+                .onFailure { e -> _registerError.value = e.message ?: "Failed to withdraw." }
+            _registering.value = false
+        }
+    }
+
+    fun clearRegisterError() { _registerError.value = null }
+
+    fun loadVotes() {
+        viewModelScope.launch {
+            _votesLoading.value = true
+            _voteError.value = null
+            repo.getVotes()
+                .onSuccess { state ->
+                    _votes.value = state.results
+                    _myVote.value = state.myVote
+                    _totalVotes.value = state.totalVotes
+                }
+                .onFailure { e -> _voteError.value = e.message ?: "Failed to load votes." }
+            _votesLoading.value = false
+        }
+    }
+
+    fun castVote(sport: String) {
+        viewModelScope.launch {
+            _votesLoading.value = true
+            _voteError.value = null
+            repo.castVote(sport)
+                .onSuccess { state ->
+                    _votes.value = state.results
+                    _myVote.value = state.myVote
+                    _totalVotes.value = state.totalVotes
+                }
+                .onFailure { e -> _voteError.value = e.message ?: "Failed to cast vote." }
+            _votesLoading.value = false
         }
     }
 }

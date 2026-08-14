@@ -3992,3 +3992,81 @@ already has Home/Play/Tournaments/Captain/Chat/Profile) or restyling the existin
 - App fix not build-verified here (no JDK in this shell) — user rebuilds via Android Studio.
   Reuses existing `MatchRepository`, `OpenMatch` model, and `SectionHeader`/`PlixoPill` components
   with signatures matched against their definitions before use.
+
+---
+## [2026-08-06] Feature — real sport-voting poll + tournament registration robustness
+
+User: "tournament we see vote but there's no proper voting system or vote registration... make it
+more robust and visually appealing." Investigated first — the "Vote" tab in `TournamentsScreen.kt`
+was **100% fake**: a hardcoded static list (`VOTE_DATA`), `myVote` a screen-local variable never
+persisted, no backend counterpart at all despite copy claiming votes decide the next city-wide
+tournament. Separately, `TournamentsViewModel.register()` had a real robustness bug: it marked a
+tournament as registered in local state **unconditionally**, even when the API call threw — a
+failed/duplicate registration still showed "You're registered!" with no error ever surfaced, and
+there was no withdraw capability in the app despite the backend already supporting it.
+
+User chose (via AskUserQuestion): build a real backend-backed voting poll (not remove/repurpose the
+tab), and extend the visual/robustness pass to both tournament screens. Plan written first
+(`docs/plan-sport-voting-and-tournament-robustness.md`, 3+ files touched, per project rule).
+
+### Added — Backend
+- `modules/tournament/model/sport_vote_model.py` — `SportVote`: `user_id`, `region_id`,
+  `sport_name`, unique on `(user_id, region_id)` — one active vote per user per region; re-voting
+  updates the existing row instead of creating duplicates (deliberately not a full FK to the
+  `sports`/`cart_types` tables — matches how `Tournament.sport` is already serialized as a plain
+  name string, avoiding the pre-existing `sports` vs `cart_types` table split found while
+  investigating `tournament_repository.py`'s `_enrich()`).
+- `repository/sport_vote_repository.py` — `upsert_vote`, `get_my_vote`, `get_results` (grouped
+  counts, most-voted first).
+- `service/sport_vote_service.py` — `cast_vote` validates the sport is active in `cart_types`
+  (the same admin-managed sports list built earlier this session) and resolves the caller's region
+  from `users.region_id` (400 if unset — "Set your area in your profile before voting.").
+- `controller/tournament_vote_routes.py` — `GET/POST /api/v1/tournaments/votes`.
+  **Registration-order gotcha**: had to include this router in `main.py` *before*
+  `tournament_router`, since `tournament_router` already has `GET /{tournament_id}` — with the
+  default include order, a request to `GET /votes` would have matched that path-param route first
+  (Starlette matches `{tournament_id}` as a bare string before FastAPI's own `int` coercion fails)
+  and 422'd instead of ever reaching the real votes handler. Caught before it shipped by reasoning
+  through route order, not by a failing test.
+- `run_migrations.py` — migration 33: creates `sport_votes`. Applied live.
+- Tests: `test_sport_vote_service.py` (6 — cast/appear, re-vote moves not duplicates, multi-user
+  aggregation, no-region rejected, inactive/unknown sport rejected, empty state) +
+  `test_tournament_vote_routes.py` (4 — success/error paths at the route layer, service mocked).
+
+### Added / Fixed — App (Vmsuserapp)
+- `Models.kt` — `SportVoteResult`, `SportVotesResponse`.
+- `ApiService.kt` — `getSportVotes()`, `castSportVote()`, plus `withdrawTournament()` (the
+  `DELETE /tournaments/{id}/register` backend route existed already but the app never called it).
+- `TournamentRepository.kt` — same `HttpException`/`toUserMessage` fix applied to every other repo
+  this session (was a bare swallowing `catch`); added `getVotes()`, `castVote()`, `withdraw()`.
+- `TournamentsViewModel.kt` — **`register()` bug fixed**: now only adds to `_registered` on actual
+  `onSuccess`, with a new `registerError` state surfaced on failure instead of silently lying about
+  registration status. Added `withdraw()`, `registering` loading state, and
+  `votes`/`myVote`/`totalVotes`/`votesLoading`/`voteError` state + `loadVotes()`/`castVote()`.
+- `TournamentsScreen.kt` — `VoteTab` rewritten against real data: loading spinner, error text,
+  empty state with a "Be the first to vote" prompt, real percentage bars from actual counts, and a
+  `SportVoteOptions` chip row (reusing the app's existing `FlowRow`+`ExperimentalLayoutApi` pattern
+  already established in `CaptainApplicationScreen.kt`) for casting/changing a vote. Fake countdown
+  line removed (no real deadline concept existed) — replaced with "Votes in your area" + a real
+  total count.
+- `TournamentDetailScreen.kt` — register CTA now shows a loading label + is disabled mid-request;
+  a `registerError` banner appears on failure; the registered-state card gained a "Withdraw
+  registration" text action wired to the new `withdraw()`.
+
+### Not built (explicitly out of scope, per plan)
+Team-name/roster registration UI (backend already accepts empty `team_data` for individual
+registration — team flow is a separate, larger feature); tournament standings/leaderboard UI on
+the detail screen (backend route exists separately, own slice if wanted later); full re-skin of
+either screen (both already followed the app's design system — effort went into real
+loading/error/empty states rather than a new look).
+
+### Verified
+- New tests: 10, all passing (6 service + 4 route).
+- Full backend suite: 564 passed (554 prior + 10 new), zero regressions.
+- `python -c "import backend.main"` — clean import, confirms the router-ordering fix doesn't break
+  anything else.
+- Migration 33 applied live against the production Neon DB.
+- App not build-verified here (no JDK in this shell) — user rebuilds via Android Studio. Checked
+  every new/changed call site (`TournamentCard.onRegister`, `HomeScreen`'s read-only
+  `TournamentsViewModel` usage) for signature compatibility with the `register()`/`withdraw()`
+  changes — no breakage found.

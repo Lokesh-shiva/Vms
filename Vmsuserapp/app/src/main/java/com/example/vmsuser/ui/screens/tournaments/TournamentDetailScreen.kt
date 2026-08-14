@@ -1,6 +1,7 @@
 ﻿package com.example.vmsuser.ui.screens.tournaments
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +32,8 @@ fun TournamentDetailScreen(navController: NavController, id: Int) {
     val vm: TournamentsViewModel = viewModel()
     val selected by vm.selected.collectAsState()
     val registered by vm.registered.collectAsState()
+    val registering by vm.registering.collectAsState()
+    val registerError by vm.registerError.collectAsState()
 
     LaunchedEffect(id) { vm.select(id) }
 
@@ -97,15 +100,40 @@ fun TournamentDetailScreen(navController: NavController, id: Int) {
             }
 
             // Register CTA
+            if (registerError != null) {
+                Text(registerError!!, fontFamily = PlusJakartaSans, fontSize = 13.sp, color = PlixoDanger)
+            }
             if (isRegistered) {
-                Box(modifier = Modifier.fillMaxWidth().background(BlockMintBg, PlixoShape.Card).padding(20.dp), contentAlignment = Alignment.Center) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Icon(Icons.Filled.CheckCircle, null, tint = BlockMintFg, modifier = Modifier.size(24.dp))
-                        Text("You're registered!", fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = BlockMintFg)
+                Column(modifier = Modifier.fillMaxWidth().background(BlockMintBg, PlixoShape.Card).padding(20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Icon(Icons.Filled.CheckCircle, null, tint = BlockMintFg, modifier = Modifier.size(24.dp))
+                            Text("You're registered!", fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = BlockMintFg)
+                        }
                     }
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        if (registering) "Withdrawing…" else "Withdraw registration",
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp,
+                        color = BlockMintFg.copy(alpha = 0.75f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(enabled = !registering) { vm.withdraw(t.id) },
+                    )
                 }
             } else {
-                PlixoButton("Register for ${t.name} · ₹${t.entryFee}", onClick = { vm.register(t.id) })
+                PlixoButton(
+                    if (registering) "Registering…" else "Register for ${t.name} · ₹${t.entryFee}",
+                    onClick = { vm.register(t.id) },
+                    enabled = !registering,
+                )
             }
         }
         Spacer(Modifier.height(80.dp))

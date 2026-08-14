@@ -371,6 +371,19 @@ cur.execute("""
         ADD COLUMN IF NOT EXISTS current_match_id INTEGER REFERENCES matches(id) ON DELETE SET NULL;
 """)
 
+print("Running migration 33: create sport_votes table ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS sport_votes (
+        id          SERIAL PRIMARY KEY,
+        user_id     INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        region_id   INT NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+        sport_name  VARCHAR(100) NOT NULL,
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+        CONSTRAINT uq_sport_vote_user_region UNIQUE (user_id, region_id)
+    );
+""")
+
 conn.commit()
 cur.close()
 conn.close()

@@ -95,6 +95,15 @@ interface ApiService {
     @POST("api/v1/tournaments/{id}/register")
     suspend fun registerTournament(@Path("id") id: Int, @Body body: Map<String, String> = emptyMap()): ApiResponse<Unit>
 
+    @DELETE("api/v1/tournaments/{id}/register")
+    suspend fun withdrawTournament(@Path("id") id: Int): ApiResponse<Unit>
+
+    @GET("api/v1/tournaments/votes")
+    suspend fun getSportVotes(): ApiResponse<SportVotesResponse>
+
+    @POST("api/v1/tournaments/votes")
+    suspend fun castSportVote(@Body body: Map<String, String>): ApiResponse<SportVotesResponse>
+
     // Societies
     @GET("api/v1/societies")
     suspend fun getSocieties(): ApiResponse<List<Society>>
