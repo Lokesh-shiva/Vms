@@ -34,8 +34,10 @@ fun TournamentDetailScreen(navController: NavController, id: Int) {
     val registered by vm.registered.collectAsState()
     val registering by vm.registering.collectAsState()
     val registerError by vm.registerError.collectAsState()
+    val standings by vm.standings.collectAsState()
+    val standingsLoading by vm.standingsLoading.collectAsState()
 
-    LaunchedEffect(id) { vm.select(id) }
+    LaunchedEffect(id) { vm.select(id); vm.loadStandings(id) }
 
     val t = selected ?: return
 
@@ -89,6 +91,48 @@ fun TournamentDetailScreen(navController: NavController, id: Int) {
                 Box(modifier = Modifier.fillMaxWidth().height(8.dp).background(PlixoSurface2, PlixoShape.Pill)) {
                     val progress = t.registeredTeams.toFloat() / t.maxTeams.coerceAtLeast(1)
                     Box(modifier = Modifier.fillMaxWidth(progress).fillMaxHeight().background(PlixoPrimary, PlixoShape.Pill))
+                }
+            }
+
+            // Standings
+            if (standingsLoading || standings.isNotEmpty()) {
+                Column(modifier = Modifier.fillMaxWidth().background(PlixoSurface, PlixoShape.Card).padding(16.dp)) {
+                    Text("Standings", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = PlixoText)
+                    Spacer(Modifier.height(10.dp))
+                    if (standingsLoading && standings.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = PlixoPrimary, modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                        }
+                    } else {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("", modifier = Modifier.weight(0.5f))
+                            Text("Player/Team", modifier = Modifier.weight(2f), fontFamily = PlusJakartaSans, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = PlixoText3)
+                            Text("P", modifier = Modifier.weight(0.6f), fontFamily = PlusJakartaSans, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = PlixoText3)
+                            Text("W", modifier = Modifier.weight(0.6f), fontFamily = PlusJakartaSans, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = PlixoText3)
+                            Text("Pts", modifier = Modifier.weight(0.7f), fontFamily = PlusJakartaSans, fontWeight = FontWeight.SemiBold, fontSize = 11.sp, color = PlixoText3)
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        standings.sortedBy { it.rank ?: Int.MAX_VALUE }.forEach { s ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    "${s.rank ?: "-"}",
+                                    modifier = Modifier.weight(0.5f),
+                                    fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = PlixoPrimary,
+                                )
+                                Text(
+                                    s.name,
+                                    modifier = Modifier.weight(2f),
+                                    fontFamily = PlusJakartaSans, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = PlixoText, maxLines = 1,
+                                )
+                                Text("${s.played}", modifier = Modifier.weight(0.6f), fontFamily = PlusJakartaSans, fontSize = 12.5.sp, color = PlixoText2)
+                                Text("${s.won}", modifier = Modifier.weight(0.6f), fontFamily = PlusJakartaSans, fontSize = 12.5.sp, color = PlixoText2)
+                                Text("${s.points}", modifier = Modifier.weight(0.7f), fontFamily = PlusJakartaSans, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = PlixoText)
+                            }
+                        }
+                    }
                 }
             }
 

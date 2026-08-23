@@ -91,3 +91,24 @@ class TestTournamentStandingService(unittest.TestCase):
     def test_global_leaderboard_empty_region(self):
         board = self.standing_service.get_global_leaderboard(region_id=99, sport_id=99)
         self.assertEqual(board, [])
+
+    def test_standings_fallback_name_when_user_missing(self):
+        standings = self.standing_service.get_standings(self.tournament["id"])
+        names = {s["user_id"]: s["name"] for s in standings}
+        self.assertEqual(names[1], "Player #1")
+        self.assertEqual(names[2], "Player #2")
+
+    def test_standings_resolves_real_user_name(self):
+        from modules.user.model.user_model import User
+
+        session = self.standing_service._s_repo._session_factory()
+        try:
+            session.add(User(id=1, name="Alice", phone="+1000000001", password_hash="", role="user"))
+            session.commit()
+        finally:
+            session.close()
+
+        standings = self.standing_service.get_standings(self.tournament["id"])
+        names = {s["user_id"]: s["name"] for s in standings}
+        self.assertEqual(names[1], "Alice")
+        self.assertEqual(names[2], "Player #2")

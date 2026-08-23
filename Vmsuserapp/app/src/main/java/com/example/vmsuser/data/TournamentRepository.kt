@@ -3,6 +3,7 @@
 import android.util.Log
 import com.example.vmsuser.models.SportVotesResponse
 import com.example.vmsuser.models.Tournament
+import com.example.vmsuser.models.TournamentStanding
 import com.example.vmsuser.network.RetrofitClient
 import com.example.vmsuser.network.toUserMessage
 import retrofit2.HttpException
@@ -42,6 +43,18 @@ class TournamentRepository {
     } catch (e: Exception) {
         Log.e("TournamentRepo", "withdraw", e)
         Result.failure(Exception(e.message ?: "Failed to withdraw."))
+    }
+
+    suspend fun getStandings(id: Int): Result<List<TournamentStanding>> = try {
+        val res = api.getTournamentStandings(id)
+        if (res.success && res.data != null) Result.success(res.data)
+        else Result.failure(Exception(res.message ?: "Failed to load standings."))
+    } catch (e: HttpException) {
+        Log.e("TournamentRepo", "getStandings", e)
+        Result.failure(Exception(e.toUserMessage("Failed to load standings.")))
+    } catch (e: Exception) {
+        Log.e("TournamentRepo", "getStandings", e)
+        Result.failure(Exception(e.message ?: "Failed to load standings."))
     }
 
     suspend fun getVotes(): Result<SportVotesResponse> = try {

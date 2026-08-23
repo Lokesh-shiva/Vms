@@ -7,6 +7,7 @@ import com.example.vmsuser.data.TournamentRepository
 import com.example.vmsuser.models.SportVoteResult
 import com.example.vmsuser.models.SportVotesResponse
 import com.example.vmsuser.models.Tournament
+import com.example.vmsuser.models.TournamentStanding
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -91,6 +92,24 @@ class TournamentsViewModel : ViewModel() {
     }
 
     fun clearRegisterError() { _registerError.value = null }
+
+    private val _standings = MutableStateFlow<List<TournamentStanding>>(emptyList())
+    val standings: StateFlow<List<TournamentStanding>> = _standings
+    private val _standingsLoading = MutableStateFlow(false)
+    val standingsLoading: StateFlow<Boolean> = _standingsLoading
+    private val _standingsError = MutableStateFlow<String?>(null)
+    val standingsError: StateFlow<String?> = _standingsError
+
+    fun loadStandings(tournamentId: Int) {
+        viewModelScope.launch {
+            _standingsLoading.value = true
+            _standingsError.value = null
+            repo.getStandings(tournamentId)
+                .onSuccess { _standings.value = it }
+                .onFailure { e -> _standingsError.value = e.message ?: "Failed to load standings." }
+            _standingsLoading.value = false
+        }
+    }
 
     private fun applyVoteState(state: SportVotesResponse) {
         _votes.value = state.results

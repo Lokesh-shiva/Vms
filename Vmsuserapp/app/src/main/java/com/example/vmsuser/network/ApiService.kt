@@ -114,6 +114,9 @@ interface ApiService {
     @DELETE("api/v1/tournaments/{id}/register")
     suspend fun withdrawTournament(@Path("id") id: Int): ApiResponse<Unit>
 
+    @GET("api/v1/tournaments/{id}/standings")
+    suspend fun getTournamentStandings(@Path("id") id: Int): ApiResponse<List<TournamentStanding>>
+
     @GET("api/v1/tournaments/votes")
     suspend fun getSportVotes(): ApiResponse<SportVotesResponse>
 

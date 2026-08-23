@@ -131,6 +131,21 @@ data class Tournament(
 )
 
 @Serializable
+data class TournamentStanding(
+    val id: Int = 0,
+    @SerialName("tournament_id") val tournamentId: Int = 0,
+    @SerialName("user_id") val userId: Int? = null,
+    @SerialName("team_id") val teamId: Int? = null,
+    val name: String = "",
+    val played: Int = 0,
+    val won: Int = 0,
+    val drawn: Int = 0,
+    val lost: Int = 0,
+    val points: Int = 0,
+    val rank: Int? = null,
+)
+
+@Serializable
 data class Society(
     val id: Int = 0,
     val name: String = "",

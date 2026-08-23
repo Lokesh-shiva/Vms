@@ -74,12 +74,44 @@ class TournamentStandingRepository:
             session.close()
 
     def find_by_tournament(self, tournament_id: int) -> list[dict]:
+        """Standings enriched with a display name — resolved server-side so any
+        authenticated caller gets usable names, not just admins (who separately
+        have access to the registrations list to resolve this themselves)."""
+        from modules.tournament.model.tournament_team_model import TournamentTeam
+        from modules.user.model.user_model import User
+
         session = self._session_factory()
         try:
             rows = session.query(TournamentStanding).filter(
                 TournamentStanding.tournament_id == tournament_id,
             ).order_by(TournamentStanding.points.desc()).all()
-            return [r.to_dict() for r in rows]
+
+            user_ids = {r.user_id for r in rows if r.user_id}
+            team_ids = {r.team_id for r in rows if r.team_id}
+            names_by_user = {}
+            if user_ids:
+                names_by_user = {
+                    u.id: u.name
+                    for u in session.query(User).filter(User.id.in_(user_ids)).all()
+                }
+            names_by_team = {}
+            if team_ids:
+                names_by_team = {
+                    t.id: t.name
+                    for t in session.query(TournamentTeam).filter(TournamentTeam.id.in_(team_ids)).all()
+                }
+
+            result = []
+            for r in rows:
+                data = r.to_dict()
+                if r.team_id:
+                    data["name"] = names_by_team.get(r.team_id, f"Team #{r.team_id}")
+                elif r.user_id:
+                    data["name"] = names_by_user.get(r.user_id, f"Player #{r.user_id}")
+                else:
+                    data["name"] = "TBD"
+                result.append(data)
+            return result
         finally:
             session.close()
 

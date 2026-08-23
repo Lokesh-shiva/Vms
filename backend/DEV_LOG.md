@@ -4344,3 +4344,53 @@ point (sub-detail screens like `TournamentDetail`/`SocietyDetail`/`TicketDetail`
   Matches, Wallet, Captain dashboard/KYC, Notifications, Societies, Chat) — all already had a
   direct entry point, nothing else changed.
 - Neither app build-verified here (no JDK in this shell) — user rebuilds via Android Studio.
+
+---
+## [2026-08-06] Feature — tournament standings UI (was fully missing from Vmsuserapp)
+
+Follow-up to the discoverability audit: user asked whether other discussed features might still be
+missing entirely (not just poorly placed). A second audit pass found `GET
+/api/v1/tournaments/{id}/standings` (`tournament_match_routes.py`) had **zero UI anywhere** in
+Vmsuserapp — no route, no screen reference. The admin app already renders this
+(`Vmsadminapp TournamentDetailScreen.kt`'s "Standings" tab). Also checked: society leaderboard,
+dispute self-service (create+view), and match/booking payment UI — society leaderboard and dispute
+create/view both already exist and work; match/booking payment was confirmed intentional (matches
+are free to join in the current phase, no gap).
+
+### Root cause of why standings would've been useless even if wired up
+`TournamentStanding.to_dict()` only returns `user_id`/`team_id` — no name. The admin app resolves
+names client-side against its own `GET /tournaments/{id}/registrations` call, which only
+managers/admins can call (`_MANAGER_ROLES`-gated) — not usable from Vmsuserapp for a regular
+player. Rather than duplicate admin-only data access in the user app, enriched the standings
+response server-side instead.
+
+### Added / Fixed — Backend
+- `tournament_standing_repository.py`'s `find_by_tournament()` now resolves and includes a `name`
+  field per row (joins to `User`/`TournamentTeam` by the ids already on each standing row), falling
+  back to `"Player #{id}"`/`"Team #{id}"` when the referenced record is missing — same fallback
+  text the admin app already uses for its own equivalent case. No route/schema changes needed;
+  `GET /{tournament_id}/standings` already existed and required no new auth (`require_user`).
+- Tests: 2 new (`test_standings_fallback_name_when_user_missing`,
+  `test_standings_resolves_real_user_name`), added to the existing
+  `test_tournament_standing_service.py`.
+
+### Added — App (Vmsuserapp)
+- `Models.kt` — `TournamentStanding`.
+- `ApiService.kt` / `data/TournamentRepository.kt` / `viewmodel/TournamentsViewModel.kt` —
+  `getTournamentStandings`/`getStandings`/`loadStandings` following the exact patterns already
+  used for votes/registration in the same files.
+- `ui/screens/tournaments/TournamentDetailScreen.kt` — new "Standings" card (rank/name/played/won/
+  points table) between the existing "Teams progress" and "About" cards, loaded alongside
+  `vm.select(id)` in the same `LaunchedEffect`. Only renders while loading or once standings exist
+  — hidden entirely for a tournament with no recorded match results yet, matching the admin app's
+  own "no standings until a result is recorded" behavior rather than showing an empty table.
+- **Route-ordering check** (habit from earlier bugs this session): confirmed
+  `/{tournament_id}/standings` can't collide with `tournament_router`'s bare `GET /{tournament_id}`
+  regardless of `main.py` include order — Starlette matches on full path depth, and the extra
+  `/standings` segment means the two patterns never overlap. No reordering needed.
+
+### Verified
+- New tests: 2, passing (6/6 in the standing-service file total).
+- Full backend suite: 599 passed (597 prior + 2 new), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- App not build-verified here (no JDK in this shell) — user rebuilds via Android Studio.
