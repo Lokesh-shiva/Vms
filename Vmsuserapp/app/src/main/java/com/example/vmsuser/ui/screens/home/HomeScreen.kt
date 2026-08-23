@@ -547,7 +547,7 @@ fun HomeScreen(navController: NavController) {
                 .clip(RoundedCornerShape(26.dp))
                 .background(PlixoInk)
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
-                    navController.navigate(Screen.Captain.route)
+                    navController.navigate(if (UserSession.isCaptain) Screen.Captain.route else Screen.BecomeACaptain.route)
                 }
                 .padding(20.dp),
         ) {
@@ -575,7 +575,7 @@ fun HomeScreen(navController: NavController) {
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Become a Captain",
+                        if (UserSession.isCaptain) "Captain Dashboard" else "Become a Captain",
                         fontFamily = BricolageGrotesque,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
@@ -583,7 +583,7 @@ fun HomeScreen(navController: NavController) {
                         letterSpacing = (-0.4).sp,
                     )
                     Text(
-                        "Organise matches · earn ₹150–500/session",
+                        if (UserSession.isCaptain) "View your matches and earnings" else "Organise matches · earn ₹150–500/session",
                         fontFamily = PlusJakartaSans,
                         fontSize = 12.5.sp,
                         color = Color.White.copy(0.6f),

@@ -4309,3 +4309,38 @@ appear on the admin side, and there was no way to manually refresh.
   submission already correctly moves status to `UNDER_REVIEW` server-side; the bug was purely
   the admin screen never re-fetching).
 - Neither app build-verified here (no JDK in this shell) — user rebuilds via Android Studio.
+
+---
+## [2026-08-06] Fix — pre-client-testing discoverability audit (Vmsuserapp)
+
+User request ahead of sending a beta build to a client: every feature must have a direct entry
+point (bottom nav, Home section, or Profile menu item) — no hidden/buried navigation. Ran a full
+audit (agent) cross-referencing every route in `navigation/Screen.kt` against `HomeScreen.kt` and
+`ProfileScreen.kt`'s menu sections. Result: 31 of 33 routes already had a direct, 1-2-tap entry
+point (sub-detail screens like `TournamentDetail`/`SocietyDetail`/`TicketDetail` correctly excluded
+— reachable by design from their parent list). Two real issues found and fixed:
+
+1. **Support/tickets was buried** — `Screen.Support` had no card on Home and no item in
+   `ProfileScreen.kt`'s `MenuSection` lists; the only path was a row nested inside Settings
+   (`SettingsScreen.kt:77`), one level deeper than every other feature in the app.
+2. **Home's "Become a Captain" CTA was captain-status-blind** — it always said "Become a Captain"
+   and always navigated to `Screen.Captain.route` (the dashboard), for every user regardless of
+   whether they already were a captain. A non-captain tapping it landed on a dashboard with empty
+   stats and no onboarding prompt, since `CaptainDashboardScreen` has no captain-status gate of its
+   own; an existing captain tapping it saw onboarding copy for something they'd already done.
+
+### Fixed
+**App — Vmsuserapp**
+- `ProfileScreen.kt` — added a "Support" row (`Icons.Outlined.SupportAgent`) to the second menu
+  section, alongside Notifications/Settings, navigating to `Screen.Support.route`.
+- `HomeScreen.kt` — Captain CTA now branches on `UserSession.isCaptain` (same source `BottomNav.kt`
+  already uses for the Captain tab): captains see "Captain Dashboard" / "View your matches and
+  earnings" and navigate to `Screen.Captain.route`; non-captains see "Become a Captain" / the
+  original earn-money copy and navigate to `Screen.BecomeACaptain.route` (onboarding).
+
+### Verified
+- No backend changes.
+- Full audit findings for every other feature (Shop/Cart/Checkout/Orders, Sport Voting, Open
+  Matches, Wallet, Captain dashboard/KYC, Notifications, Societies, Chat) — all already had a
+  direct entry point, nothing else changed.
+- Neither app build-verified here (no JDK in this shell) — user rebuilds via Android Studio.

@@ -237,6 +237,7 @@ fun ProfileScreen(navController: NavController) {
                 if (FeatureFlags.NOTIFICATIONS) {
                     add(Triple(Icons.Outlined.Notifications, "Notifications") { navController.navigate(Screen.Notifications.route) })
                 }
+                add(Triple(Icons.Outlined.SupportAgent, "Support") { navController.navigate(Screen.Support.route) })
                 add(Triple(Icons.Outlined.Settings, "Settings") { navController.navigate(Screen.Settings.route) })
             }
             if (secondSection.isNotEmpty()) {
