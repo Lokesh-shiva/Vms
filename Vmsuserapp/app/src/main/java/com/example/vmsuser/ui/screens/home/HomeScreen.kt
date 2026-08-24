@@ -439,6 +439,15 @@ fun HomeScreen(navController: NavController) {
                     modifier = Modifier.weight(1f),
                     onClick = { navController.navigate(Screen.Shop.route) },
                 )
+                QuickTile(
+                    icon = Icons.Filled.SportsTennis,
+                    label = "Coaches",
+                    sub = "Book now",
+                    bg = BlockSkyBg,
+                    fg = BlockSkyFg,
+                    modifier = Modifier.weight(1f),
+                    onClick = { navController.navigate(Screen.Trainers.route) },
+                )
             }
             Spacer(Modifier.height(20.dp))
 

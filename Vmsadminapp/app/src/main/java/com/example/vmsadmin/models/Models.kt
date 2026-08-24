@@ -795,3 +795,45 @@ data class CreateVoteRoundRequest(
     val options: List<String>,
     val closes_at: String,
 )
+
+@Serializable
+data class Trainer(
+    val id: Int,
+    val name: String,
+    val bio: String? = null,
+    val specialties: String? = null,
+    val rate_per_session: Double,
+    val image_url: String? = null,
+    val is_active: Boolean = true,
+)
+
+@Serializable
+data class CreateTrainerRequest(
+    val name: String,
+    val bio: String? = null,
+    val specialties: String? = null,
+    val rate_per_session: Double,
+)
+
+@Serializable
+data class UpdateTrainerRequest(
+    val name: String? = null,
+    val bio: String? = null,
+    val specialties: String? = null,
+    val rate_per_session: Double? = null,
+    val is_active: Boolean? = null,
+)
+
+@Serializable
+data class AdminTrainerBooking(
+    val id: Int,
+    val trainer_id: Int? = null,
+    val user_id: Int? = null,
+    val session_date: String? = null,
+    val session_time: String? = null,
+    val status: String? = null,
+    val amount: Double? = null,
+    val reference_code: String? = null,
+    val transaction_id: String? = null,
+    val created_at: String? = null,
+)

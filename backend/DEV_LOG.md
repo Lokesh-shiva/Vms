@@ -4394,3 +4394,89 @@ response server-side instead.
 - Full backend suite: 599 passed (597 prior + 2 new), zero regressions.
 - `python -c "import backend.main"` — clean import.
 - App not build-verified here (no JDK in this shell) — user rebuilds via Android Studio.
+
+---
+## [2026-08-06] Feature — Trainers/Coaches v1 (directory + direct booking, both apps)
+
+User context: client had asked about trainer/coach support previously and it was still missing;
+given time pressure ahead of sending a build to the client, scoped down from the originally
+discussed full marketplace (self-signup, KYC/approval, scheduling calendar, automated payout) to a
+trimmed v1 (via AskUserQuestion): admin adds trainer profiles directly, users browse and book a
+session with a free-text date/time, payment via the same manual-UPI-reference + admin-approval flow
+used everywhere else in this project (shop, bookings). No image upload in v1 (plain `image_url`
+text field). Plan: `docs/plan-trainers-v1.md`.
+
+### Added — Backend, new `trainer` module (mirrors the `order` module's shape closely)
+- `model/trainer_model.py` — `Trainer`: name, bio, specialties (comma-separated string, no
+  taxonomy), rate_per_session, image_url, is_active.
+- `model/trainer_booking_model.py` — `TrainerBooking`: trainer_id, user_id, session_date/
+  session_time (plain strings, validated by regex + a real-date check — no calendar/availability
+  system in v1), status (`PENDING_PAYMENT → UNDER_REVIEW → CONFIRMED/REJECTED`, same shape as
+  `Order`/`Payment`), amount (computed server-side from the trainer's current rate — never trusted
+  from the client), reference_code, transaction_id.
+- `repository/trainer_repository.py` (CRUD, mirrors `cart_type_repository.py`),
+  `repository/trainer_booking_repository.py` (mirrors `order_repository.py`).
+- `service/trainer_service.py` — admin CRUD validation (name + positive rate required).
+- `service/trainer_booking_service.py` — `create_booking` validates date/time format, rejects a
+  past date, requires the trainer to exist and be active, computes `amount` server-side, generates
+  a unique `TRN-{user_id}-####` reference + UPI deep link (same
+  `_get_active_upi_id`/`_get_active_merchant_name` config-then-env-fallback pattern as
+  `PaymentService`/`OrderService`). `submit_payment` (ownership-checked), `approve_booking`/
+  `reject_booking` (UNDER_REVIEW-gated).
+- `controller/trainer_routes.py` — `GET /api/v1/trainers` (public, returns active+inactive — same
+  convention as `/api/v1/sports`, app filters client-side), `GET/{id}`, admin
+  `POST`/`PUT`/`DELETE` gated to `require_admin` (same broad admin-role set as sports/grounds/items).
+- `controller/trainer_booking_routes.py` — `POST /api/v1/trainer-bookings`,
+  `GET /trainer-bookings/mine` (declared before `/{id}` — same ordering discipline as `orders`),
+  `GET/{id}`, `POST/{id}/submit-payment`.
+- `controller/admin_trainer_booking_routes.py` — `GET /api/v1/admin/trainer-bookings` (+`?status=`),
+  `POST/{id}/approve`, `POST/{id}/reject`, gated to `FINANCE`/`SUPPORT`/`OPS_MANAGER`/`SUPER_ADMIN`
+  (same set as the shop's admin order routes).
+- `run_migrations.py` — migration 36: `trainers` + `trainer_bookings`. Applied live.
+- Tests: `test_trainer_service.py` (7), `test_trainer_booking_service.py` (12 — amount computed
+  from rate, past-date/format rejection, inactive/unknown-trainer rejection, payment submission +
+  ownership, approve/reject gating), `test_trainer_routes.py` (7 — RBAC, `/mine` not shadowed,
+  admin-vs-user access).
+
+### Added — App (Vmsuserapp), mirrors the shop's nested-graph pattern
+- `Models.kt` — `Trainer`, `CreateTrainerBookingRequest`, `TrainerBookingDto`.
+- `ApiService.kt` / `data/TrainerRepository.kt` / `viewmodel/TrainerViewModel.kt` — same
+  `HttpException`/`toUserMessage` pattern as every other repo this session.
+- `ui/screens/trainers/TrainersScreen.kt` (browse list) → `TrainerDetailScreen.kt` (bio, rate,
+  date/time pickers reusing the established DOB-picker `Box`+`enabled=false` fix, book button) →
+  `TrainerBookingPaymentScreen.kt` (manual UPI, mirrors `OrderPaymentScreen.kt`), wrapped in a
+  nested `"trainer_graph"` nav graph sharing one `TrainerViewModel` instance — same reason
+  `shop_graph` exists (booking state must survive navigation between the three screens).
+- `TrainerBookingsScreen.kt` — booking history, mirrors the shop `OrdersScreen.kt` including its
+  resumable-pending-payment fix from earlier today (tap a `PENDING_PAYMENT` booking to resume).
+- **Entry points added up front this time** (Home quick-tile "Coaches" + Profile menu "My trainer
+  bookings") — both required from the start per the discoverability lessons learned earlier this
+  session (Support and standings both shipped without one and had to be fixed after the fact).
+- Self-review caught the same `items`-shadowing class of bug from earlier — verified none of the
+  new screens declare a local `val items`/`val trainers`/`val bookings` that would shadow the
+  `LazyColumn`/`LazyVerticalGrid` `items(...)` DSL function; all clear on first pass.
+
+### Added — App (Vmsadminapp)
+- `Models.kt` — `Trainer`, `CreateTrainerRequest`, `UpdateTrainerRequest`, `AdminTrainerBooking`.
+- `data/TrainerRepository.kt` — same `parseErrorDetail`-on-`HttpException` wrapper as every other
+  admin repo.
+- `viewmodel/TrainerViewModel.kt` (CRUD, mirrors `CartTypeViewModel.kt` minus image upload) +
+  `viewmodel/TrainerBookingViewModel.kt` (approval queue, mirrors `OrderViewModel.kt` exactly,
+  including reload-on-`init`).
+- `ui/screens/TrainersScreen.kt` (add/edit/delete/toggle-active, mirrors `CartTypesScreen.kt`) +
+  `ui/screens/TrainerBookingsScreen.kt` (approval queue, mirrors the shop `OrdersScreen.kt`
+  **including its reload-on-entry + pull-to-refresh fix from earlier today** — built in correctly
+  from the start this time instead of needing a follow-up fix).
+- Two new Manage cards ("Coaches", "Coach Bookings") — Coaches gated to the same broad admin-role
+  set as sports/grounds (`super_admin`/`ops_manager`/`ground_owner`/`tournament_manager`, matching
+  the backend's `require_admin`), Coach Bookings gated to the same finance/support/ops/super_admin
+  set as Shop Orders. Wired end-to-end: `MainActivity` → `AppNavigation` → `MainScreen` →
+  `ManageScreen`.
+
+### Verified
+- New tests: 26, all passing.
+- Full backend suite: 625 passed (599 prior + 26 new), zero regressions.
+- `python -c "import backend.main"` — clean import.
+- Migration 36 applied live against the production Neon DB.
+- Neither app build-verified here (no JDK in this shell) — user rebuilds via Android Studio. Manual
+  import/shadowing review done across all new files given that constraint (see above).

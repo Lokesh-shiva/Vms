@@ -434,6 +434,36 @@ cur.execute("""
     );
 """)
 
+print("Running migration 36: create trainers + trainer_bookings tables (trainers v1) ...")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS trainers (
+        id                  SERIAL PRIMARY KEY,
+        name                VARCHAR NOT NULL,
+        bio                 VARCHAR,
+        specialties         VARCHAR,
+        rate_per_session    NUMERIC(10,2) NOT NULL,
+        image_url           VARCHAR,
+        is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at          TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at          TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS trainer_bookings (
+        id              SERIAL PRIMARY KEY,
+        trainer_id      INT NOT NULL REFERENCES trainers(id) ON DELETE CASCADE,
+        user_id         INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        session_date    VARCHAR(10) NOT NULL,
+        session_time    VARCHAR(5) NOT NULL,
+        status          VARCHAR(30) NOT NULL DEFAULT 'PENDING_PAYMENT',
+        amount          NUMERIC(10,2) NOT NULL,
+        reference_code  VARCHAR NOT NULL UNIQUE,
+        transaction_id  VARCHAR,
+        created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+""")
+
 conn.commit()
 cur.close()
 conn.close()

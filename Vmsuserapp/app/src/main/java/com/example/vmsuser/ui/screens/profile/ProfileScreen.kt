@@ -221,6 +221,7 @@ fun ProfileScreen(navController: NavController) {
                     if (FeatureFlags.WALLET) add(Triple(Icons.Outlined.AccountBalanceWallet, "Wallet") { navController.navigate(Screen.Wallet.route) })
                     add(Triple(Icons.Outlined.Group, "My groups") { navController.navigate(Screen.Societies.route) })
                     add(Triple(Icons.Outlined.ReceiptLong, "My orders") { navController.navigate(Screen.Orders.route) })
+                    add(Triple(Icons.Outlined.SportsTennis, "My trainer bookings") { navController.navigate(Screen.TrainerBookings.route) })
                 },
             )
             Spacer(Modifier.height(12.dp))

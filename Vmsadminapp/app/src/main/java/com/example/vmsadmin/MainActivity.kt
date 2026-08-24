@@ -13,6 +13,7 @@ import com.example.vmsadmin.data.AuditLogRepository
 import com.example.vmsadmin.data.BookingRepository
 import com.example.vmsadmin.data.OrderRepository
 import com.example.vmsadmin.data.SocietyRepository
+import com.example.vmsadmin.data.TrainerRepository
 import com.example.vmsadmin.data.VoteRoundRepository
 import com.example.vmsadmin.data.CartRepository
 import com.example.vmsadmin.data.CartTypeRepository
@@ -39,6 +40,10 @@ import com.example.vmsadmin.viewmodel.AuditLogViewModelFactory
 import com.example.vmsadmin.viewmodel.AuthViewModel
 import com.example.vmsadmin.viewmodel.OrderViewModel
 import com.example.vmsadmin.viewmodel.OrderViewModelFactory
+import com.example.vmsadmin.viewmodel.TrainerViewModel
+import com.example.vmsadmin.viewmodel.TrainerViewModelFactory
+import com.example.vmsadmin.viewmodel.TrainerBookingViewModel
+import com.example.vmsadmin.viewmodel.TrainerBookingViewModelFactory
 import com.example.vmsadmin.viewmodel.SocietyViewModel
 import com.example.vmsadmin.viewmodel.SocietyViewModelFactory
 import com.example.vmsadmin.viewmodel.VoteRoundViewModel
@@ -177,6 +182,12 @@ class MainActivity : ComponentActivity() {
         val orderViewModelFactory = OrderViewModelFactory(orderRepository)
         val orderViewModel = ViewModelProvider(this, orderViewModelFactory)[OrderViewModel::class.java]
 
+        val trainerRepository = TrainerRepository(apiService)
+        val trainerViewModelFactory = TrainerViewModelFactory(trainerRepository)
+        val trainerViewModel = ViewModelProvider(this, trainerViewModelFactory)[TrainerViewModel::class.java]
+        val trainerBookingViewModelFactory = TrainerBookingViewModelFactory(trainerRepository)
+        val trainerBookingViewModel = ViewModelProvider(this, trainerBookingViewModelFactory)[TrainerBookingViewModel::class.java]
+
         val initialToken = runBlocking { tokenManager.tokenFlow.firstOrNull() }
         val startDestination = if (initialToken.isNullOrEmpty()) "login" else "main"
 
@@ -209,6 +220,8 @@ class MainActivity : ComponentActivity() {
                         societyViewModel = societyViewModel,
                         voteRoundViewModel = voteRoundViewModel,
                         orderViewModel = orderViewModel,
+                        trainerViewModel = trainerViewModel,
+                        trainerBookingViewModel = trainerBookingViewModel,
                         startDestination = startDestination
                     )
                 }

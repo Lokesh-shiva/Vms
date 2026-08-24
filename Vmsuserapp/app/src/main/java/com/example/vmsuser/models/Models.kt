@@ -363,6 +363,38 @@ data class OrderDto(
 )
 
 @Serializable
+data class Trainer(
+    val id: Int = 0,
+    val name: String = "",
+    val bio: String = "",
+    val specialties: String = "",
+    @SerialName("rate_per_session") val ratePerSession: Double = 0.0,
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("is_active") val isActive: Boolean = true,
+)
+
+@Serializable
+data class CreateTrainerBookingRequest(
+    @SerialName("trainer_id") val trainerId: Int,
+    @SerialName("session_date") val sessionDate: String,
+    @SerialName("session_time") val sessionTime: String,
+)
+
+@Serializable
+data class TrainerBookingDto(
+    val id: Int = 0,
+    @SerialName("trainer_id") val trainerId: Int = 0,
+    val status: String = "PENDING_PAYMENT",
+    val amount: Double = 0.0,
+    @SerialName("session_date") val sessionDate: String = "",
+    @SerialName("session_time") val sessionTime: String = "",
+    @SerialName("reference_code") val referenceCode: String = "",
+    @SerialName("transaction_id") val transactionId: String? = null,
+    @SerialName("upi_id") val upiId: String? = null,
+    @SerialName("upi_link") val upiLink: String? = null,
+)
+
+@Serializable
 data class SportVoteResult(
     val sport: String = "",
     val votes: Int = 0,

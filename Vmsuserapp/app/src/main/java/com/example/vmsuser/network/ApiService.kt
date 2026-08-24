@@ -55,6 +55,25 @@ interface ApiService {
     @POST("api/v1/orders/{id}/submit-payment")
     suspend fun submitOrderPayment(@Path("id") id: Int, @Body body: Map<String, String>): ApiResponse<OrderDto>
 
+    // Trainers
+    @GET("api/v1/trainers")
+    suspend fun getTrainers(): ApiResponse<List<Trainer>>
+
+    @GET("api/v1/trainers/{id}")
+    suspend fun getTrainer(@Path("id") id: Int): ApiResponse<Trainer>
+
+    @POST("api/v1/trainer-bookings")
+    suspend fun createTrainerBooking(@Body body: CreateTrainerBookingRequest): ApiResponse<TrainerBookingDto>
+
+    @GET("api/v1/trainer-bookings/mine")
+    suspend fun getMyTrainerBookings(): ApiResponse<List<TrainerBookingDto>>
+
+    @GET("api/v1/trainer-bookings/{id}")
+    suspend fun getTrainerBooking(@Path("id") id: Int): ApiResponse<TrainerBookingDto>
+
+    @POST("api/v1/trainer-bookings/{id}/submit-payment")
+    suspend fun submitTrainerBookingPayment(@Path("id") id: Int, @Body body: Map<String, String>): ApiResponse<TrainerBookingDto>
+
     @PUT("api/v1/users/me")
     suspend fun updateProfile(@Body body: Map<String, String>): ApiResponse<User>
 

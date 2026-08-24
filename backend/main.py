@@ -36,6 +36,9 @@ from modules.cart.controller.ground_routes import router as ground_router
 from modules.item.controller.item_routes import router as item_router
 from modules.order.controller.order_routes import router as order_router
 from modules.order.controller.admin_order_routes import router as admin_order_router
+from modules.trainer.controller.trainer_routes import router as trainer_router
+from modules.trainer.controller.trainer_booking_routes import router as trainer_booking_router
+from modules.trainer.controller.admin_trainer_booking_routes import router as admin_trainer_booking_router
 from modules.booking.controller.booking_routes import router as booking_router
 from modules.payment.controller.payment_routes import router as payment_router
 from modules.auth.controller.auth_routes import router as auth_router
@@ -197,6 +200,9 @@ app.include_router(cart_router)  # /api/v1/carts      (deprecated)
 app.include_router(item_router)
 app.include_router(order_router)
 app.include_router(admin_order_router)
+app.include_router(trainer_router)
+app.include_router(trainer_booking_router)
+app.include_router(admin_trainer_booking_router)
 app.include_router(booking_router)
 app.include_router(payment_router)
 app.include_router(auth_router)

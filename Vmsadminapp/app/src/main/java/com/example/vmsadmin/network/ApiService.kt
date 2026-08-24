@@ -39,6 +39,10 @@ import com.example.vmsadmin.models.AdminOrder
 import com.example.vmsadmin.models.AdminWallet
 import com.example.vmsadmin.models.CreateVoteRoundRequest
 import com.example.vmsadmin.models.VoteRoundState
+import com.example.vmsadmin.models.Trainer
+import com.example.vmsadmin.models.CreateTrainerRequest
+import com.example.vmsadmin.models.UpdateTrainerRequest
+import com.example.vmsadmin.models.AdminTrainerBooking
 import com.example.vmsadmin.models.CreateMatchRequest
 import com.example.vmsadmin.models.SystemConfigListResponse
 import com.example.vmsadmin.models.SystemConfigResponse
@@ -326,6 +330,28 @@ interface ApiService {
 
     @POST("/api/v1/admin/vote-rounds/{round_id}/close")
     suspend fun closeVoteRound(@Path("round_id") roundId: Int): ApiResponse<VoteRoundState>
+
+    // ── Trainers ───────────────────────────────────────────────────
+    @GET("/api/v1/trainers")
+    suspend fun getTrainers(): ApiResponse<List<Trainer>>
+
+    @POST("/api/v1/trainers")
+    suspend fun createTrainer(@Body body: CreateTrainerRequest): ApiResponse<Trainer>
+
+    @PUT("/api/v1/trainers/{trainer_id}")
+    suspend fun updateTrainer(@Path("trainer_id") trainerId: Int, @Body body: UpdateTrainerRequest): ApiResponse<Trainer>
+
+    @DELETE("/api/v1/trainers/{trainer_id}")
+    suspend fun deleteTrainer(@Path("trainer_id") trainerId: Int): ApiResponse<Unit>
+
+    @GET("/api/v1/admin/trainer-bookings")
+    suspend fun getAdminTrainerBookings(@Query("status") status: String? = null): ApiResponse<List<AdminTrainerBooking>>
+
+    @POST("/api/v1/admin/trainer-bookings/{booking_id}/approve")
+    suspend fun approveTrainerBooking(@Path("booking_id") bookingId: Int): ApiResponse<AdminTrainerBooking>
+
+    @POST("/api/v1/admin/trainer-bookings/{booking_id}/reject")
+    suspend fun rejectTrainerBooking(@Path("booking_id") bookingId: Int): ApiResponse<AdminTrainerBooking>
 
     // ── User Management endpoints (super_admin only) ─────────────────
     @GET("/api/v1/users")

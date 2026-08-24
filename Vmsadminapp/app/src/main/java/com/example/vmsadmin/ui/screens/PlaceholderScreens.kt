@@ -40,6 +40,8 @@ fun ManageScreen(
     onNavigateToTournaments: () -> Unit = {},
     onNavigateToVoteRounds: () -> Unit = {},
     onNavigateToOrders: () -> Unit = {},
+    onNavigateToTrainers: () -> Unit = {},
+    onNavigateToTrainerBookings: () -> Unit = {},
     onNavigateToDisputes: () -> Unit = {},
     onNavigateToAuditLog: () -> Unit = {},
     onNavigateToSocieties: () -> Unit = {},
@@ -84,6 +86,8 @@ fun ManageScreen(
             item { ManageCard("Sport Voting", "Vote round options, deadline, and results", Icons.Outlined.Flag, onNavigateToVoteRounds) }
             item { ManageCard("Societies", "Player groups and community clubs", Icons.Outlined.People, onNavigateToSocieties) }
             item { ManageCard("Shop Orders", "Review and approve shop payment submissions", Icons.Outlined.ShoppingCart, onNavigateToOrders) }
+            item { ManageCard("Coaches", "Trainer/coach profiles and rates", Icons.Outlined.Person, onNavigateToTrainers) }
+            item { ManageCard("Coach Bookings", "Review and confirm session payment submissions", Icons.Outlined.DateRange, onNavigateToTrainerBookings) }
             item { ManageCard("Disputes", "Support tickets and dispute resolution", Icons.Outlined.Flag, onNavigateToDisputes) }
 
             // ── Admin ──────────────────────────────────────────────────

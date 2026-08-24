@@ -59,6 +59,8 @@ import com.example.vmsadmin.viewmodel.RegionViewModel
 import com.example.vmsadmin.viewmodel.TournamentViewModel
 import com.example.vmsadmin.viewmodel.SystemConfigViewModel
 import com.example.vmsadmin.viewmodel.OrderViewModel
+import com.example.vmsadmin.viewmodel.TrainerViewModel
+import com.example.vmsadmin.viewmodel.TrainerBookingViewModel
 import com.example.vmsadmin.viewmodel.TimeslotViewModel
 import com.example.vmsadmin.viewmodel.VoteRoundViewModel
 
@@ -77,6 +79,8 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
 private val MANAGE_ROLES        = setOf("super_admin", "ops_manager")
 private val PAYMENT_ROLES       = setOf("super_admin", "finance")
 private val ORDER_ROLES         = setOf("super_admin", "finance", "support", "ops_manager")
+private val TRAINER_MANAGE_ROLES = setOf("super_admin", "ops_manager", "ground_owner", "tournament_manager")
+private val TRAINER_BOOKING_ROLES = setOf("super_admin", "finance", "support", "ops_manager")
 private val USERS_ROLES         = setOf("super_admin")
 private val SYSTEM_CONFIG_ROLES = setOf("super_admin")
 private val QUEUE_ROLES         = setOf("super_admin", "ops_manager")
@@ -113,6 +117,8 @@ fun MainScreen(
     societyViewModel: SocietyViewModel,
     voteRoundViewModel: VoteRoundViewModel,
     orderViewModel: OrderViewModel,
+    trainerViewModel: TrainerViewModel,
+    trainerBookingViewModel: TrainerBookingViewModel,
     currentUserId: Int? = null,
     role: String = "",
     isDebugMode: Boolean = false,
@@ -291,6 +297,8 @@ fun MainScreen(
                             onNavigateToTournaments  = { navController.navigate("manage/tournaments") },
                             onNavigateToVoteRounds   = { navController.navigate("manage/vote-rounds") },
                             onNavigateToOrders       = { navController.navigate("manage/orders") },
+                            onNavigateToTrainers     = { navController.navigate("manage/trainers") },
+                            onNavigateToTrainerBookings = { navController.navigate("manage/trainer-bookings") },
                             onNavigateToDisputes     = { navController.navigate("manage/disputes") },
                             onNavigateToAuditLog     = { navController.navigate("manage/audit-logs") },
                             onNavigateToSocieties    = { navController.navigate("manage/societies") },
@@ -413,6 +421,20 @@ fun MainScreen(
                     if (role !in ORDER_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
                     else OrdersScreen(
                         viewModel = orderViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("manage/trainers") {
+                    if (role !in TRAINER_MANAGE_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else TrainersScreen(
+                        viewModel = trainerViewModel,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable("manage/trainer-bookings") {
+                    if (role !in TRAINER_BOOKING_ROLES) { LaunchedEffect(Unit) { onForbidden() } }
+                    else TrainerBookingsScreen(
+                        viewModel = trainerBookingViewModel,
                         onBack = { navController.popBackStack() }
                     )
                 }

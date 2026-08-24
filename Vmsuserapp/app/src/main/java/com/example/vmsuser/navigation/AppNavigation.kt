@@ -29,6 +29,7 @@ import com.example.vmsuser.ui.screens.profile.*
 import com.example.vmsuser.ui.screens.shop.*
 import com.example.vmsuser.ui.screens.social.*
 import com.example.vmsuser.ui.screens.tournaments.*
+import com.example.vmsuser.ui.screens.trainers.*
 
 // Bottom nav is ONLY shown on the five root tab destinations.
 // All sub-screens (detail, flow, settings) are full-screen without a nav bar.
@@ -51,6 +52,8 @@ fun parentTabRoute(route: String?): String? = when {
         route.startsWith("active_match") || route == Screen.OpenMatches.route -> Screen.Play.route
     route == Screen.Shop.route || route == Screen.Checkout.route ||
         route.startsWith("order_payment") || route == Screen.Orders.route -> Screen.Home.route
+    route == Screen.Trainers.route || route.startsWith("trainer_detail") ||
+        route.startsWith("trainer_booking_payment") || route == Screen.TrainerBookings.route -> Screen.Home.route
     route.startsWith("tournament") -> Screen.Tournaments.route
     route.startsWith("societ") || route == Screen.CreateSociety.route -> Screen.Societies.route
     route == Screen.Profile.route || route == Screen.EditProfile.route ||
@@ -128,6 +131,25 @@ fun AppNavigation() {
                 }
             }
             composable(Screen.Orders.route) { OrdersScreen(navController) }
+
+            // Trainers — same nested-graph pattern as Shop, for the same reason
+            // (booking state must survive navigating Trainers -> Detail -> Payment).
+            navigation(startDestination = Screen.Trainers.route, route = "trainer_graph") {
+                composable(Screen.Trainers.route) { TrainersScreen(navController) }
+                composable(
+                    Screen.TrainerDetail.route,
+                    arguments = listOf(navArgument("id") { type = NavType.IntType })
+                ) { entry ->
+                    TrainerDetailScreen(navController, id = entry.arguments?.getInt("id") ?: 0)
+                }
+                composable(
+                    Screen.TrainerBookingPayment.route,
+                    arguments = listOf(navArgument("bookingId") { type = NavType.IntType })
+                ) { entry ->
+                    TrainerBookingPaymentScreen(navController, bookingId = entry.arguments?.getInt("bookingId") ?: 0)
+                }
+            }
+            composable(Screen.TrainerBookings.route) { TrainerBookingsScreen(navController) }
 
             // Tournaments
             composable(Screen.Tournaments.route) { TournamentsScreen(navController) }

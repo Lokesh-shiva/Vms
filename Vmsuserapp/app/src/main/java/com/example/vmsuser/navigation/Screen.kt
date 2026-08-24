@@ -30,6 +30,16 @@ sealed class Screen(val route: String) {
     }
     object Orders : Screen("orders")
 
+    // Trainers
+    object Trainers : Screen("trainers")
+    object TrainerDetail : Screen("trainer_detail/{id}") {
+        fun create(id: Int) = "trainer_detail/$id"
+    }
+    object TrainerBookingPayment : Screen("trainer_booking_payment/{bookingId}") {
+        fun create(bookingId: Int) = "trainer_booking_payment/$bookingId"
+    }
+    object TrainerBookings : Screen("trainer_bookings")
+
     // Tournaments
     object Tournaments : Screen("tournaments")
     object TournamentDetail : Screen("tournament_detail/{id}") {
