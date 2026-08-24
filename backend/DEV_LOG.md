@@ -4480,3 +4480,26 @@ text field). Plan: `docs/plan-trainers-v1.md`.
 - Migration 36 applied live against the production Neon DB.
 - Neither app build-verified here (no JDK in this shell) — user rebuilds via Android Studio. Manual
   import/shadowing review done across all new files given that constraint (see above).
+
+---
+## [2026-08-06] Fix — Home Quick Tiles congested/text-breaking on portrait screens (app-only)
+
+User: the row with Groups/Wallet/Shop/Coaches "look really messy and congested" and text was
+"breaking into pieces" — "okay in a 16:9 view but our app is inherently 9:16." Root cause: adding
+the Shop and Coaches tiles earlier today grew the row from 2 to 4 `QuickTile`s, each squeezed to
+`weight(1f)` of a narrow portrait width with no `maxLines`/overflow guard on the label/sub `Text`s
+— on a real phone width (not the widescreen preview the tiles were eyeballed against) the text
+wrapped mid-word.
+
+### Fixed — Vmsuserapp
+- `HomeScreen.kt` — Quick Tiles rebuilt as a 2×2 grid (`quickTiles.chunked(2)`) instead of one row
+  of 4, roughly doubling each tile's width. Tile data pulled into a `QuickTileData` holder + a
+  `listOf(...)` so the grid renders generically rather than hand-laying-out each tile.
+- `QuickTile` composable rebuilt from a vertical (icon-above-text) layout to horizontal
+  (icon-beside-text) — reads better at the new wider-per-tile proportions — and both `Text`s now
+  have `maxLines = 1` + `TextOverflow.Ellipsis`, so text can truncate but never wrap/break again,
+  regardless of screen width.
+
+### Verified
+- No backend changes.
+- App not build-verified here (no JDK in this shell) — user rebuilds via Android Studio.

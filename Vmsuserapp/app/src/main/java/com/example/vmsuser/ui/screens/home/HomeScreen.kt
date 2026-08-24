@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -398,58 +399,62 @@ fun HomeScreen(navController: NavController) {
             }
 
             // ── Quick tiles ──────────────────────────────────────────────────
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickTile(
+            val walletOrToursTile = if (FeatureFlags.WALLET) {
+                QuickTileData(
+                    icon = Icons.Filled.AccountBalanceWallet,
+                    label = "Wallet",
+                    sub = "$walletBalance coins",
+                    bg = BlockMintBg,
+                    fg = BlockMintFg,
+                    onClick = { navController.navigate(Screen.Wallet.route) },
+                )
+            } else {
+                val openCount = tournaments.count { it.status == "open" || it.status == "upcoming" }
+                QuickTileData(
+                    icon = Icons.Filled.EmojiEvents,
+                    label = "Tournaments",
+                    sub = if (openCount > 0) "$openCount open" else "Browse",
+                    bg = BlockMintBg,
+                    fg = BlockMintFg,
+                    onClick = { navController.navigate(Screen.Tournaments.route) },
+                )
+            }
+            val quickTiles = listOf(
+                QuickTileData(
                     icon = Icons.Filled.Group,
                     label = "Groups",
                     sub = "Browse",
                     bg = BlockSkyBg,
                     fg = BlockSkyFg,
-                    modifier = Modifier.weight(1f),
                     onClick = { navController.navigate(Screen.Societies.route) },
-                )
-                if (FeatureFlags.WALLET) {
-                    QuickTile(
-                        icon = Icons.Filled.AccountBalanceWallet,
-                        label = "Wallet",
-                        sub = "$walletBalance coins",
-                        bg = BlockMintBg,
-                        fg = BlockMintFg,
-                        modifier = Modifier.weight(1f),
-                        onClick = { navController.navigate(Screen.Wallet.route) },
-                    )
-                } else {
-                    val openCount = tournaments.count { it.status == "open" || it.status == "upcoming" }
-                    QuickTile(
-                        icon = Icons.Filled.EmojiEvents,
-                        label = "Tournaments",
-                        sub = if (openCount > 0) "$openCount open" else "Browse",
-                        bg = BlockMintBg,
-                        fg = BlockMintFg,
-                        modifier = Modifier.weight(1f),
-                        onClick = { navController.navigate(Screen.Tournaments.route) },
-                    )
-                }
-                QuickTile(
+                ),
+                walletOrToursTile,
+                QuickTileData(
                     icon = Icons.Filled.Storefront,
                     label = "Shop",
                     sub = "Food & gear",
                     bg = BlockLimeBg,
                     fg = BlockLimeFg,
-                    modifier = Modifier.weight(1f),
                     onClick = { navController.navigate(Screen.Shop.route) },
-                )
-                QuickTile(
+                ),
+                QuickTileData(
                     icon = Icons.Filled.SportsTennis,
                     label = "Coaches",
-                    sub = "Book now",
+                    sub = "Book a session",
                     bg = BlockSkyBg,
                     fg = BlockSkyFg,
-                    modifier = Modifier.weight(1f),
                     onClick = { navController.navigate(Screen.Trainers.route) },
-                )
+                ),
+            )
+            quickTiles.chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { tile ->
+                        QuickTile(tile = tile, modifier = Modifier.weight(1f))
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(12.dp))
             }
-            Spacer(Modifier.height(20.dp))
 
             // ── Up next ───────────────────────────────────────────────────────
         }
@@ -606,36 +611,55 @@ fun HomeScreen(navController: NavController) {
     }
 }
 
+private data class QuickTileData(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val label: String,
+    val sub: String,
+    val bg: Color,
+    val fg: Color,
+    val onClick: () -> Unit,
+)
+
 @Composable
-private fun QuickTile(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-    sub: String,
-    bg: Color,
-    fg: Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Column(
+private fun QuickTile(tile: QuickTileData, modifier: Modifier = Modifier) {
+    Row(
         modifier = modifier
             .clip(RoundedCornerShape(22.dp))
             .background(PlixoSurface)
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onClick() }
-            .padding(horizontal = 16.dp, vertical = 15.dp),
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { tile.onClick() }
+            .padding(horizontal = 14.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(13.dp))
-                .background(bg),
+                .size(42.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(tile.bg),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(icon, null, tint = fg, modifier = Modifier.size(20.dp))
+            Icon(tile.icon, null, tint = tile.fg, modifier = Modifier.size(21.dp))
         }
-        Spacer(Modifier.height(12.dp))
-        Text(label, fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = PlixoText, letterSpacing = (-0.3).sp)
-        Spacer(Modifier.height(1.dp))
-        Text(sub, fontFamily = PlusJakartaSans, fontSize = 12.sp, color = PlixoText2)
+        Spacer(Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                tile.label,
+                fontFamily = BricolageGrotesque,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                color = PlixoText,
+                letterSpacing = (-0.2).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                tile.sub,
+                fontFamily = PlusJakartaSans,
+                fontSize = 11.5.sp,
+                color = PlixoText2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
