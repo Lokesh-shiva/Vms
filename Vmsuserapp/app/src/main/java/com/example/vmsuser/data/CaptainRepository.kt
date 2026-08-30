@@ -4,7 +4,9 @@ import android.content.ContentResolver
 import android.net.Uri
 import android.util.Log
 import com.example.vmsuser.models.CaptainApplication
+import com.example.vmsuser.models.CaptainCreateMatchRequest
 import com.example.vmsuser.models.CaptainStats
+import com.example.vmsuser.models.Match
 import com.example.vmsuser.network.RetrofitClient
 import com.example.vmsuser.network.toUserMessage
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -53,4 +55,16 @@ class CaptainRepository {
         val res = api.updatePayoutUpi(mapOf("upi_id" to upiId))
         if (res.success) Result.success(Unit) else Result.failure(Exception(res.message ?: "Failed"))
     } catch (e: Exception) { Log.e("CaptainRepo", "updatePayoutUpi", e); Result.failure(Exception(e.toUserMessage("Could not update UPI ID."))) }
+
+    suspend fun createMatch(
+        cartTypeId: Int,
+        regionId: Int,
+        maxPlayers: Int,
+        visibility: String,
+        societyId: Int? = null,
+    ): Result<Match> = try {
+        val res = api.captainCreateMatch(CaptainCreateMatchRequest(cartTypeId, regionId, maxPlayers, visibility, societyId))
+        if (res.success && res.data != null) Result.success(res.data)
+        else Result.failure(Exception(res.message ?: "Failed to create match."))
+    } catch (e: Exception) { Log.e("CaptainRepo", "createMatch", e); Result.failure(Exception(e.toUserMessage("Failed to create match."))) }
 }

@@ -100,6 +100,9 @@ interface ApiService {
     @POST("api/v1/matches/{id}/join")
     suspend fun joinOpenMatch(@Path("id") id: Int): ApiResponse<Match>
 
+    @POST("api/v1/matches/captain-create")
+    suspend fun captainCreateMatch(@Body body: CaptainCreateMatchRequest): ApiResponse<Match>
+
     // Matches
     @GET("api/v1/matches/mine")
     suspend fun getMyMatches(): ApiResponse<List<Match>>

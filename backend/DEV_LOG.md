@@ -4503,3 +4503,63 @@ wrapped mid-word.
 ### Verified
 - No backend changes.
 - App not build-verified here (no JDK in this shell) — user rebuilds via Android Studio.
+
+---
+## [2026-08-06] Fix — dead buttons + dead-end/scroll audit before client APK (Vmsuserapp, no backend changes)
+
+User: preparing to send a debug APK directly to the client (clarified: no developer/debug mode
+needed on the client's device — that's only for `adb install`; sideloading just needs a normal
+one-time "install from this source" permission prompt). Also asked for a full pass to catch any
+dead buttons or dead-end screens before sending. Ran a full audit (agent) across every `onClick`/
+`.clickable` in `ui/screens/**` and every registered `composable(...)` destination in
+`AppNavigation.kt` for back-path and scroll-safety issues.
+
+### Findings and fixes
+
+1. **`CaptainDashboardScreen.kt`'s "Create" tab — 4 fully dead cards** (Open/Society/Tournament/
+   Private match, empty `.clickable {}`). Investigated the backend first per project rule and
+   found this was **not actually unbuilt** — `POST /api/v1/matches/captain-create` already exists
+   and fully supports OPEN/SOCIETY/PRIVATE visibility with server-side validation (membership
+   check for SOCIETY, etc.) — it just had no UI. Wired it up properly:
+   - `Models.kt` — `CaptainCreateMatchRequest`; `Match` gained `inviteCode`.
+   - `ApiService.kt` / `CaptainRepository.kt` — `captainCreateMatch`/`createMatch`.
+   - `CaptainViewModel.kt` — `createMatch()` state (`creatingMatch`/`createMatchError`).
+   - `CaptainDashboardScreen.kt` — new `CreateMatchDialog`: sport/area dropdowns (reusing
+     `getSports()`/`getLocations()`, same pattern as `ProfileSetupScreen`'s pickers), a society
+     dropdown (filtered to `isMember` societies) when creating a SOCIETY match, a max-players
+     stepper, and — since nothing else in the app displays a match's invite code — a success step
+     for PRIVATE matches showing the code before navigating away. The "Tournament" card doesn't
+     map to this endpoint (tournaments are a separate admin-created flow) — redirected it to the
+     existing Tournaments screen instead of pretending to create one.
+2. **`CaptainViewModel.kt` had a `mockStats()` fallback with hardcoded fake numbers** (₹1200 today,
+   4.9★ rating, 142 matches led, two fake matches) used as the *initial* state, with `loadStats()`
+   never handling `onFailure` — if the real API call ever failed, the dashboard would show these
+   fake numbers permanently with no indication anything was wrong. Real risk for a client demo.
+   Replaced the initial state with an empty `CaptainStats()`, added proper `onFailure` → `_error`
+   handling, and added an empty state to `ActiveMatchesTab` (blank list previously had no message).
+3. **`SettingsScreen.kt` — 5 dead rows** (Notifications, Privacy, Language, About Plixo, Terms &
+   Privacy — each `{}`). Notifications now navigates to the existing `Screen.Notifications`; About
+   Plixo now shows a real static info dialog (factual app description, not fabricated legal
+   content). Privacy, Language, and Terms & Privacy were **removed** rather than faked — there's no
+   real privacy policy, language picker, or legal terms document to show, and this project's rules
+   don't allow fabricating legal/policy content. Cleaner to not show the row than to show a fake or
+   "coming soon" one during a client demo.
+4. **`HomeScreen.kt` — dead flash-icon button** on the hero photo overlay (`.clickable {}`). Wired
+   to navigate to Play, same destination as the parent hero card it sits on.
+5. **Scroll safety**: `OrderPaymentScreen.kt` and `TrainerBookingPaymentScreen.kt` (both real
+   payment flows) had their form body in a plain `Column` with no `.verticalScroll(...)` — added
+   it to both. Also added it to `CaptainDashboardScreen.kt`'s Earnings tab (lower risk, but not
+   scroll-safe by construction).
+
+### Not changed
+Every other screen in the audit already had a working back path (top bar arrow, custom back
+button, or is a bottom-nav root) and either a `LazyColumn`/`LazyRow` or `.verticalScroll(...)` —
+confirmed via the audit, no further action needed. `QueueTrackerScreen.kt` and
+`KycSubmittedScreen.kt` lack a back arrow but have valid alternate exits (cancel button /
+forward-only buttons) — left as-is, not true dead ends.
+
+### Verified
+- No backend changes — reused the already-existing, already-tested `captain-create` endpoint as-is.
+- App not build-verified here (no JDK in this shell) — user rebuilds via Android Studio. Did a
+  manual read-through of the new `CreateMatchDialog` block (braces, imports, existing-pattern
+  matches for `ExposedDropdownMenuBox`/`menuAnchor()`) given that constraint.

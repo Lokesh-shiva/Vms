@@ -266,7 +266,9 @@ fun HomeScreen(navController: NavController) {
                             )
                         )
                         .border(1.dp, Color.White.copy(0.30f), CircleShape)
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                            navController.navigate(Screen.Play.route)
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(Icons.Filled.FlashOn, null, tint = Color.White, modifier = Modifier.size(20.dp))

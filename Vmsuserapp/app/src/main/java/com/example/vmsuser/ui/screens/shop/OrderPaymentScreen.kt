@@ -2,8 +2,10 @@ package com.example.vmsuser.ui.screens.shop
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
@@ -39,7 +41,7 @@ fun OrderPaymentScreen(navController: NavController, orderId: Int) {
     Column(modifier = Modifier.fillMaxSize().background(PlixoBg).statusBarsPadding()) {
         PlixoTopBar(title = "Payment", onBack = { navController.popBackStack() })
 
-        Column(modifier = Modifier.weight(1f).padding(20.dp)) {
+        Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(20.dp)) {
             if (submitted) {
                 Column(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Filled.CheckCircle, null, tint = PlixoPrimary, modifier = Modifier.size(56.dp))

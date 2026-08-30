@@ -28,6 +28,25 @@ import com.example.vmsuser.ui.theme.*
 @Composable
 fun SettingsScreen(navController: NavController) {
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            title = { Text("About Plixo", fontFamily = BricolageGrotesque, fontWeight = FontWeight.Bold, fontSize = 20.sp) },
+            text = {
+                Text(
+                    "Plixo helps you find nearby players, book grounds, join tournaments, and connect with coaches — all in one app.",
+                    fontFamily = PlusJakartaSans,
+                    fontSize = 14.sp,
+                    color = PlixoText2,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) { Text("Close") }
+            },
+        )
+    }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -66,13 +85,12 @@ fun SettingsScreen(navController: NavController) {
         PlixoTopBar(title = "Settings", onBack = { navController.popBackStack() })
         Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
             SectionHeader("General")
-            SettingsItem(Icons.Outlined.Notifications, "Notifications") {}
-            SettingsItem(Icons.Outlined.Lock, "Privacy") {}
-            SettingsItem(Icons.Outlined.Language, "Language") {}
+            SettingsItem(Icons.Outlined.Notifications, "Notifications") {
+                navController.navigate(Screen.Notifications.route)
+            }
 
             SectionHeader("Support")
-            SettingsItem(Icons.Outlined.Info, "About Plixo") {}
-            SettingsItem(Icons.Outlined.Description, "Terms & Privacy") {}
+            SettingsItem(Icons.Outlined.Info, "About Plixo") { showAboutDialog = true }
             SettingsItem(Icons.Outlined.HelpOutline, "Help & Support") {
                 navController.navigate(Screen.Support.route)
             }

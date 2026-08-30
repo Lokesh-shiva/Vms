@@ -109,6 +109,16 @@ data class Match(
     @SerialName("captain_id") val captainId: Int? = null,
     @SerialName("player_ids") val playerIds: List<Int> = emptyList(),
     val price: Int = 0,
+    @SerialName("invite_code") val inviteCode: String? = null,
+)
+
+@Serializable
+data class CaptainCreateMatchRequest(
+    @SerialName("cart_type_id") val cartTypeId: Int,
+    @SerialName("region_id") val regionId: Int,
+    @SerialName("max_players") val maxPlayers: Int,
+    val visibility: String,
+    @SerialName("society_id") val societyId: Int? = null,
 )
 
 @Serializable

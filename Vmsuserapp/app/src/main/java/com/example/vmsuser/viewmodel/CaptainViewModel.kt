@@ -17,8 +17,11 @@ import kotlinx.coroutines.launch
 class CaptainViewModel : ViewModel() {
     private val repo = CaptainRepository()
 
-    private val _stats = MutableStateFlow(mockStats())
+    private val _stats = MutableStateFlow(CaptainStats())
     val stats: StateFlow<CaptainStats> = _stats
+
+    private val _statsLoading = MutableStateFlow(true)
+    val statsLoading: StateFlow<Boolean> = _statsLoading
 
     private val _applying = MutableStateFlow(false)
     val applying: StateFlow<Boolean> = _applying
@@ -35,17 +38,44 @@ class CaptainViewModel : ViewModel() {
     private val _updatingUpi = MutableStateFlow(false)
     val updatingUpi: StateFlow<Boolean> = _updatingUpi
 
+    private val _creatingMatch = MutableStateFlow(false)
+    val creatingMatch: StateFlow<Boolean> = _creatingMatch
+    private val _createMatchError = MutableStateFlow<String?>(null)
+    val createMatchError: StateFlow<String?> = _createMatchError
+
     init { loadStats() }
 
     fun clearError() { _error.value = null }
 
     fun loadStats() {
         viewModelScope.launch {
-            try {
-                repo.getStats().onSuccess { _stats.value = it }
-            } catch (e: Exception) { Log.e("CaptainVM", "loadStats", e) }
+            _statsLoading.value = true
+            repo.getStats()
+                .onSuccess { _stats.value = it }
+                .onFailure { e -> _error.value = e.message ?: "Could not load captain stats." }
+            _statsLoading.value = false
         }
     }
+
+    fun createMatch(
+        cartTypeId: Int,
+        regionId: Int,
+        maxPlayers: Int,
+        visibility: String,
+        societyId: Int?,
+        onSuccess: (Match) -> Unit,
+    ) {
+        viewModelScope.launch {
+            _creatingMatch.value = true
+            _createMatchError.value = null
+            repo.createMatch(cartTypeId, regionId, maxPlayers, visibility, societyId)
+                .onSuccess { match -> loadStats(); onSuccess(match) }
+                .onFailure { e -> _createMatchError.value = e.message ?: "Failed to create match." }
+            _creatingMatch.value = false
+        }
+    }
+
+    fun clearCreateMatchError() { _createMatchError.value = null }
 
     fun apply(bio: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
@@ -99,14 +129,4 @@ class CaptainViewModel : ViewModel() {
         }
     }
 
-    private fun mockStats() = CaptainStats(
-        todayEarnings = 1200,
-        weekEarnings = 8400,
-        rating = 4.9f,
-        matchesLed = 142,
-        activeMatches = listOf(
-            Match(1, "Badminton", "confirmed", "Kanteerava Annex", "Indiranagar", "Today 6 PM", price = 400),
-            Match(2, "Cricket", "open", "BBMP Ground", "Koramangala", "Tomorrow 8 AM", price = 200),
-        ),
-    )
 }
