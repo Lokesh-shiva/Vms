@@ -124,6 +124,40 @@ class MatchRepository:
         finally:
             session.close()
 
+    def find_joinable_playnow(
+        self, region_id: int, cart_type_id: int, max_players: int, exclude_user_id: int
+    ) -> dict | None:
+        """Find the oldest still-open play-now WAITING match in the same region+sport
+        with the same max_players, that the given user hasn't already joined — used
+        by POST /matchmaking/play-now to actually pair players together instead of
+        always starting a new solo session. Returns None if nothing joinable exists."""
+        session = self._session_factory()
+        try:
+            candidates = (
+                session.query(Match)
+                .filter(
+                    Match.region_id == region_id,
+                    Match.cart_type_id == cart_type_id,
+                    Match.max_players == max_players,
+                    Match.status == "WAITING",
+                    Match.visibility == "OPEN",
+                    Match.joined_players < Match.max_players,
+                )
+                .order_by(Match.created_at.asc())
+                .all()
+            )
+            for m in candidates:
+                already_in = (
+                    session.query(MatchPlayer)
+                    .filter(MatchPlayer.match_id == m.id, MatchPlayer.user_id == exclude_user_id)
+                    .first()
+                )
+                if not already_in:
+                    return m.to_dict()
+            return None
+        finally:
+            session.close()
+
     def create_captain_match(
         self,
         user_id: int,

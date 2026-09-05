@@ -1,6 +1,53 @@
 # Development Log
 
 ---
+## [2026-09-05] Play Now real auto-matchmaking (client bug: 3 testers didn't pair up)
+
+### The problem
+Client reported that 3 testers installed the debug APK, all tapped "Play Now" for the
+same sport, and none of them saw each other — no "found players" moment. Root cause:
+`POST /api/v1/matchmaking/play-now` **always created a brand-new solo `Match(WAITING)`**,
+regardless of whether a compatible session was already waiting in the same region+sport.
+The intended (but never surfaced) design was "one person creates via Play Now, everyone
+else has to separately browse Open Matches and manually tap Join" — confusing and not
+what "Play Now" implies. User chose "Make it real auto-matchmaking" over improving the
+copy/UI to explain the manual-join flow.
+
+### Added
+**Backend**
+- `match_repository.py` — `find_joinable_playnow(region_id, cart_type_id, max_players, exclude_user_id)`:
+  finds the oldest still-open, `OPEN`-visibility, `WAITING` match in the same region+sport
+  with the same `max_players` and room left, excluding matches the caller has already joined.
+- `matchmaking_routes.py` — `POST /play-now` now calls `find_joinable_playnow()` before
+  falling back to `create_play_now()`. If a joinable match is found, it calls the existing
+  row-locked `match_service.join_match()`; if that raises `ValueError` (someone else filled
+  it in the race window between search and locked join), falls through to creating a new
+  solo session as before. Response shape (`QueueStatus`) is unchanged either way, so the
+  app's existing polling loop in `QueueTrackerScreen.kt` needs no changes — a joined tester
+  just sees `players_searching` jump immediately and gets navigated to the match once full.
+
+### Tests
+- `backend/modules/match/tests/test_find_joinable_playnow.py` (8 tests) — region/sport/
+  max_players/visibility/fullness filtering, excludes matches the user already joined,
+  returns oldest first.
+- `backend/modules/matchmaking/tests/test_play_now_auto_match.py` (4 route-level tests) —
+  joins existing match, creates new session when nothing joinable, falls back to a new
+  session when the join loses a race, still rejects when the user already has an active match.
+  Hit and fixed an unrelated SQLite testing gotcha along the way: `create_engine("sqlite:///:memory:")`
+  defaults to `SingletonThreadPool`, which gives each thread its own separate in-memory DB;
+  `TestClient` runs the route on a worker thread, so the route's session saw a blank,
+  tableless database. Fixed with `poolclass=StaticPool, connect_args={"check_same_thread": False}`.
+- Full suite: 637 passed (625 prior + 12 new), zero regressions.
+
+### Architectural decisions
+- No migration needed — pure query/route logic change, no schema change.
+- Matching key is `(region_id, cart_type_id, max_players)` exact match, not "any compatible
+  match" — a 2-player Play Now session and a 6-player one for the same sport stay separate,
+  since `max_players` changes the match's identity/pricing shape.
+- Race safety relies entirely on `match_service.join_match()`'s existing row lock — no new
+  locking was added; `find_joinable_playnow()` is a best-effort candidate search only.
+
+---
 ## [2026-06-16] Core play-now model fix — Match(WAITING) not QueueEntry
 
 ### The problem

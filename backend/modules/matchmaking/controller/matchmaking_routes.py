@@ -135,6 +135,31 @@ def play_now(request: PlayNowRequest, current_user: dict = Depends(require_user)
             "You already have an active match. Leave it before starting a new one."
         )
 
+    # Try to pair with someone already waiting in the same region+sport before
+    # starting a brand-new solo session — this is what makes "Play Now" actually
+    # match players together instead of everyone waiting on their own match forever.
+    joinable = match_repository.find_joinable_playnow(
+        region_id=region_id,
+        cart_type_id=sport_id,
+        max_players=request.max_players,
+        exclude_user_id=current_user["id"],
+    )
+    if joinable:
+        try:
+            match = match_service.join_match(current_user["id"], joinable["id"])
+            enriched = match_repository.find_by_id_enriched(match["id"])
+            data = _match_to_queue_status(enriched or match, price=price)
+            message = (
+                "Match found! Get ready."
+                if data.get("match_found")
+                else "Joined an existing session — waiting for more players…"
+            )
+            return _success(data, message)
+        except ValueError:
+            # Someone else filled/claimed it between our search and the locked
+            # join attempt — fall through to starting a fresh session below.
+            pass
+
     try:
         match = match_repository.create_play_now(
             user_id=current_user["id"],
